@@ -5,6 +5,7 @@ This file is a lightweight running log of what Deshawn is doing.
 
 ## 2026-02-04
 
+- 14:38 — Activity log was stale. Current repo state check: last commit is still `b9bbe1f` (docs: activity log and todo). No new commits since; only untracked local dev DB file `prisma/dev.db` exists. Next work item remains: redesign Daily Worklog (totals-first + multiple line items + live red/green validation) and then implement saves + Admin client create/edit.
 - 11:03 — Start activity logging. Next work item: redesign Daily Worklog to support totals-first + multiple line items + live validation (red/green) for hours + kilometers.
 - 10:30 — Reviewed requirements for Daily Worklog: totals must exactly match sum of line items; disable submit until matched.
 - 10:25 — Dev server restarted on port 3005.
