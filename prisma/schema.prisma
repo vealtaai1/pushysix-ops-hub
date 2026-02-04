@@ -1,0 +1,175 @@
+// PushySix Operations Hub
+// Prisma schema
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum UserRole {
+  EMPLOYEE
+  ADMIN
+}
+
+enum ClientStatus {
+  ACTIVE
+  ON_HOLD
+}
+
+enum BillingCycleStartDay {
+  FIRST
+  FIFTEENTH
+}
+
+enum AuditAction {
+  CREATE
+  UPDATE
+  DELETE
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String?
+  role      UserRole @default(EMPLOYEE)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  worklogs  Worklog[]
+  auditLogs AuditLog[]
+}
+
+model Client {
+  id                   String                @id @default(cuid())
+  name                 String
+  status               ClientStatus          @default(ACTIVE)
+  billingCycleStartDay BillingCycleStartDay  @default(FIRST)
+
+  // Manual mapping
+  clickupSpaceId String?
+  qboCustomerId  String?
+
+  // Email to notify client for billing events
+  clientBillingEmail String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  retainerCycles RetainerCycle[]
+  worklogEntries WorklogEntry[]
+  mileageEntries MileageEntry[]
+
+  @@index([status])
+}
+
+model RetainerCycle {
+  id        String   @id @default(cuid())
+  clientId  String
+  startDate DateTime
+  endDate   DateTime
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  client       Client        @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  bucketLimits BucketLimit[]
+
+  @@index([clientId, startDate])
+}
+
+model BucketLimit {
+  id             String  @id @default(cuid())
+  retainerCycleId String
+
+  // Canonical bucket key (stable)
+  bucketKey  String
+  bucketName String
+
+  minutesLimit Int
+
+  retainerCycle RetainerCycle @relation(fields: [retainerCycleId], references: [id], onDelete: Cascade)
+
+  @@unique([retainerCycleId, bucketKey])
+}
+
+model Worklog {
+  id        String   @id @default(cuid())
+  userId    String
+  // The day being reported
+  workDate  DateTime
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user    User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  entries WorklogEntry[]
+  mileage MileageEntry[]
+
+  @@unique([userId, workDate])
+  @@index([workDate])
+}
+
+model WorklogEntry {
+  id        String   @id @default(cuid())
+  worklogId String
+  clientId  String
+
+  bucketKey  String
+  bucketName String
+
+  minutes Int
+  notes   String?
+
+  // optional future expansion
+  clickupTaskUrl String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  worklog Worklog @relation(fields: [worklogId], references: [id], onDelete: Cascade)
+  client  Client  @relation(fields: [clientId], references: [id], onDelete: Restrict)
+
+  @@index([clientId])
+  @@index([bucketKey])
+}
+
+model MileageEntry {
+  id        String   @id @default(cuid())
+  worklogId String
+
+  kilometers Float
+  notes      String?
+
+  // optional: attach mileage to a client later
+  clientId String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  worklog Worklog @relation(fields: [worklogId], references: [id], onDelete: Cascade)
+  client  Client? @relation(fields: [clientId], references: [id], onDelete: SetNull)
+
+  @@index([clientId])
+}
+
+model AuditLog {
+  id        String      @id @default(cuid())
+  userId    String?
+  action    AuditAction
+  entity    String
+  entityId  String?
+  before    Json?
+  after     Json?
+
+  createdAt DateTime @default(now())
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([entity, entityId])
+  @@index([createdAt])
+}
