@@ -44,6 +44,8 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
+# scratch
+/.tmp
 
 # Prisma client (do not commit generated client/binaries; generate during install/build)
 /src/generated/prisma
