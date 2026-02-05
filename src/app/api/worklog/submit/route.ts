@@ -24,6 +24,10 @@ type SubmitWorklogBody = {
   }>;
 };
 
+function nearlyEqual(a: number, b: number, eps = 0.0001) {
+  return Math.abs(a - b) <= eps;
+}
+
 function badRequest(message: string, details?: unknown) {
   return NextResponse.json({ ok: false, message, details }, { status: 400 });
 }
@@ -51,12 +55,37 @@ export async function POST(req: Request) {
   if (!parsed) return badRequest("workDate must be YYYY-MM-DD.");
 
   const targetHours = Number(body.targetHours);
-  if (!Number.isFinite(targetHours) || targetHours < 0) return badRequest("targetHours must be a number >= 0.");
+  if (!Number.isFinite(targetHours) || targetHours <= 0) return badRequest("targetHours must be a number > 0.");
 
   const totalKm = Number(body.totalKm);
   if (!Number.isFinite(totalKm) || totalKm < 0) return badRequest("totalKm must be a number >= 0.");
 
   if (!Array.isArray(body.tasks) || body.tasks.length === 0) return badRequest("At least one task line is required.");
+
+  const allocatedHours = body.tasks.reduce((sum, t) => {
+    const h = Number(t?.hours);
+    return sum + (Number.isFinite(h) ? h : 0);
+  }, 0);
+
+  if (allocatedHours <= 0) return badRequest("You can’t submit an empty worklog.");
+
+  if (!nearlyEqual(allocatedHours, targetHours)) {
+    return badRequest("Allocated task hours must match targetHours exactly.", { allocatedHours, targetHours });
+  }
+
+  const mileage = Array.isArray(body.mileage) ? body.mileage : [];
+  const allocatedKm = mileage.reduce((sum, m) => {
+    const km = Number(m?.kilometers);
+    return sum + (Number.isFinite(km) ? km : 0);
+  }, 0);
+
+  if (totalKm > 0) {
+    if (!nearlyEqual(allocatedKm, totalKm, 0.05)) {
+      return badRequest("Allocated mileage must match totalKm exactly.", { allocatedKm, totalKm });
+    }
+  } else {
+    if (allocatedKm > 0) return badRequest("totalKm must be > 0 to submit mileage entries.");
+  }
 
   const window = getWorklogWindowStamps(body.workDate);
   if ("error" in window) return badRequest(window.error);
@@ -119,6 +148,8 @@ export async function POST(req: Request) {
         if (!t.bucketKey) throw new Error("Bucket is required for task hours > 0.");
         const hours = Number(t.hours);
         if (!Number.isFinite(hours) || hours <= 0) throw new Error("Invalid hours.");
+        const notes = String(t.notes ?? "").trim();
+        if (!notes) throw new Error("Notes are required for task hours > 0.");
         const minutes = Math.round(hours * 60);
         return {
           worklogId: worklog.id,
@@ -126,7 +157,7 @@ export async function POST(req: Request) {
           bucketKey: t.bucketKey,
           bucketName: t.bucketName ?? t.bucketKey,
           minutes,
-          notes: String(t.notes ?? ""),
+          notes,
         };
       });
 
@@ -134,7 +165,7 @@ export async function POST(req: Request) {
       await prisma.worklogEntry.createMany({ data: entryCreates });
     }
 
-    const mileageCreates = (body.mileage ?? [])
+    const mileageCreates = mileage
       .filter((m) => Number(m.kilometers) > 0)
       .map((m) => {
         const km = Number(m.kilometers);

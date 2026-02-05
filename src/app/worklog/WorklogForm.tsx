@@ -194,6 +194,13 @@ export function WorklogForm({
     });
   }, [tasks]);
 
+  const hasBucketViolations = React.useMemo(() => {
+    return tasks.some((t) => {
+      const n = parseNumberText(t.hoursText);
+      return Number.isFinite(n) && n > 0 && t.bucketKey.trim().length === 0;
+    });
+  }, [tasks]);
+
   const allocatedKm = React.useMemo(() => {
     return mileage.reduce((sum, m) => {
       const n = parseNumberText(m.kilometersText);
@@ -215,7 +222,16 @@ export function WorklogForm({
     return nearlyEqual(allocatedKm, totalKm);
   }, [mileageRequired, mileage, allocatedKm, totalKm]);
 
-  const canSubmit = hoursMatch && !hasTaskHoursViolations && !hasNotesViolations && !hasClientViolations && mileageComplete;
+  const targetHoursValid = Number.isFinite(targetHours) && targetHours > 0;
+
+  const canSubmit =
+    targetHoursValid &&
+    hoursMatch &&
+    !hasTaskHoursViolations &&
+    !hasNotesViolations &&
+    !hasClientViolations &&
+    !hasBucketViolations &&
+    mileageComplete;
 
   return (
     <div className="space-y-6">
@@ -284,7 +300,9 @@ export function WorklogForm({
           {hasTaskHoursViolations ? (
             <div className="text-red-700">Task hours must be 0 or 0.25–20.00 in 0.25 increments.</div>
           ) : null}
+          {!targetHoursValid ? <div className="text-red-700">Total hours must be greater than 0.</div> : null}
           {hasClientViolations ? <div className="text-red-700">Client is required for any task with hours &gt; 0.</div> : null}
+          {hasBucketViolations ? <div className="text-red-700">Task category is required for any task with hours &gt; 0.</div> : null}
           {hasNotesViolations ? <div className="text-red-700">Notes are required for any task with hours &gt; 0.</div> : null}
           {mileageRequired ? (
             <div>
