@@ -16,7 +16,15 @@ async function getClients() {
   });
 }
 
-export default async function WorklogPage() {
+export default async function WorklogPage({
+  searchParams,
+}: {
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const sp = (searchParams ? await searchParams : {}) as Record<string, unknown>;
+  const dateParamRaw = sp.date;
+  const dateParam = typeof dateParamRaw === "string" ? dateParamRaw : null;
+
   let clients: Array<{ id: string; name: string }> = [];
   let dbWarning: string | null = null;
 
@@ -44,7 +52,7 @@ export default async function WorklogPage() {
         </div>
       ) : null}
 
-      <WorklogForm clients={clients} />
+      <WorklogForm clients={clients} initialDate={dateParam} />
     </div>
   );
 }

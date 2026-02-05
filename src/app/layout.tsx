@@ -31,11 +31,20 @@ export default function RootLayout({
                 </div>
               </div>
               <nav className="flex items-center gap-4 text-sm">
+                <a className="text-zinc-600 hover:text-[#2EA3F2]" href="/portal">
+                  Portal
+                </a>
                 <a className="text-zinc-600 hover:text-[#2EA3F2]" href="/worklog">
                   Worklog
                 </a>
                 <a className="text-zinc-600 hover:text-[#2EA3F2]" href="/admin/clients">
-                  Admin
+                  Admin Clients
+                </a>
+                <a className="text-zinc-600 hover:text-[#2EA3F2]" href="/admin/approvals">
+                  Approvals
+                </a>
+                <a className="text-zinc-600 hover:text-[#2EA3F2]" href="/admin/worklogs">
+                  Logs
                 </a>
               </nav>
             </div>

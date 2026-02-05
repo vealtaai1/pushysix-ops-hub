@@ -113,10 +113,29 @@ function ClientTypeahead(props: {
   );
 }
 
-export function WorklogForm({ clients }: { clients: Client[] }) {
+export function WorklogForm({
+  clients,
+  initialDate,
+}: {
+  clients: Client[];
+  initialDate?: string | null;
+}) {
   const today = React.useMemo(() => todayISODate(), []);
 
-  const [workDate, setWorkDate] = React.useState(() => todayISODate());
+  const normalizedInitial = React.useMemo(() => {
+    if (!initialDate) return null;
+    return /^\d{4}-\d{2}-\d{2}$/.test(initialDate) ? initialDate : null;
+  }, [initialDate]);
+
+  const [workDate, setWorkDate] = React.useState(() => normalizedInitial ?? todayISODate());
+
+  const [email, setEmail] = React.useState<string>("");
+  const [submitState, setSubmitState] = React.useState<{ ok: boolean; message: string } | null>(null);
+  const [submitting, setSubmitting] = React.useState(false);
+
+  React.useEffect(() => {
+    if (normalizedInitial) setWorkDate(normalizedInitial);
+  }, [normalizedInitial]);
 
   // Totals as text so 0 is deletable (no stuck placeholder)
   const [targetHoursText, setTargetHoursText] = React.useState<string>("0");
@@ -201,7 +220,17 @@ export function WorklogForm({ clients }: { clients: Client[] }) {
   return (
     <div className="space-y-6">
       <div className="rounded-lg border border-zinc-200 p-4">
-        <div className="grid gap-3 md:grid-cols-3">
+        <div className="grid gap-3 md:grid-cols-4">
+          <label className="grid gap-1">
+            <span className="text-sm font-medium">Email</span>
+            <input
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="you@pushysix.com"
+              className="h-10 rounded-md border border-zinc-300 bg-white px-3"
+            />
+          </label>
+
           <label className="grid gap-1">
             <span className="text-sm font-medium">
               Date
@@ -444,33 +473,77 @@ export function WorklogForm({ clients }: { clients: Client[] }) {
         </div>
       ) : null}
 
-      <div className="flex items-center justify-end">
+      <div className="flex flex-wrap items-center justify-end gap-3">
+        {submitState ? (
+          <div
+            className={
+              "rounded-md px-3 py-2 text-sm " +
+              (submitState.ok ? "border border-emerald-200 bg-emerald-50 text-emerald-900" : "border border-red-200 bg-red-50 text-red-900")
+            }
+          >
+            {submitState.message}
+          </div>
+        ) : null}
+
         <button
           type="button"
-          disabled={!canSubmit}
-          className={"h-10 rounded-md px-4 text-sm font-semibold text-white " + (canSubmit ? "bg-[#2EA3F2] hover:opacity-90" : "bg-zinc-300")}
-          title={
-            canSubmit
-              ? "Ready to submit"
-              : "Hours must match target exactly; task hour values must be valid; client + notes required for non-zero hours; and mileage must be allocated if entered"
+          disabled={!canSubmit || submitting || email.trim().length === 0}
+          className={
+            "h-10 rounded-md px-4 text-sm font-semibold text-white " +
+            (!canSubmit || submitting || email.trim().length === 0 ? "bg-zinc-300" : "bg-[#2EA3F2] hover:opacity-90")
           }
-          onClick={() => {
-            alert(
-              JSON.stringify(
-                {
-                  workDate,
-                  targetHours,
-                  totalKm,
-                  tasks: tasks.map((t) => ({ ...t, hours: parseNumberText(t.hoursText) })),
-                  mileage: mileage.map((m) => ({ ...m, kilometers: parseNumberText(m.kilometersText) })),
-                },
-                null,
-                2
-              )
-            );
+          title={
+            email.trim().length === 0
+              ? "Email is required"
+              : canSubmit
+                ? "Ready to submit"
+                : "Hours must match target exactly; task hour values must be valid; client + notes required for non-zero hours; and mileage must be allocated if entered"
+          }
+          onClick={async () => {
+            setSubmitting(true);
+            setSubmitState(null);
+
+            const payload = {
+              email,
+              workDate,
+              targetHours,
+              totalKm,
+              tasks: tasks.map((t) => {
+                const bucket = BUCKETS.find((b) => b.key === t.bucketKey);
+                return {
+                  clientId: t.clientId,
+                  bucketKey: t.bucketKey,
+                  bucketName: bucket?.name ?? t.bucketKey,
+                  hours: parseNumberText(t.hoursText),
+                  notes: t.notes,
+                };
+              }),
+              mileage: mileage.map((m) => ({
+                clientId: m.clientId,
+                kilometers: parseNumberText(m.kilometersText),
+              })),
+            };
+
+            try {
+              const res = await fetch("/api/worklog/submit", {
+                method: "POST",
+                headers: { "content-type": "application/json" },
+                body: JSON.stringify(payload),
+              });
+              const data = (await res.json()) as { ok: boolean; message?: string };
+              if (!res.ok || !data.ok) {
+                setSubmitState({ ok: false, message: data.message ?? "Submit failed." });
+              } else {
+                setSubmitState({ ok: true, message: data.message ?? "Submitted." });
+              }
+            } catch {
+              setSubmitState({ ok: false, message: "Network error submitting worklog." });
+            } finally {
+              setSubmitting(false);
+            }
           }}
         >
-          Submit worklog
+          {submitting ? "Submitting…" : "Submit worklog"}
         </button>
       </div>
     </div>

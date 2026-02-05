@@ -6,9 +6,8 @@ generator client {
 }
 
 datasource db {
-  provider  = "postgresql"
-  url       = env("DATABASE_URL")
-  directUrl = env("DIRECT_URL")
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
 enum UserRole {
@@ -45,8 +44,8 @@ enum ApprovalStatus {
 }
 
 model User {
-  id    String  @id @default(cuid())
-  email String  @unique
+  id    String   @id @default(cuid())
+  email String   @unique
   name  String?
   role  UserRole @default(EMPLOYEE)
 
@@ -60,11 +59,13 @@ model User {
   worklogsCreated Worklog[] @relation("WorklogsCreatedBy")
 
   // Approvals
-  worklogsApproved Worklog[] @relation("WorklogsApprovedBy")
+  worklogsApproved          Worklog[]         @relation("WorklogsApprovedBy")
+  approvalRequestsRequested ApprovalRequest[] @relation("RequestedBy")
+  approvalRequestsReviewed  ApprovalRequest[] @relation("ReviewedBy")
 
   // Day-off requests
-  dayOffs DayOff[]
-  dayOffsCreated DayOff[] @relation("DayOffsCreatedBy")
+  dayOffs         DayOff[]
+  dayOffsCreated  DayOff[] @relation("DayOffsCreatedBy")
   dayOffsApproved DayOff[] @relation("DayOffsApprovedBy")
 
   auditLogs AuditLog[]
@@ -116,7 +117,7 @@ model RetainerCycle {
 }
 
 model BucketLimit {
-  id             String  @id @default(cuid())
+  id              String @id @default(cuid())
   retainerCycleId String
 
   // Canonical bucket key (stable)
@@ -159,14 +160,15 @@ model Worklog {
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  createdByUser User? @relation("WorklogsCreatedBy", fields: [createdByUserId], references: [id], onDelete: SetNull)
+  createdByUser  User? @relation("WorklogsCreatedBy", fields: [createdByUserId], references: [id], onDelete: SetNull)
   approvedByUser User? @relation("WorklogsApprovedBy", fields: [approvedByUserId], references: [id], onDelete: SetNull)
 
   replacedWorklog     Worklog?  @relation("WorklogReplacement", fields: [replacedWorklogId], references: [id], onDelete: SetNull)
   replacementWorklogs Worklog[] @relation("WorklogReplacement")
 
-  entries  WorklogEntry[]
-  mileage  MileageEntry[]
+  entries          WorklogEntry[]
+  mileage          MileageEntry[]
+  approvalRequests ApprovalRequest[]
 
   @@unique([userId, workDate])
   @@index([workDate])
@@ -177,7 +179,7 @@ model Worklog {
 }
 
 model WorklogEntry {
-  id        String   @id @default(cuid())
+  id        String @id @default(cuid())
   worklogId String
   clientId  String
 
@@ -201,7 +203,7 @@ model WorklogEntry {
 }
 
 model MileageEntry {
-  id        String   @id @default(cuid())
+  id        String @id @default(cuid())
   worklogId String
 
   kilometers Float
@@ -246,11 +248,12 @@ model DayOff {
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  createdByUser User? @relation("DayOffsCreatedBy", fields: [createdByUserId], references: [id], onDelete: SetNull)
+  createdByUser  User? @relation("DayOffsCreatedBy", fields: [createdByUserId], references: [id], onDelete: SetNull)
   approvedByUser User? @relation("DayOffsApprovedBy", fields: [approvedByUserId], references: [id], onDelete: SetNull)
 
-  replacedDayOff     DayOff?  @relation("DayOffReplacement", fields: [replacedDayOffId], references: [id], onDelete: SetNull)
-  replacementDayOffs DayOff[] @relation("DayOffReplacement")
+  replacedDayOff     DayOff?           @relation("DayOffReplacement", fields: [replacedDayOffId], references: [id], onDelete: SetNull)
+  replacementDayOffs DayOff[]          @relation("DayOffReplacement")
+  approvalRequests   ApprovalRequest[]
 
   @@unique([userId, dayDate])
   @@index([dayDate])
@@ -260,14 +263,53 @@ model DayOff {
   @@index([approvedByUserId])
 }
 
+model ApprovalRequest {
+  id     String         @id @default(cuid())
+  type   ApprovalType
+  status ApprovalStatus @default(PENDING)
+
+  // Human-readable explanation shown in the approvals queue
+  reason String
+
+  // For convenience + filtering (the date the request is about)
+  workDate DateTime?
+
+  requestedByUserId String
+  reviewedByUserId  String?
+
+  reviewedAt DateTime?
+  reviewNote String?
+
+  // Optional linkage to the record being approved
+  worklogId String?
+  dayOffId  String?
+
+  payload Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  requestedByUser User  @relation("RequestedBy", fields: [requestedByUserId], references: [id], onDelete: Cascade)
+  reviewedByUser  User? @relation("ReviewedBy", fields: [reviewedByUserId], references: [id], onDelete: SetNull)
+
+  worklog Worklog? @relation(fields: [worklogId], references: [id], onDelete: SetNull)
+  dayOff  DayOff?  @relation(fields: [dayOffId], references: [id], onDelete: SetNull)
+
+  @@index([status, createdAt])
+  @@index([type])
+  @@index([workDate])
+  @@index([requestedByUserId])
+  @@index([reviewedByUserId])
+}
+
 model AuditLog {
-  id        String      @id @default(cuid())
-  userId    String?
-  action    AuditAction
-  entity    String
-  entityId  String?
-  before    Json?
-  after     Json?
+  id       String      @id @default(cuid())
+  userId   String?
+  action   AuditAction
+  entity   String
+  entityId String?
+  before   Json?
+  after    Json?
 
   createdAt DateTime @default(now())
 
@@ -277,4 +319,4 @@ model AuditLog {
   @@index([createdAt])
 }
 
-// (removed duplicate DayOffStatus + DayOff model)
+//
