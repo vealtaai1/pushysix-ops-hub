@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db";
+import { requireAdminOrThrow } from "@/lib/adminAuth";
 import { BillingCycleStartDay } from "@prisma/client";
 
 export type CreateClientState = {
@@ -39,6 +40,17 @@ export async function createClient(
   _prevState: CreateClientState,
   formData: FormData
 ): Promise<CreateClientState> {
+  try {
+    requireAdminOrThrow({ message: "Unauthorized: admin access required to create a client." });
+  } catch (e) {
+    return {
+      ok: false,
+      message:
+        e instanceof Error
+          ? e.message
+          : "Unauthorized: admin access required to create a client.",
+    };
+  }
   const name = asString(formData.get("name")).trim();
   const clientBillingEmail = asString(formData.get("clientBillingEmail")).trim();
   const billingCycleStartDayRaw = asString(formData.get("billingCycleStartDay")).trim();
