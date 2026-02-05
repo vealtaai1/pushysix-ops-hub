@@ -45,6 +45,5 @@ yarn-error.log*
 next-env.d.ts
 
 
-# Prisma client is generated into src/generated/prisma (we commit it for predictable deploys)
-# If you prefer generating on CI only, add it back to .gitignore.
-# /src/generated/prisma
+# Prisma client (do not commit generated client/binaries; generate during install/build)
+/src/generated/prisma
