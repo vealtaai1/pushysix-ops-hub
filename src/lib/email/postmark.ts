@@ -1,9 +1,12 @@
-type PostmarkSendEmailInput = {
+import { ServerClient } from "postmark";
+
+export type PostmarkSendEmailInput = {
   to: string;
   subject: string;
   htmlBody?: string;
   textBody?: string;
   tag?: string;
+  messageStream?: string;
 };
 
 export type EmailConfig = {
@@ -25,15 +28,8 @@ export function isPostmarkConfigured(): boolean {
   return Boolean(postmarkServerToken);
 }
 
-/**
- * Minimal Postmark email sender.
- *
- * Notes:
- * - This is intentionally lightweight scaffolding (no templates yet).
- * - Throws on non-2xx responses.
- */
-export async function sendPostmarkEmail(input: PostmarkSendEmailInput) {
-  const { postmarkServerToken, emailFrom } = getEmailConfig();
+function getPostmarkClient() {
+  const { postmarkServerToken } = getEmailConfig();
 
   if (!postmarkServerToken) {
     throw new Error(
@@ -41,31 +37,27 @@ export async function sendPostmarkEmail(input: PostmarkSendEmailInput) {
     );
   }
 
-  const res = await fetch("https://api.postmarkapp.com/email", {
-    method: "POST",
-    headers: {
-      Accept: "application/json",
-      "Content-Type": "application/json",
-      "X-Postmark-Server-Token": postmarkServerToken,
-    },
-    body: JSON.stringify({
-      From: emailFrom,
-      To: input.to,
-      Subject: input.subject,
-      HtmlBody: input.htmlBody,
-      TextBody: input.textBody,
-      Tag: input.tag,
-      MessageStream: "outbound",
-    }),
+  return new ServerClient(postmarkServerToken);
+}
+
+/**
+ * Minimal Postmark email sender.
+ *
+ * Notes:
+ * - Intentionally lightweight scaffolding (no templates yet).
+ * - Throws when Postmark responds with an error.
+ */
+export async function sendPostmarkEmail(input: PostmarkSendEmailInput) {
+  const { emailFrom } = getEmailConfig();
+  const client = getPostmarkClient();
+
+  return client.sendEmail({
+    From: emailFrom,
+    To: input.to,
+    Subject: input.subject,
+    HtmlBody: input.htmlBody,
+    TextBody: input.textBody,
+    Tag: input.tag,
+    MessageStream: input.messageStream ?? "outbound",
   });
-
-  const payload = (await res.json().catch(() => null)) as unknown;
-
-  if (!res.ok) {
-    throw new Error(
-      `Postmark send failed: ${res.status} ${res.statusText} :: ${JSON.stringify(payload)}`,
-    );
-  }
-
-  return payload;
 }
