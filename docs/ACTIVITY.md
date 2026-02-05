@@ -5,6 +5,7 @@ This file is a lightweight running log of what Deshawn is doing.
 
 ## 2026-02-04
 
+- 19:05 — Worklog UI fixes: totals fields now default to 0 but are fully clearable; date label shows “(today)” when applicable; task hours changed from dropdown to numeric input w/ validation (0 or 0.25–20 in 0.25 increments, invalid highlights + blocks submit); task category now includes a blank default option; header branding updated to “Pushysix Media Group”.
 - 14:38 — Activity log was stale. Current repo state check: last commit is still `b9bbe1f` (docs: activity log and todo). No new commits since; only untracked local dev DB file `prisma/dev.db` exists. Next work item remains: redesign Daily Worklog (totals-first + multiple line items + live red/green validation) and then implement saves + Admin client create/edit.
 - 11:03 — Start activity logging. Next work item: redesign Daily Worklog to support totals-first + multiple line items + live validation (red/green) for hours + kilometers.
 - 10:30 — Reviewed requirements for Daily Worklog: totals must exactly match sum of line items; disable submit until matched.

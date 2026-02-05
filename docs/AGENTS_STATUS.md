@@ -4,11 +4,6 @@ This file tracks spawned worker agents, what they’re doing, and their current 
 
 ## Active
 
-- **worklog-ui** (agent: `worker-ui`)
-  - Task: Implement redesigned Daily Worklog UI (totals-first + table line items + client search + validation)
-  - Status: running
-  - Last update: 2026-02-04 17:02
-
 - **worklog-data** (agent: `worker-data`)
   - Task: Update Prisma schema for worklog totals + mileage allocations + migrations (SQLite)
   - Status: running
@@ -21,7 +16,10 @@ This file tracks spawned worker agents, what they’re doing, and their current 
 
 ## Completed
 
-(none)
+- **worklog-ui** (agent: `worker-ui`)
+  - Task: Worklog UI fixes (totals deletable, “(today)” date label, task hours numeric validation, category blank default, header branding)
+  - Status: completed
+  - Last update: 2026-02-04 19:05
 
 ## Notes
 - Sub-agents are spawned from `main` and work in parallel.

@@ -10,7 +10,7 @@ type TaskLine = {
   clientId: string | null;
   clientName: string;
   bucketKey: string;
-  hours: number;
+  hoursText: string; // kept as text so the field can be cleared
   notes: string;
 };
 
@@ -18,24 +18,36 @@ type MileageLine = {
   id: string;
   clientId: string | null;
   clientName: string;
-  kilometers: number;
+  kilometersText: string; // kept as text so the field can be cleared
 };
 
 function uid() {
   return Math.random().toString(16).slice(2) + Date.now().toString(16);
 }
 
-function hoursOptions(maxHours = 24) {
-  const opts: number[] = [];
-  for (let h = 0; h <= maxHours; h += 0.25) {
-    // Avoid floating point artifacts
-    opts.push(Math.round(h * 100) / 100);
-  }
-  return opts;
-}
-
 function nearlyEqual(a: number, b: number, eps = 0.0001) {
   return Math.abs(a - b) <= eps;
+}
+
+function quarterIncrementValid(n: number) {
+  if (nearlyEqual(n, 0)) return true;
+  const q = n * 4;
+  return nearlyEqual(q, Math.round(q));
+}
+
+function parseNumberText(text: string) {
+  const t = text.trim();
+  if (t === "") return 0;
+  const n = Number(t);
+  return Number.isFinite(n) ? n : NaN;
+}
+
+function todayISODate() {
+  const d = new Date();
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  return `${yyyy}-${mm}-${dd}`;
 }
 
 function ClientTypeahead(props: {
@@ -56,9 +68,7 @@ function ClientTypeahead(props: {
   const matches = React.useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return clients.slice(0, 10);
-    return clients
-      .filter((c) => c.name.toLowerCase().includes(q))
-      .slice(0, 10);
+    return clients.filter((c) => c.name.toLowerCase().includes(q)).slice(0, 10);
   }, [clients, query]);
 
   return (
@@ -71,7 +81,6 @@ function ClientTypeahead(props: {
         }}
         onFocus={() => setOpen(true)}
         onBlur={() => {
-          // Let clicks on the menu register
           window.setTimeout(() => setOpen(false), 100);
         }}
         placeholder={placeholder ?? "Search client…"}
@@ -105,76 +114,99 @@ function ClientTypeahead(props: {
 }
 
 export function WorklogForm({ clients }: { clients: Client[] }) {
-  const [workDate, setWorkDate] = React.useState(() => {
-    const d = new Date();
-    // yyyy-mm-dd for <input type=date>
-    const yyyy = d.getFullYear();
-    const mm = String(d.getMonth() + 1).padStart(2, "0");
-    const dd = String(d.getDate()).padStart(2, "0");
-    return `${yyyy}-${mm}-${dd}`;
-  });
+  const today = React.useMemo(() => todayISODate(), []);
 
-  const [targetHours, setTargetHours] = React.useState<number>(8);
-  const [totalKm, setTotalKm] = React.useState<number>(0);
+  const [workDate, setWorkDate] = React.useState(() => todayISODate());
+
+  // Totals as text so 0 is deletable (no stuck placeholder)
+  const [targetHoursText, setTargetHoursText] = React.useState<string>("0");
+  const [totalKmText, setTotalKmText] = React.useState<string>("0");
+
+  const targetHours = React.useMemo(() => parseNumberText(targetHoursText), [targetHoursText]);
+  const totalKm = React.useMemo(() => parseNumberText(totalKmText), [totalKmText]);
 
   const [tasks, setTasks] = React.useState<TaskLine[]>(() => [
     {
       id: uid(),
       clientId: null,
       clientName: "",
-      bucketKey: BUCKETS[0]?.key ?? "",
-      hours: 0,
+      bucketKey: "",
+      hoursText: "0",
       notes: "",
     },
   ]);
 
   const [mileage, setMileage] = React.useState<MileageLine[]>(() => []);
 
-  const hourOpts = React.useMemo(() => hoursOptions(24), []);
+  const taskHoursInvalid = React.useMemo(() => {
+    return tasks.map((t) => {
+      const n = parseNumberText(t.hoursText);
+      if (!Number.isFinite(n)) return true;
+      if (nearlyEqual(n, 0)) return false;
+      if (n < 0.25) return true;
+      if (n > 20) return true;
+      if (!quarterIncrementValid(n)) return true;
+      return false;
+    });
+  }, [tasks]);
 
-  const allocatedHours = React.useMemo(
-    () => tasks.reduce((sum, t) => sum + (Number.isFinite(t.hours) ? t.hours : 0), 0),
-    [tasks]
-  );
+  const hasTaskHoursViolations = React.useMemo(() => taskHoursInvalid.some(Boolean), [taskHoursInvalid]);
 
-  const hoursMatch = React.useMemo(
-    () => nearlyEqual(allocatedHours, targetHours),
-    [allocatedHours, targetHours]
-  );
+  const allocatedHours = React.useMemo(() => {
+    return tasks.reduce((sum, t) => {
+      const n = parseNumberText(t.hoursText);
+      return sum + (Number.isFinite(n) ? n : 0);
+    }, 0);
+  }, [tasks]);
+
+  const hoursMatch = React.useMemo(() => nearlyEqual(allocatedHours, targetHours), [allocatedHours, targetHours]);
 
   const hasNotesViolations = React.useMemo(() => {
-    return tasks.some((t) => t.hours > 0 && t.notes.trim().length === 0);
+    return tasks.some((t) => {
+      const n = parseNumberText(t.hoursText);
+      return Number.isFinite(n) && n > 0 && t.notes.trim().length === 0;
+    });
   }, [tasks]);
 
   const hasClientViolations = React.useMemo(() => {
-    return tasks.some((t) => t.hours > 0 && !t.clientId);
+    return tasks.some((t) => {
+      const n = parseNumberText(t.hoursText);
+      return Number.isFinite(n) && n > 0 && !t.clientId;
+    });
   }, [tasks]);
 
-  const allocatedKm = React.useMemo(
-    () => mileage.reduce((sum, m) => sum + (Number.isFinite(m.kilometers) ? m.kilometers : 0), 0),
-    [mileage]
-  );
+  const allocatedKm = React.useMemo(() => {
+    return mileage.reduce((sum, m) => {
+      const n = parseNumberText(m.kilometersText);
+      return sum + (Number.isFinite(n) ? n : 0);
+    }, 0);
+  }, [mileage]);
 
   const mileageRequired = totalKm > 0;
 
   const mileageComplete = React.useMemo(() => {
     if (!mileageRequired) return true;
     if (mileage.length === 0) return false;
-    const linesValid = mileage.every(
-      (m) => (m.kilometers > 0 ? Boolean(m.clientId) : true) && m.kilometers >= 0
-    );
+    const linesValid = mileage.every((m) => {
+      const km = parseNumberText(m.kilometersText);
+      if (!Number.isFinite(km)) return false;
+      return (km > 0 ? Boolean(m.clientId) : true) && km >= 0;
+    });
     if (!linesValid) return false;
     return nearlyEqual(allocatedKm, totalKm);
   }, [mileageRequired, mileage, allocatedKm, totalKm]);
 
-  const canSubmit = hoursMatch && !hasNotesViolations && !hasClientViolations && mileageComplete;
+  const canSubmit = hoursMatch && !hasTaskHoursViolations && !hasNotesViolations && !hasClientViolations && mileageComplete;
 
   return (
     <div className="space-y-6">
       <div className="rounded-lg border border-zinc-200 p-4">
         <div className="grid gap-3 md:grid-cols-3">
           <label className="grid gap-1">
-            <span className="text-sm font-medium">Date</span>
+            <span className="text-sm font-medium">
+              Date
+              {workDate === today ? <span className="ml-2 text-xs text-zinc-500">(today)</span> : null}
+            </span>
             <input
               type="date"
               value={workDate}
@@ -189,8 +221,8 @@ export function WorklogForm({ clients }: { clients: Client[] }) {
               type="number"
               min={0}
               step={0.25}
-              value={targetHours}
-              onChange={(e) => setTargetHours(Number(e.target.value || 0))}
+              value={targetHoursText}
+              onChange={(e) => setTargetHoursText(e.target.value)}
               className="h-10 rounded-md border border-zinc-300 bg-white px-3"
             />
           </label>
@@ -201,11 +233,12 @@ export function WorklogForm({ clients }: { clients: Client[] }) {
               type="number"
               min={0}
               step={0.1}
-              value={totalKm}
+              value={totalKmText}
               onChange={(e) => {
-                const next = Number(e.target.value || 0);
-                setTotalKm(next);
-                if (next <= 0) setMileage([]);
+                const nextText = e.target.value;
+                setTotalKmText(nextText);
+                const next = parseNumberText(nextText);
+                if (Number.isFinite(next) && next <= 0) setMileage([]);
               }}
               className="h-10 rounded-md border border-zinc-300 bg-white px-3"
             />
@@ -216,26 +249,19 @@ export function WorklogForm({ clients }: { clients: Client[] }) {
           <div>
             <span className="text-zinc-600">Allocated hours:</span>{" "}
             <span className={hoursMatch ? "font-semibold text-emerald-700" : "font-semibold text-red-700"}>
-              {allocatedHours.toFixed(2)} / {targetHours.toFixed(2)}
+              {allocatedHours.toFixed(2)} / {(Number.isFinite(targetHours) ? targetHours : 0).toFixed(2)}
             </span>
           </div>
-          {hasClientViolations ? (
-            <div className="text-red-700">Client is required for any task with hours &gt; 0.</div>
+          {hasTaskHoursViolations ? (
+            <div className="text-red-700">Task hours must be 0 or 0.25–20.00 in 0.25 increments.</div>
           ) : null}
-          {hasNotesViolations ? (
-            <div className="text-red-700">Notes are required for any task with hours &gt; 0.</div>
-          ) : null}
+          {hasClientViolations ? <div className="text-red-700">Client is required for any task with hours &gt; 0.</div> : null}
+          {hasNotesViolations ? <div className="text-red-700">Notes are required for any task with hours &gt; 0.</div> : null}
           {mileageRequired ? (
             <div>
               <span className="text-zinc-600">Mileage allocated:</span>{" "}
-              <span
-                className={
-                  mileageComplete
-                    ? "font-semibold text-emerald-700"
-                    : "font-semibold text-red-700"
-                }
-              >
-                {allocatedKm.toFixed(1)} / {totalKm.toFixed(1)} km
+              <span className={mileageComplete ? "font-semibold text-emerald-700" : "font-semibold text-red-700"}>
+                {allocatedKm.toFixed(1)} / {(Number.isFinite(totalKm) ? totalKm : 0).toFixed(1)} km
               </span>
             </div>
           ) : null}
@@ -251,14 +277,7 @@ export function WorklogForm({ clients }: { clients: Client[] }) {
             onClick={() =>
               setTasks((prev) => [
                 ...prev,
-                {
-                  id: uid(),
-                  clientId: null,
-                  clientName: "",
-                  bucketKey: BUCKETS[0]?.key ?? "",
-                  hours: 0,
-                  notes: "",
-                },
+                { id: uid(), clientId: null, clientName: "", bucketKey: "", hoursText: "0", notes: "" },
               ])
             }
           >
@@ -279,7 +298,10 @@ export function WorklogForm({ clients }: { clients: Client[] }) {
             </thead>
             <tbody>
               {tasks.map((t, idx) => {
-                const notesRequired = t.hours > 0;
+                const hoursNum = parseNumberText(t.hoursText);
+                const notesRequired = Number.isFinite(hoursNum) && hoursNum > 0;
+                const hoursInvalid = taskHoursInvalid[idx] ?? false;
+
                 return (
                   <tr key={t.id} className="align-top">
                     <td className="border-b border-zinc-100 px-3 py-2">
@@ -288,30 +310,21 @@ export function WorklogForm({ clients }: { clients: Client[] }) {
                         valueName={t.clientName}
                         placeholder="Search client…"
                         onSelect={(c) =>
-                          setTasks((prev) =>
-                            prev.map((x) =>
-                              x.id === t.id
-                                ? { ...x, clientId: c.id, clientName: c.name }
-                                : x
-                            )
-                          )
+                          setTasks((prev) => prev.map((x) => (x.id === t.id ? { ...x, clientId: c.id, clientName: c.name } : x)))
                         }
                       />
-                      {t.clientId ? null : (
-                        <div className="mt-1 text-xs text-zinc-500">Choose a client</div>
-                      )}
+                      {t.clientId ? null : <div className="mt-1 text-xs text-zinc-500">Choose a client</div>}
                     </td>
 
                     <td className="border-b border-zinc-100 px-3 py-2">
                       <select
                         value={t.bucketKey}
                         onChange={(e) =>
-                          setTasks((prev) =>
-                            prev.map((x) => (x.id === t.id ? { ...x, bucketKey: e.target.value } : x))
-                          )
+                          setTasks((prev) => prev.map((x) => (x.id === t.id ? { ...x, bucketKey: e.target.value } : x)))
                         }
                         className="h-10 w-full rounded-md border border-zinc-300 bg-white px-3"
                       >
+                        <option value="">(select)</option>
                         {BUCKETS.map((b) => (
                           <option key={b.key} value={b.key}>
                             {b.name}
@@ -321,40 +334,26 @@ export function WorklogForm({ clients }: { clients: Client[] }) {
                     </td>
 
                     <td className="border-b border-zinc-100 px-3 py-2">
-                      <select
-                        value={t.hours}
-                        onChange={(e) =>
-                          setTasks((prev) =>
-                            prev.map((x) =>
-                              x.id === t.id ? { ...x, hours: Number(e.target.value) } : x
-                            )
-                          )
-                        }
-                        className="h-10 w-32 rounded-md border border-zinc-300 bg-white px-3"
-                      >
-                        {hourOpts.map((h) => (
-                          <option key={h} value={h}>
-                            {h.toFixed(2)}
-                          </option>
-                        ))}
-                      </select>
-                      <div className="mt-1 text-xs text-zinc-500">0.25 increments</div>
+                      <input
+                        type="number"
+                        min={0}
+                        step={0.25}
+                        inputMode="decimal"
+                        value={t.hoursText}
+                        onChange={(e) => setTasks((prev) => prev.map((x) => (x.id === t.id ? { ...x, hoursText: e.target.value } : x)))}
+                        className={"h-10 w-32 rounded-md border bg-white px-3 " + (hoursInvalid ? "border-red-300" : "border-zinc-300")}
+                      />
+                      <div className="mt-1 text-xs text-zinc-500">0.25 increments (0.25–20, or 0)</div>
                     </td>
 
                     <td className="border-b border-zinc-100 px-3 py-2">
                       <textarea
                         value={t.notes}
-                        onChange={(e) =>
-                          setTasks((prev) =>
-                            prev.map((x) => (x.id === t.id ? { ...x, notes: e.target.value } : x))
-                          )
-                        }
+                        onChange={(e) => setTasks((prev) => prev.map((x) => (x.id === t.id ? { ...x, notes: e.target.value } : x)))}
                         placeholder="What did you work on?"
                         className={
                           "min-h-20 w-full rounded-md border bg-white px-3 py-2 " +
-                          (notesRequired && t.notes.trim().length === 0
-                            ? "border-red-300"
-                            : "border-zinc-300")
+                          (notesRequired && t.notes.trim().length === 0 ? "border-red-300" : "border-zinc-300")
                         }
                       />
                     </td>
@@ -386,12 +385,7 @@ export function WorklogForm({ clients }: { clients: Client[] }) {
             <button
               type="button"
               className="h-9 rounded-md border border-zinc-300 bg-white px-3 text-sm hover:bg-zinc-50"
-              onClick={() =>
-                setMileage((prev) => [
-                  ...prev,
-                  { id: uid(), clientId: null, clientName: "", kilometers: 0 },
-                ])
-              }
+              onClick={() => setMileage((prev) => [...prev, { id: uid(), clientId: null, clientName: "", kilometersText: "0" }])}
             >
               + Add allocation
             </button>
@@ -414,13 +408,7 @@ export function WorklogForm({ clients }: { clients: Client[] }) {
                         clients={clients}
                         valueName={m.clientName}
                         placeholder="Search client…"
-                        onSelect={(c) =>
-                          setMileage((prev) =>
-                            prev.map((x) =>
-                              x.id === m.id ? { ...x, clientId: c.id, clientName: c.name } : x
-                            )
-                          )
-                        }
+                        onSelect={(c) => setMileage((prev) => prev.map((x) => (x.id === m.id ? { ...x, clientId: c.id, clientName: c.name } : x)))}
                       />
                     </td>
                     <td className="border-b border-zinc-100 px-3 py-2">
@@ -428,16 +416,8 @@ export function WorklogForm({ clients }: { clients: Client[] }) {
                         type="number"
                         min={0}
                         step={0.1}
-                        value={m.kilometers}
-                        onChange={(e) =>
-                          setMileage((prev) =>
-                            prev.map((x) =>
-                              x.id === m.id
-                                ? { ...x, kilometers: Number(e.target.value || 0) }
-                                : x
-                            )
-                          )
-                        }
+                        value={m.kilometersText}
+                        onChange={(e) => setMileage((prev) => prev.map((x) => (x.id === m.id ? { ...x, kilometersText: e.target.value } : x)))}
                         className="h-10 w-40 rounded-md border border-zinc-300 bg-white px-3"
                       />
                     </td>
@@ -458,8 +438,7 @@ export function WorklogForm({ clients }: { clients: Client[] }) {
 
           {!mileageComplete ? (
             <div className="mt-3 text-sm text-red-700">
-              Mileage must be fully allocated to clients, and allocations must add up exactly to the total
-              km.
+              Mileage must be fully allocated to clients, and allocations must add up exactly to the total km.
             </div>
           ) : null}
         </div>
@@ -469,25 +448,21 @@ export function WorklogForm({ clients }: { clients: Client[] }) {
         <button
           type="button"
           disabled={!canSubmit}
-          className={
-            "h-10 rounded-md px-4 text-sm font-semibold text-white " +
-            (canSubmit ? "bg-[#2EA3F2] hover:opacity-90" : "bg-zinc-300")
-          }
+          className={"h-10 rounded-md px-4 text-sm font-semibold text-white " + (canSubmit ? "bg-[#2EA3F2] hover:opacity-90" : "bg-zinc-300")}
           title={
             canSubmit
               ? "Ready to submit"
-              : "Hours must match target exactly; client + notes required for non-zero hours; and mileage must be allocated if entered"
+              : "Hours must match target exactly; task hour values must be valid; client + notes required for non-zero hours; and mileage must be allocated if entered"
           }
           onClick={() => {
-            // Save action not implemented yet (UI-only per scaffold).
             alert(
               JSON.stringify(
                 {
                   workDate,
                   targetHours,
                   totalKm,
-                  tasks,
-                  mileage,
+                  tasks: tasks.map((t) => ({ ...t, hours: parseNumberText(t.hoursText) })),
+                  mileage: mileage.map((m) => ({ ...m, kilometers: parseNumberText(m.kilometersText) })),
                 },
                 null,
                 2
