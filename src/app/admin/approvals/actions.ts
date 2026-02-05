@@ -11,7 +11,7 @@ function asString(v: FormDataEntryValue | null) {
 }
 
 export async function approveRequest(formData: FormData) {
-  requireAdminOrThrow({ message: "Unauthorized: admin access required to approve requests." });
+  await requireAdminOrThrow({ message: "Unauthorized: admin access required to approve requests." });
   const id = asString(formData.get("id")).trim();
   const note = asString(formData.get("note")).trim();
   if (!id) return;
@@ -58,7 +58,7 @@ export async function approveRequest(formData: FormData) {
 }
 
 export async function rejectRequest(formData: FormData) {
-  requireAdminOrThrow({ message: "Unauthorized: admin access required to reject requests." });
+  await requireAdminOrThrow({ message: "Unauthorized: admin access required to reject requests." });
   const id = asString(formData.get("id")).trim();
   const note = asString(formData.get("note")).trim();
   if (!id) return;

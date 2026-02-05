@@ -7,9 +7,9 @@ import {
 
 export { getAdminAuthConfig, isAdminConfigured, isAdminCredentialValid };
 
-export function getAdminCredentialsFromRequest(): { email: string | null; token: string | null } {
-  const h = headers();
-  const c = cookies();
+export async function getAdminCredentialsFromRequest(): Promise<{ email: string | null; token: string | null }> {
+  const h = await headers();
+  const c = await cookies();
 
   const token =
     h.get("x-admin-token") ||
@@ -25,14 +25,14 @@ export function getAdminCredentialsFromRequest(): { email: string | null; token:
   };
 }
 
-export function requireAdminOrThrow(opts?: { message?: string }): void {
+export async function requireAdminOrThrow(opts?: { message?: string }): Promise<void> {
   if (!isAdminConfigured()) {
     throw new Error(
       "Admin access is not configured. Set ADMIN_TOKEN and/or ADMIN_EMAIL_ALLOWLIST."
     );
   }
 
-  const creds = getAdminCredentialsFromRequest();
+  const creds = await getAdminCredentialsFromRequest();
   if (!isAdminCredentialValid(creds)) {
     throw new Error(opts?.message ?? "Unauthorized: admin access required.");
   }

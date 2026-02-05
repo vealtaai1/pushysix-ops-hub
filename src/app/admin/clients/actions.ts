@@ -41,7 +41,7 @@ export async function createClient(
   formData: FormData
 ): Promise<CreateClientState> {
   try {
-    requireAdminOrThrow({ message: "Unauthorized: admin access required to create a client." });
+    await requireAdminOrThrow({ message: "Unauthorized: admin access required to create a client." });
   } catch (e) {
     return {
       ok: false,
