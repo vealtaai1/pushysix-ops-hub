@@ -65,6 +65,32 @@ export default async function AdminWorklogsPage({
           </select>
           <button className="h-9 rounded-md border border-zinc-300 bg-white px-3 text-sm hover:bg-zinc-50">Filter</button>
         </form>
+
+        <form className="flex items-center gap-2" action="/portal">
+          <label className="text-sm text-zinc-700">View as</label>
+          <select name="email" defaultValue="" className="h-9 rounded-md border border-zinc-300 bg-white px-3 text-sm">
+            <option value="">(pick employee)</option>
+            {users.map((u) => (
+              <option key={u.id} value={u.email}>
+                {u.email}
+              </option>
+            ))}
+          </select>
+          <button className="h-9 rounded-md border border-zinc-300 bg-white px-3 text-sm hover:bg-zinc-50">Open portal</button>
+        </form>
+
+        <form className="flex items-center gap-2" action="/worklog">
+          <label className="text-sm text-zinc-700">Worklog as</label>
+          <select name="email" defaultValue="" className="h-9 rounded-md border border-zinc-300 bg-white px-3 text-sm">
+            <option value="">(pick employee)</option>
+            {users.map((u) => (
+              <option key={u.id} value={u.email}>
+                {u.email}
+              </option>
+            ))}
+          </select>
+          <button className="h-9 rounded-md border border-zinc-300 bg-white px-3 text-sm hover:bg-zinc-50">Open worklog</button>
+        </form>
       </div>
 
       <div className="grid gap-6 md:grid-cols-2">

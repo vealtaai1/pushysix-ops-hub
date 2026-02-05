@@ -16,3 +16,17 @@ export async function getReviewerUserId(): Promise<string | null> {
   });
   return u.id;
 }
+
+export async function requireAdminReviewerUserId(): Promise<string> {
+  const email = process.env.ADMIN_REVIEWER_EMAIL?.trim().toLowerCase();
+  if (!email) throw new Error("Missing ADMIN_REVIEWER_EMAIL.");
+
+  const u = await prisma.user.upsert({
+    where: { email },
+    update: { role: "ADMIN" },
+    create: { email, role: "ADMIN" },
+    select: { id: true, role: true },
+  });
+  if (u.role !== "ADMIN") throw new Error("Forbidden: reviewer must be ADMIN.");
+  return u.id;
+}

@@ -3,6 +3,7 @@
 // If/when we add an actual holiday calendar, implement it here.
 
 /** Return a holiday name for a YYYY-MM-DD, or null if not a holiday. */
-export function holidayNameForISODate(_isoDate: string): string | null {
+export function holidayNameForISODate(isoDate: string): string | null {
+  void isoDate;
   return null;
 }

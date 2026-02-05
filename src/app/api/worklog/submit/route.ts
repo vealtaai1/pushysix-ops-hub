@@ -102,7 +102,8 @@ export async function POST(req: Request) {
   const withinWindow = nowStamp <= window.endStamp;
 
   const status: ApprovalStatus = withinWindow ? ApprovalStatus.APPROVED : ApprovalStatus.PENDING;
-  const approvalReason = withinWindow ? null : "Submitted after 09:59 the next day (Calgary time).";
+  const approvalReason =
+    withinWindow ? null : "Submitted after the logging window (after 9:59 AM the next day — Calgary time).";
 
   // Store the work date as a canonical date-only timestamp (UTC midnight of the local date)
   const workDate = new Date(Date.UTC(parsed.year, parsed.month - 1, parsed.day, 0, 0, 0, 0));
@@ -204,6 +205,8 @@ export async function POST(req: Request) {
   return NextResponse.json({
     ok: true,
     status,
-    message: withinWindow ? "Worklog submitted and auto-approved." : "Worklog submitted for approval (late submission).",
+    message: withinWindow
+      ? "Worklog submitted and auto-approved."
+      : "Worklog submitted for approval (submitted after the logging window).",
   });
 }

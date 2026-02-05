@@ -78,7 +78,13 @@ function Dialog(props: {
   );
 }
 
-export function PortalCalendar({ months }: { months: PortalMonth[] }) {
+export function PortalCalendar({
+  months,
+  initialEmail,
+}: {
+  months: PortalMonth[];
+  initialEmail?: string | null;
+}) {
   const router = useRouter();
 
   const [selectedIso, setSelectedIso] = React.useState<string | null>(null);
@@ -89,12 +95,17 @@ export function PortalCalendar({ months }: { months: PortalMonth[] }) {
 
   React.useEffect(() => {
     try {
+      if (initialEmail && typeof initialEmail === "string" && initialEmail.trim()) {
+        setEmail(initialEmail.trim().toLowerCase());
+        return;
+      }
+
       const saved = window.localStorage.getItem("opsHubEmail");
       if (saved && typeof saved === "string") setEmail(saved);
     } catch {
       // ignore
     }
-  }, []);
+  }, [initialEmail]);
 
   React.useEffect(() => {
     try {

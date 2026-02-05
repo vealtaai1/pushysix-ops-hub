@@ -542,8 +542,10 @@ export function WorklogForm({
             setSubmitting(true);
             setSubmitState(null);
 
-            const payload = {
-              email,
+            const trimmedEmail = email.trim().toLowerCase();
+
+            const basePayload = {
+              email: trimmedEmail,
               workDate,
               targetHours,
               totalKm,
@@ -563,8 +565,43 @@ export function WorklogForm({
               })),
             };
 
+            let shouldResubmit = false;
             try {
-              const res = await fetch("/api/worklog/submit", {
+              const res = await fetch("/api/worklog/status", {
+                method: "POST",
+                headers: { "content-type": "application/json" },
+                body: JSON.stringify({ email: trimmedEmail, workDate }),
+              });
+              const data = (await res.json()) as { ok?: boolean; exists?: boolean };
+              if (res.ok && data?.ok === true && data.exists === true) shouldResubmit = true;
+            } catch {
+              // If the status check fails, fall back to normal submit.
+            }
+
+            const url = shouldResubmit ? "/api/worklog/resubmit" : "/api/worklog/submit";
+
+            let payload: unknown = basePayload;
+            if (shouldResubmit) {
+              const proceed = window.confirm(
+                "This date already has a submitted worklog. Submitting again will count as a resubmission and will require admin approval. Continue?",
+              );
+              if (!proceed) {
+                setSubmitting(false);
+                return;
+              }
+
+              const reason = (window.prompt("Resubmission reason (required):", "") ?? "").trim();
+              if (!reason) {
+                setSubmitState({ ok: false, message: "Resubmission cancelled — a reason is required." });
+                setSubmitting(false);
+                return;
+              }
+
+              payload = { ...(basePayload as object), reason };
+            }
+
+            try {
+              const res = await fetch(url, {
                 method: "POST",
                 headers: { "content-type": "application/json" },
                 body: JSON.stringify(payload),

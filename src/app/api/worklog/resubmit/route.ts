@@ -119,7 +119,7 @@ export async function POST(req: Request) {
   // Resubmissions always require approval.
   const approvalReason = withinWindow
     ? reason
-    : `${reason} (Submitted after 09:59 the next day — Calgary time)`;
+    : `${reason} (Submitted after the logging window — after 9:59 AM the next day, Calgary time)`;
 
   const updated = await prisma.worklog.update({
     where: { id: existing.id },
@@ -190,5 +190,9 @@ export async function POST(req: Request) {
     },
   });
 
-  return NextResponse.json({ ok: true, status: ApprovalStatus.PENDING, message: "Worklog resubmitted for approval." });
+  return NextResponse.json({
+    ok: true,
+    status: ApprovalStatus.PENDING,
+    message: "Worklog resubmitted for approval.",
+  });
 }

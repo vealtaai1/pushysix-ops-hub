@@ -20,7 +20,15 @@ function addMonthsUTC(d: Date, n: number) {
   return next;
 }
 
-export default async function PortalPage() {
+export default async function PortalPage({
+  searchParams,
+}: {
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const sp = (searchParams ? await searchParams : {}) as Record<string, unknown>;
+  const emailRaw = sp.email;
+  const viewAsEmail = typeof emailRaw === "string" ? emailRaw.trim().toLowerCase() : null;
+
   const now = new Date();
   const todayIso = isoDateInTimeZone(now, CALGARY_TZ);
   const todayUTC = parseISODateAsUTC(todayIso);
@@ -32,13 +40,23 @@ export default async function PortalPage() {
   const rangeStart = startMonth;
   const rangeEnd = new Date(Date.UTC(endMonth.getUTCFullYear(), endMonth.getUTCMonth() + 1, 0));
 
+  const viewAsUser = viewAsEmail
+    ? await prisma.user.findUnique({ where: { email: viewAsEmail }, select: { id: true, email: true } })
+    : null;
+
   const [worklogs, dayoffs] = await Promise.all([
     prisma.worklog.findMany({
-      where: { workDate: { gte: rangeStart, lte: rangeEnd } },
+      where: {
+        workDate: { gte: rangeStart, lte: rangeEnd },
+        ...(viewAsUser ? { userId: viewAsUser.id } : {}),
+      },
       select: { workDate: true, status: true },
     }),
     prisma.dayOff.findMany({
-      where: { dayDate: { gte: rangeStart, lte: rangeEnd } },
+      where: {
+        dayDate: { gte: rangeStart, lte: rangeEnd },
+        ...(viewAsUser ? { userId: viewAsUser.id } : {}),
+      },
       select: { dayDate: true, status: true },
     }),
   ]);
@@ -107,9 +125,14 @@ export default async function PortalPage() {
       <div>
         <h1 className="text-xl font-semibold">Team Portal</h1>
         <p className="text-sm text-zinc-600">6 months back / forward — click any day to log work or request a day off.</p>
+        {viewAsEmail ? (
+          <div className="mt-2 text-sm text-zinc-700">
+            Viewing as: <span className="font-medium">{viewAsEmail}</span>
+          </div>
+        ) : null}
       </div>
 
-      <PortalCalendar months={months} />
+      <PortalCalendar months={months} initialEmail={viewAsEmail} />
     </div>
   );
 }
