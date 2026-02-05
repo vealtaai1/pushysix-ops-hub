@@ -6,8 +6,9 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 enum UserRole {
@@ -31,16 +32,41 @@ enum AuditAction {
   DELETE
 }
 
+enum ApprovalType {
+  WORKLOG_LATE_SUBMIT
+  WORKLOG_RESUBMIT
+  DAY_OFF
+}
+
+enum ApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
 model User {
-  id        String   @id @default(cuid())
-  email     String   @unique
-  name      String?
-  role      UserRole @default(EMPLOYEE)
+  id    String  @id @default(cuid())
+  email String  @unique
+  name  String?
+  role  UserRole @default(EMPLOYEE)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  worklogs  Worklog[]
+  // Work logged *for* the user
+  worklogs Worklog[]
+
+  // Worklogs created/edited *by* an acting manager/admin on behalf of someone else
+  worklogsCreated Worklog[] @relation("WorklogsCreatedBy")
+
+  // Approvals
+  worklogsApproved Worklog[] @relation("WorklogsApprovedBy")
+
+  // Day-off requests
+  dayOffs DayOff[]
+  dayOffsCreated DayOff[] @relation("DayOffsCreatedBy")
+  dayOffsApproved DayOff[] @relation("DayOffsApprovedBy")
+
   auditLogs AuditLog[]
 }
 
@@ -105,20 +131,49 @@ model BucketLimit {
 }
 
 model Worklog {
-  id        String   @id @default(cuid())
-  userId    String
+  id     String @id @default(cuid())
+  userId String
+
   // The day being reported
-  workDate  DateTime
+  workDate DateTime
+
+  // Approval flow
+  status         ApprovalStatus @default(PENDING)
+  approvalReason String?
+
+  // When the user/acting manager submitted this worklog for approval
+  submittedAt DateTime?
+
+  // When an approver approved/rejected
+  approvedAt       DateTime?
+  approvedByUserId String?
+
+  // Manager/admin acting on behalf of the user (who actually created this record)
+  createdByUserId String?
+
+  // If this record is a resubmission/replacement of a previous worklog
+  replacedWorklogId String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  user    User           @relation(fields: [userId], references: [id], onDelete: Cascade)
-  entries WorklogEntry[]
-  mileage MileageEntry[]
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdByUser User? @relation("WorklogsCreatedBy", fields: [createdByUserId], references: [id], onDelete: SetNull)
+  approvedByUser User? @relation("WorklogsApprovedBy", fields: [approvedByUserId], references: [id], onDelete: SetNull)
+
+  replacedWorklog     Worklog?  @relation("WorklogReplacement", fields: [replacedWorklogId], references: [id], onDelete: SetNull)
+  replacementWorklogs Worklog[] @relation("WorklogReplacement")
+
+  entries  WorklogEntry[]
+  mileage  MileageEntry[]
 
   @@unique([userId, workDate])
   @@index([workDate])
+  @@index([status])
+  @@index([submittedAt])
+  @@index([approvedAt])
+  @@index([approvedByUserId])
 }
 
 model WorklogEntry {
@@ -164,6 +219,47 @@ model MileageEntry {
   @@index([clientId])
 }
 
+model DayOff {
+  id     String @id @default(cuid())
+  userId String
+
+  // Date of day-off requested/recorded (weekday-only enforced in app)
+  dayDate DateTime
+
+  status         ApprovalStatus @default(PENDING)
+  requestReason  String?
+  approvalReason String?
+
+  submittedAt DateTime?
+
+  approvedAt       DateTime?
+  approvedByUserId String?
+
+  // Manager/admin acting on behalf of the user
+  createdByUserId String?
+
+  // If this request is a resubmission/replacement of a previous request
+  replacedDayOffId String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdByUser User? @relation("DayOffsCreatedBy", fields: [createdByUserId], references: [id], onDelete: SetNull)
+  approvedByUser User? @relation("DayOffsApprovedBy", fields: [approvedByUserId], references: [id], onDelete: SetNull)
+
+  replacedDayOff     DayOff?  @relation("DayOffReplacement", fields: [replacedDayOffId], references: [id], onDelete: SetNull)
+  replacementDayOffs DayOff[] @relation("DayOffReplacement")
+
+  @@unique([userId, dayDate])
+  @@index([dayDate])
+  @@index([status])
+  @@index([submittedAt])
+  @@index([approvedAt])
+  @@index([approvedByUserId])
+}
+
 model AuditLog {
   id        String      @id @default(cuid())
   userId    String?
@@ -180,3 +276,5 @@ model AuditLog {
   @@index([entity, entityId])
   @@index([createdAt])
 }
+
+// (removed duplicate DayOffStatus + DayOff model)

@@ -5,9 +5,13 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "prebuild": "npm run prisma:generate && npm run prisma:migrate:deploy",
     "start": "next start",
     "lint": "eslint",
-    "format": "prettier --write ."
+    "format": "prettier --write .",
+
+    "prisma:generate": "prisma generate",
+    "prisma:migrate:deploy": "node -e \"if(!process.env.DATABASE_URL){console.log('Skipping prisma migrate deploy (DATABASE_URL not set)');process.exit(0)}\" && prisma migrate deploy"
   },
   "dependencies": {
     "@prisma/client": "^6.19.2",
