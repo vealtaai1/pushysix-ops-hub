@@ -116,9 +116,11 @@ function ClientTypeahead(props: {
 export function WorklogForm({
   clients,
   initialDate,
+  initialEmail,
 }: {
   clients: Client[];
   initialDate?: string | null;
+  initialEmail?: string | null;
 }) {
   const today = React.useMemo(() => todayISODate(), []);
 
@@ -129,9 +131,28 @@ export function WorklogForm({
 
   const [workDate, setWorkDate] = React.useState(() => normalizedInitial ?? todayISODate());
 
-  const [email, setEmail] = React.useState<string>("");
+  const [email, setEmail] = React.useState<string>(initialEmail?.trim().toLowerCase() ?? "");
   const [submitState, setSubmitState] = React.useState<{ ok: boolean; message: string } | null>(null);
   const [submitting, setSubmitting] = React.useState(false);
+
+  React.useEffect(() => {
+    // Keep portal + worklog email aligned for "view as" workflows.
+    if (initialEmail && typeof initialEmail === "string") {
+      try {
+        window.localStorage.setItem("opsHubEmail", initialEmail.trim().toLowerCase());
+      } catch {
+        // ignore
+      }
+    }
+  }, [initialEmail]);
+
+  React.useEffect(() => {
+    try {
+      window.localStorage.setItem("opsHubEmail", email);
+    } catch {
+      // ignore
+    }
+  }, [email]);
 
   React.useEffect(() => {
     if (normalizedInitial) setWorkDate(normalizedInitial);

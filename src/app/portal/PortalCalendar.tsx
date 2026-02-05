@@ -85,6 +85,25 @@ export function PortalCalendar({ months }: { months: PortalMonth[] }) {
   const [submitting, setSubmitting] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
 
+  const [email, setEmail] = React.useState<string>("");
+
+  React.useEffect(() => {
+    try {
+      const saved = window.localStorage.getItem("opsHubEmail");
+      if (saved && typeof saved === "string") setEmail(saved);
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  React.useEffect(() => {
+    try {
+      window.localStorage.setItem("opsHubEmail", email);
+    } catch {
+      // ignore
+    }
+  }, [email]);
+
   const now = React.useMemo(() => new Date(), []);
 
   const currentLogIso = React.useMemo(() => {
@@ -117,28 +136,53 @@ export function PortalCalendar({ months }: { months: PortalMonth[] }) {
     setSubmitting(true);
     setError(null);
 
-    // If outside window, the API will require a reason.
-    const maybeReason = isWeekend(isoDate)
-      ? ""
-      : window.prompt("Reason (required if outside window):", "") ?? "";
-
-    const res = await fetch("/api/dayoff", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ date: isoDate, reason: maybeReason }),
-    });
-
-    const json: unknown = await res.json();
-    const ok = typeof json === "object" && json !== null && "ok" in json ? (json as { ok?: unknown }).ok : null;
-    const err = typeof json === "object" && json !== null && "error" in json ? (json as { error?: unknown }).error : null;
-
-    if (!res.ok || ok !== true) {
-      setError(typeof err === "string" ? err : "Day-off submit failed");
+    const trimmedEmail = email.trim().toLowerCase();
+    if (!trimmedEmail) {
+      setError("Email is required to request a day off.");
       setSubmitting(false);
       return;
     }
 
-    // Refresh server component data
+    if (isWeekend(isoDate)) {
+      setError("Day-off requests are only allowed for weekdays (Mon–Fri)." );
+      setSubmitting(false);
+      return;
+    }
+
+    const reason = window.prompt("Reason (optional):", "") ?? "";
+
+    let res: Response;
+    try {
+      res = await fetch("/api/day-off/submit", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ email: trimmedEmail, dayDate: isoDate, reason: reason.trim() ? reason.trim() : undefined }),
+      });
+    } catch {
+      setError("Network error submitting day-off request.");
+      setSubmitting(false);
+      return;
+    }
+
+    let json: unknown = null;
+    try {
+      json = await res.json();
+    } catch {
+      // ignore
+    }
+
+    const ok = typeof json === "object" && json !== null && "ok" in json ? (json as { ok?: unknown }).ok : null;
+    const message =
+      typeof json === "object" && json !== null && "message" in json
+        ? (json as { message?: unknown }).message
+        : null;
+
+    if (!res.ok || ok !== true) {
+      setError(typeof message === "string" ? message : "Day-off submit failed.");
+      setSubmitting(false);
+      return;
+    }
+
     router.refresh();
     setSubmitting(false);
     setSelectedIso(null);
@@ -147,8 +191,25 @@ export function PortalCalendar({ months }: { months: PortalMonth[] }) {
   return (
     <div className="space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="rounded-md border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm text-zinc-800">
-          All logging times are based on Calgary ({CALGARY_TZ}) time — this does not change with your device timezone.
+        <div className="space-y-2">
+          <div className="rounded-md border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm text-zinc-800">
+            All logging times are based on Calgary ({CALGARY_TZ}) time — this does not change with your device timezone.
+          </div>
+
+          <div className="flex items-center gap-2">
+            <label className="text-xs font-semibold text-zinc-700" htmlFor="portal-email">
+              Email
+            </label>
+            <input
+              id="portal-email"
+              className="h-9 w-64 max-w-full rounded-md border border-zinc-300 bg-white px-3 text-sm"
+              placeholder="you@company.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              autoComplete="email"
+              inputMode="email"
+            />
+          </div>
         </div>
 
         <button
@@ -243,8 +304,15 @@ export function PortalCalendar({ months }: { months: PortalMonth[] }) {
 
           <button
             type="button"
-            className="h-10 rounded-md bg-zinc-900 px-4 text-sm font-semibold text-white hover:opacity-90"
-            disabled={!selectedIso || submitting}
+            className="h-10 rounded-md bg-zinc-900 px-4 text-sm font-semibold text-white hover:opacity-90 disabled:bg-zinc-300"
+            disabled={!selectedIso || submitting || email.trim().length === 0 || (selectedIso ? isWeekend(selectedIso) : false)}
+            title={
+              email.trim().length === 0
+                ? "Email is required"
+                : selectedIso && isWeekend(selectedIso)
+                  ? "Weekends are not eligible for day-off requests"
+                  : "Submit a day-off request"
+            }
             onClick={async () => {
               if (!selectedIso) return;
               await submitDayOff(selectedIso);

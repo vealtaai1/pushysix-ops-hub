@@ -25,6 +25,9 @@ export default async function WorklogPage({
   const dateParamRaw = sp.date;
   const dateParam = typeof dateParamRaw === "string" ? dateParamRaw : null;
 
+  const emailParamRaw = sp.email;
+  const emailParam = typeof emailParamRaw === "string" ? emailParamRaw : null;
+
   let clients: Array<{ id: string; name: string }> = [];
   let dbWarning: string | null = null;
 
@@ -52,7 +55,7 @@ export default async function WorklogPage({
         </div>
       ) : null}
 
-      <WorklogForm clients={clients} initialDate={dateParam} />
+      <WorklogForm clients={clients} initialDate={dateParam} initialEmail={emailParam} />
     </div>
   );
 }
