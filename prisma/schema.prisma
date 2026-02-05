@@ -45,10 +45,17 @@ model User {
 }
 
 model Client {
-  id                   String                @id @default(cuid())
+  id                   String               @id @default(cuid())
   name                 String
-  status               ClientStatus          @default(ACTIVE)
-  billingCycleStartDay BillingCycleStartDay  @default(FIRST)
+  status               ClientStatus         @default(ACTIVE)
+  billingCycleStartDay BillingCycleStartDay @default(FIRST)
+
+  // Contract basics
+  monthlyRetainerHours Int @default(0)
+
+  // Optional caps/guardrails (per billing cycle)
+  maxShootsPerCycle       Int?
+  maxCaptureHoursPerCycle Int?
 
   // Manual mapping
   clickupSpaceId String?

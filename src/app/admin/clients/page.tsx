@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/db";
+import { ClientCreateForm } from "./ClientCreateForm";
 
 export const dynamic = "force-dynamic";
 
@@ -12,31 +13,21 @@ export default async function AdminClientsPage() {
       <div>
         <h1 className="text-xl font-semibold">Admin — Clients</h1>
         <p className="text-sm text-zinc-600">
-          Manual mapping between ClickUp Space ↔ QuickBooks Customer, plus billing
-          cycle and billing email.
+          Create clients with billing cycle + retainer basics. (ClickUp/QBO mapping
+          stays manual for now.)
         </p>
       </div>
 
-      <div className="rounded-lg border border-zinc-200 p-4">
-        <div className="flex items-center justify-between gap-4">
-          <div>
-            <div className="text-sm font-semibold">Add client</div>
-            <div className="text-xs text-zinc-500">v1: UI scaffold</div>
-          </div>
-          <button className="h-10 rounded-md bg-[#2EA3F2] px-4 text-sm font-semibold text-white hover:opacity-90">
-            New client
-          </button>
-        </div>
-      </div>
+      <ClientCreateForm />
 
       <div className="overflow-hidden rounded-lg border border-zinc-200">
         <div className="grid grid-cols-12 gap-2 bg-zinc-50 px-4 py-2 text-xs font-semibold text-zinc-600">
           <div className="col-span-3">Client</div>
-          <div className="col-span-2">Status</div>
-          <div className="col-span-2">Cycle</div>
-          <div className="col-span-2">ClickUp Space ID</div>
-          <div className="col-span-2">QBO Customer ID</div>
-          <div className="col-span-1 text-right">Edit</div>
+          <div className="col-span-1">Status</div>
+          <div className="col-span-1">Cycle</div>
+          <div className="col-span-2">Retainer (hrs)</div>
+          <div className="col-span-2">Caps</div>
+          <div className="col-span-3">Billing email</div>
         </div>
 
         {clients.length === 0 ? (
@@ -48,18 +39,24 @@ export default async function AdminClientsPage() {
               className="grid grid-cols-12 gap-2 border-t border-zinc-200 px-4 py-3 text-sm"
             >
               <div className="col-span-3 font-medium">{c.name}</div>
-              <div className="col-span-2">{c.status}</div>
-              <div className="col-span-2">{c.billingCycleStartDay}</div>
-              <div className="col-span-2 truncate text-zinc-600">
-                {c.clickupSpaceId ?? "—"}
+              <div className="col-span-1">{c.status}</div>
+              <div className="col-span-1">{c.billingCycleStartDay}</div>
+              <div className="col-span-2">{c.monthlyRetainerHours}</div>
+              <div className="col-span-2 text-zinc-600">
+                {(c.maxShootsPerCycle ?? c.maxCaptureHoursPerCycle) ? (
+                  <span>
+                    {c.maxShootsPerCycle != null ? `${c.maxShootsPerCycle} shoots` : "—"}
+                    {" · "}
+                    {c.maxCaptureHoursPerCycle != null
+                      ? `${c.maxCaptureHoursPerCycle} hrs cap`
+                      : "—"}
+                  </span>
+                ) : (
+                  "—"
+                )}
               </div>
-              <div className="col-span-2 truncate text-zinc-600">
-                {c.qboCustomerId ?? "—"}
-              </div>
-              <div className="col-span-1 text-right">
-                <a className="text-[#2EA3F2] hover:underline" href="#">
-                  Edit
-                </a>
+              <div className="col-span-3 truncate text-zinc-600">
+                {c.clientBillingEmail ?? "—"}
               </div>
             </div>
           ))
@@ -67,7 +64,7 @@ export default async function AdminClientsPage() {
       </div>
 
       <div className="text-xs text-zinc-500">
-        Next: add create/edit forms + bucket limits per cycle.
+        Next: edit client, mapping fields, and per-cycle bucket limits.
       </div>
     </div>
   );
