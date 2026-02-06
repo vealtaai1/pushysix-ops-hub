@@ -35,27 +35,62 @@ async function main() {
     },
   });
 
-  // Create at least one Client so worklog submissions can reference a clientId.
-  // Client.name is not unique, so we only create one if there are no clients yet.
-  const existingClient = await prisma.client.findFirst({
-    orderBy: { createdAt: "asc" },
-  });
+  // Create example Clients so worklog submissions can reference a clientId.
+  // Client.name is not unique; to keep this idempotent without adding new schema constraints,
+  // we only create the examples when the DB has *zero* clients.
+  const clientCount = await prisma.client.count();
 
-  const client =
-    existingClient ??
-    (await prisma.client.create({
-      data: {
-        name: "Seed Client",
+  let exampleClients = [];
+
+  if (clientCount === 0) {
+    const toCreate = [
+      {
+        name: "Client A",
         status: ClientStatus.ACTIVE,
+        billingCycleStartDay: BillingCycleStartDay.FIRST,
+        monthlyRetainerHours: 10,
+        clientBillingEmail: adminEmail,
+      },
+      {
+        name: "Client B",
+        status: ClientStatus.ACTIVE,
+        billingCycleStartDay: BillingCycleStartDay.FIFTEENTH,
+        monthlyRetainerHours: 5,
+        clientBillingEmail: adminEmail,
+      },
+      {
+        name: "Client C",
+        status: ClientStatus.ON_HOLD,
         billingCycleStartDay: BillingCycleStartDay.FIRST,
         monthlyRetainerHours: 0,
         clientBillingEmail: adminEmail,
       },
-    }));
+    ];
+
+    await prisma.client.createMany({ data: toCreate });
+
+    exampleClients = await prisma.client.findMany({
+      where: { name: { in: toCreate.map((c) => c.name) } },
+      orderBy: { createdAt: "asc" },
+    });
+  }
+
+  // Always pick a stable “default” client to print (and for humans to copy/paste).
+  const firstClient = await prisma.client.findFirst({ orderBy: { createdAt: "asc" } });
 
   console.log("Seed complete:");
   console.log(`- admin user: ${adminUser.email} (${adminUser.id}) role=${adminUser.role}`);
-  console.log(`- client: ${client.name} (${client.id})`);
+  if (exampleClients.length > 0) {
+    console.log(`- created ${exampleClients.length} example clients:`);
+    for (const c of exampleClients) {
+      console.log(`  - ${c.name} (${c.id}) status=${c.status} billingStart=${c.billingCycleStartDay}`);
+    }
+  } else {
+    console.log(`- clients already present (count=${clientCount}); no example clients created`);
+  }
+  if (firstClient) {
+    console.log(`- first client: ${firstClient.name} (${firstClient.id})`);
+  }
 }
 
 main()
