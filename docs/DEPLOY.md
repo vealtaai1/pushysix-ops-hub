@@ -80,5 +80,34 @@ Used by `src/lib/email/postmark.ts` and the test endpoint at `/api/email/test-po
 
 ## Notes / troubleshooting
 
+### DB connectivity health check endpoint
+
+This repo includes a lightweight DB connectivity check endpoint:
+
+- `GET /api/health/db`
+
+It runs a simple `SELECT 1` via Prisma and returns:
+
+- `ok: true/false`
+- `db.latencyMs`
+- `env` flags (presence of `DATABASE_URL` / `DIRECT_URL`, and `VERCEL_ENV`)
+
+It is designed to be safe to paste into Slack/screenshots/logs (it **does not** return connection strings).
+
+#### Using it on Vercel Preview (diagnosing env scope issues)
+
+A very common cause of “works locally but Preview is broken” is that the database env vars are only set for **Production** in Vercel.
+
+1. Open the Preview deployment URL for your branch/PR.
+2. Visit:
+   - `https://<your-preview>.vercel.app/api/health/db`
+   - or via curl: `curl -sS https://<your-preview>.vercel.app/api/health/db | jq`
+3. Check the response:
+   - If `env.hasDatabaseUrl` or `env.hasDirectUrl` is `false`, set those env vars for **Preview** scope in:
+     - **Vercel → Project → Settings → Environment Variables**
+   - If `env` flags are `true` but `ok` is `false`, the values are present but the DB is unreachable/incorrect.
+
+### General tips
+
 - If migrations are not applying, confirm `PRISMA_MIGRATE_DEPLOY` is set to **exactly** `true` (string).
 - If migrations fail with connection/pooling errors, confirm `DIRECT_URL` is the provider’s **direct** connection string.
