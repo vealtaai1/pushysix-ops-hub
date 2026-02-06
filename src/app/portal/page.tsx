@@ -1,7 +1,8 @@
 import { holidayNameForISODate } from "@/lib/holidays";
 import { isoDateInTimeZone, parseISODateAsUTC, CALGARY_TZ } from "@/lib/time";
 import { DbUnavailableCallout } from "@/app/_components/DbUnavailableCallout";
-import { buildMonthGrid, PortalCalendar, type DayState, type PortalMonth } from "./PortalCalendar";
+import { PortalCalendar, type DayState, type PortalMonth } from "./PortalCalendar";
+import { buildMonthGrid } from "./monthGrid";
 
 export const dynamic = "force-dynamic";
 

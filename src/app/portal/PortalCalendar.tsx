@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { addDays, endOfMonth, format, startOfMonth, startOfWeek } from "date-fns";
+import { addDays, format } from "date-fns";
 
 import { CALGARY_TZ, hourInTimeZone, isoDateInTimeZone, parseISODateAsUTC } from "@/lib/time";
 
@@ -49,12 +49,7 @@ function isWeekend(isoDate: string) {
   return dow === 0 || dow === 6;
 }
 
-function Dialog(props: {
-  open: boolean;
-  title: string;
-  children: React.ReactNode;
-  onClose: () => void;
-}) {
+function Dialog(props: { open: boolean; title: string; children: React.ReactNode; onClose: () => void }) {
   const { open, title, children, onClose } = props;
 
   if (!open) return null;
@@ -155,7 +150,7 @@ export function PortalCalendar({
     }
 
     if (isWeekend(isoDate)) {
-      setError("Day-off requests are only allowed for weekdays (Mon–Fri)." );
+      setError("Day-off requests are only allowed for weekdays (Mon–Fri).");
       setSubmitting(false);
       return;
     }
@@ -167,7 +162,11 @@ export function PortalCalendar({
       res = await fetch("/api/day-off/submit", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ email: trimmedEmail, dayDate: isoDate, reason: reason.trim() ? reason.trim() : undefined }),
+        body: JSON.stringify({
+          email: trimmedEmail,
+          dayDate: isoDate,
+          reason: reason.trim() ? reason.trim() : undefined,
+        }),
       });
     } catch {
       setError("Network error submitting day-off request.");
@@ -184,9 +183,7 @@ export function PortalCalendar({
 
     const ok = typeof json === "object" && json !== null && "ok" in json ? (json as { ok?: unknown }).ok : null;
     const message =
-      typeof json === "object" && json !== null && "message" in json
-        ? (json as { message?: unknown }).message
-        : null;
+      typeof json === "object" && json !== null && "message" in json ? (json as { message?: unknown }).message : null;
 
     if (!res.ok || ok !== true) {
       setError(typeof message === "string" ? message : "Day-off submit failed.");
@@ -333,28 +330,8 @@ export function PortalCalendar({
           </button>
         </div>
 
-        <div className="mt-2 text-xs text-zinc-500">
-          Tip: YES opens the worklog form for that date. NO submits a day-off request.
-        </div>
+        <div className="mt-2 text-xs text-zinc-500">Tip: YES opens the worklog form for that date. NO submits a day-off request.</div>
       </Dialog>
     </div>
   );
-}
-
-export function buildMonthGrid(yyyy: number, monthIndex0: number) {
-  const start = startOfWeek(startOfMonth(new Date(Date.UTC(yyyy, monthIndex0, 1))), { weekStartsOn: 1 });
-  const end = endOfMonth(new Date(Date.UTC(yyyy, monthIndex0, 1)));
-  const endGrid = addDays(startOfWeek(addDays(end, 6), { weekStartsOn: 1 }), 0);
-
-  const days: Array<{ isoDate: string; dayNumber: number; inMonth: boolean }> = [];
-  for (let d = start; d <= endGrid; d = addDays(d, 1)) {
-    const isoDate = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}-${String(d.getUTCDate()).padStart(2, "0")}`;
-    days.push({
-      isoDate,
-      dayNumber: d.getUTCDate(),
-      inMonth: d.getUTCMonth() === monthIndex0,
-    });
-  }
-
-  return days;
 }
