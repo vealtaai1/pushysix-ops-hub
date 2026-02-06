@@ -1,10 +1,17 @@
 import { NextResponse, type NextRequest } from "next/server";
 
-import { auth } from "@/auth";
+function hasAuthCookie(req: NextRequest) {
+  // With database sessions, NextAuth stores the session token in a cookie.
+  // Cookie name varies depending on secure context.
+  return Boolean(
+    req.cookies.get("next-auth.session-token")?.value ||
+      req.cookies.get("__Secure-next-auth.session-token")?.value ||
+      req.cookies.get("__Host-next-auth.session-token")?.value
+  );
+}
 
-export default auth((req: NextRequest) => {
+export default function middleware(req: NextRequest) {
   const { nextUrl } = req;
-  const a = (req as NextRequest & { auth?: { user?: { role?: string } } }).auth;
 
   // Legacy URL: keep /admin/login as an alias for /login.
   if (nextUrl.pathname === "/admin/login") {
@@ -13,25 +20,16 @@ export default auth((req: NextRequest) => {
     return NextResponse.redirect(loginUrl);
   }
 
-  // If not signed in, send to login.
-  if (!a?.user) {
+  // Keep middleware tiny (Edge 1MB limit): only gate by presence of session cookie.
+  // Role checks happen server-side in /admin layout.
+  if (!hasAuthCookie(req)) {
     const loginUrl = new URL("/login", nextUrl);
     loginUrl.searchParams.set("callbackUrl", nextUrl.pathname + nextUrl.search);
     return NextResponse.redirect(loginUrl);
   }
 
-  // Admin routes require ADMIN role.
-  if (nextUrl.pathname.startsWith("/admin")) {
-    if (a.user.role !== "ADMIN") {
-      return new NextResponse("Forbidden: admin access required.", {
-        status: 403,
-        headers: { "content-type": "text/plain; charset=utf-8" },
-      });
-    }
-  }
-
   return NextResponse.next();
-});
+}
 
 export const config = {
   matcher: ["/admin/:path*", "/worklog/:path*", "/portal/:path*"],
