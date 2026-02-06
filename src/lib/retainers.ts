@@ -123,7 +123,6 @@ export function getRetainerCycleRange(
   }
 
   // Exhaustiveness guard if Prisma adds new values.
-  // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
   throw new Error(`Unhandled BillingCycleStartDay: ${billingCycleStartDay}`);
 }
 

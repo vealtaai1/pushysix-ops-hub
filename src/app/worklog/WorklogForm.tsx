@@ -143,7 +143,7 @@ export function WorklogForm({
         submittedAt?: string | null;
       }
   >(null);
-  const [checkingExistingWorklog, setCheckingExistingWorklog] = React.useState(false);
+  const [, setCheckingExistingWorklog] = React.useState(false);
   const [resubmitReason, setResubmitReason] = React.useState("");
 
   React.useEffect(() => {
