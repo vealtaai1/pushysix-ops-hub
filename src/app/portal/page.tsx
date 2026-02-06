@@ -20,14 +20,8 @@ function addMonthsUTC(d: Date, n: number) {
   return next;
 }
 
-export default async function PortalPage({
-  searchParams,
-}: {
-  searchParams?: Promise<Record<string, string | string[] | undefined>>;
-}) {
-  const sp = (searchParams ? await searchParams : {}) as Record<string, unknown>;
-  const emailRaw = sp.email;
-  const viewAsEmail = typeof emailRaw === "string" ? emailRaw.trim().toLowerCase() : null;
+export default async function PortalPage() {
+  // Auth is now responsible for associating logs to users. No view-as email in MVP.
 
   const now = new Date();
   const todayIso = isoDateInTimeZone(now, CALGARY_TZ);
@@ -42,29 +36,22 @@ export default async function PortalPage({
 
   let dbError: string | null = null;
 
-  let viewAsUser: { id: string; email: string } | null = null;
   let worklogs: Array<{ workDate: Date; status: "APPROVED" | "PENDING" | "REJECTED" }> = [];
   let dayoffs: Array<{ dayDate: Date; status: "APPROVED" | "PENDING" | "REJECTED" }> = [];
 
   try {
     const { prisma } = await import("@/lib/db");
 
-    viewAsUser = viewAsEmail
-      ? await prisma.user.findUnique({ where: { email: viewAsEmail }, select: { id: true, email: true } })
-      : null;
-
     const results = await Promise.all([
       prisma.worklog.findMany({
         where: {
           workDate: { gte: rangeStart, lte: rangeEnd },
-          ...(viewAsUser ? { userId: viewAsUser.id } : {}),
         },
         select: { workDate: true, status: true },
       }),
       prisma.dayOff.findMany({
         where: {
           dayDate: { gte: rangeStart, lte: rangeEnd },
-          ...(viewAsUser ? { userId: viewAsUser.id } : {}),
         },
         select: { dayDate: true, status: true },
       }),
@@ -139,13 +126,7 @@ export default async function PortalPage({
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-xl font-semibold">Team Portal</h1>
-        <p className="text-sm text-zinc-600">6 months back / forward — click any day to log work or request a day off.</p>
-        {viewAsEmail ? (
-          <div className="mt-2 text-sm text-zinc-700">
-            Viewing as: <span className="font-medium">{viewAsEmail}</span>
-          </div>
-        ) : null}
+        <h1 className="text-xl font-semibold">Shift Log</h1>
       </div>
 
       {dbError ? (
@@ -160,7 +141,7 @@ export default async function PortalPage({
         />
       ) : null}
 
-      <PortalCalendar months={months} initialEmail={viewAsEmail} />
+      <PortalCalendar months={months} />
     </div>
   );
 }

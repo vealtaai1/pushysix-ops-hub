@@ -73,42 +73,13 @@ function Dialog(props: { open: boolean; title: string; children: React.ReactNode
   );
 }
 
-export function PortalCalendar({
-  months,
-  initialEmail,
-}: {
-  months: PortalMonth[];
-  initialEmail?: string | null;
-}) {
+export function PortalCalendar({ months }: { months: PortalMonth[] }) {
   const router = useRouter();
 
+  const [email, setEmail] = React.useState("");
   const [selectedIso, setSelectedIso] = React.useState<string | null>(null);
   const [submitting, setSubmitting] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
-
-  const [email, setEmail] = React.useState<string>("");
-
-  React.useEffect(() => {
-    try {
-      if (initialEmail && typeof initialEmail === "string" && initialEmail.trim()) {
-        setEmail(initialEmail.trim().toLowerCase());
-        return;
-      }
-
-      const saved = window.localStorage.getItem("opsHubEmail");
-      if (saved && typeof saved === "string") setEmail(saved);
-    } catch {
-      // ignore
-    }
-  }, [initialEmail]);
-
-  React.useEffect(() => {
-    try {
-      window.localStorage.setItem("opsHubEmail", email);
-    } catch {
-      // ignore
-    }
-  }, [email]);
 
   const now = React.useMemo(() => new Date(), []);
 
@@ -142,9 +113,8 @@ export function PortalCalendar({
     setSubmitting(true);
     setError(null);
 
-    const trimmedEmail = email.trim().toLowerCase();
-    if (!trimmedEmail) {
-      setError("Email is required to request a day off.");
+    if (isoDate > currentLogIso) {
+      setError("You can’t log or request days off for future dates.");
       setSubmitting(false);
       return;
     }
@@ -163,7 +133,6 @@ export function PortalCalendar({
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
-          email: trimmedEmail,
           dayDate: isoDate,
           reason: reason.trim() ? reason.trim() : undefined,
         }),
