@@ -2,7 +2,15 @@
 
 const { PrismaClient, UserRole, ClientStatus, BillingCycleStartDay } = require("@prisma/client");
 
-const prisma = new PrismaClient();
+// Prefer DIRECT_URL for seed/migrations (Neon pooled URLs often run through PgBouncer).
+// Prisma seed can run more reliably against a direct (non-pooled) connection.
+const prisma = new PrismaClient({
+  datasources: {
+    db: {
+      url: process.env.DIRECT_URL || process.env.DATABASE_URL,
+    },
+  },
+});
 
 async function main() {
   const adminEmailRaw = process.env.ADMIN_SEED_EMAIL;

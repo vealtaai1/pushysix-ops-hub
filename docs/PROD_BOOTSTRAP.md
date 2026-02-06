@@ -4,28 +4,65 @@ This doc describes the **one-time** steps to bootstrap a new production database
 
 ## Required env vars
 
-- `DATABASE_URL` — pooled/primary connection string
-- `DIRECT_URL` — direct/non-pooled connection string (used by Prisma migrate)
+### Database (Neon)
+
+- `DATABASE_URL` — **pooled** connection string (Neon “Pooled connection”). This is what the app should use at runtime.
+- `DIRECT_URL` — **direct** (non-pooled) connection string (Neon “Direct connection”). Prisma migrations/seed should prefer this.
+
+> Why both? Neon’s pooled URL usually sits behind PgBouncer. Prisma migrations and some one-off scripts are more reliable against a direct connection.
+
+### Admin bootstrap
+
 - `ADMIN_SEED_EMAIL` — email to upsert as the initial `User(role=ADMIN)`
+- `ADMIN_TOKEN` — shared secret used to protect the one-off bootstrap endpoint (`/api/admin/bootstrap`)
 
-## One-off bootstrap (recommended)
+## Vercel: exact bootstrap steps (recommended)
 
-Run these commands from a clean checkout of the repo at the version you’re deploying.
+### 0) Set Vercel Environment Variables (Production)
 
-1) Generate Prisma client + apply migrations:
+In **Vercel → Project → Settings → Environment Variables** (Production):
+
+- `DATABASE_URL` (Neon pooled URL)
+- `DIRECT_URL` (Neon direct URL)
+- `ADMIN_SEED_EMAIL` (the email that should become the initial ADMIN)
+- `ADMIN_TOKEN` (generate a long random string)
+- `PRISMA_MIGRATE_DEPLOY=true` (enables the repo’s `prebuild` migrate-deploy step)
+
+Deploy once after setting these so migrations run.
+
+### 1) Run the seed once
+
+Option A (recommended): call the protected endpoint
 
 ```bash
-npx prisma generate
-npx prisma migrate deploy
+curl -X POST "https://<your-domain>/api/admin/bootstrap" \
+  -H "Authorization: Bearer $ADMIN_TOKEN"
 ```
 
-2) Seed:
+- If it already ran, it will return `alreadyBootstrapped: true`.
+- Otherwise it will upsert the admin user and create a seed Client if none exists.
+
+Option B: run Prisma seed locally against Production env
+
+1) Pull prod env vars locally (Vercel CLI):
 
 ```bash
-ADMIN_SEED_EMAIL="admin@pushysix.com" npx prisma db seed
+vercel env pull .env.production.local
 ```
 
-(You can also run the npm script: `npm run prisma:seed`.)
+2) Run seed (note: seed prefers `DIRECT_URL` if present):
+
+```bash
+npm run prisma:seed
+```
+
+## Notes / behavior
+
+- Seed is **idempotent**:
+  - admin user is upserted by email, role forced to `ADMIN`
+  - a seed Client is created **only if no clients exist yet**
+- `/api/admin/bootstrap` is **token-gated** by `ADMIN_TOKEN` and is safe to call multiple times.
+- The seed script does not create passwords/auth credentials; auth is handled elsewhere (MVP admin gate / future SSO).
 
 ## Notes / behavior
 
