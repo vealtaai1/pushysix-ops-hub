@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Open_Sans } from "next/font/google";
 import "./globals.css";
+import { AuthButtons } from "@/app/_components/AuthButtons";
 
 const openSans = Open_Sans({
   subsets: ["latin"],
@@ -40,6 +41,7 @@ export default function RootLayout({
                 <a className="text-zinc-600 hover:text-[#2EA3F2]" href="/admin/clients">
                   Admin
                 </a>
+                <AuthButtons />
               </nav>
             </div>
           </header>

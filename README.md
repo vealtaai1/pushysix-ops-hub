@@ -34,6 +34,6 @@ You can check out [the Next.js GitHub repository](https://github.com/vercel/next
 See:
 
 - `docs/DEPLOY.md`
-- `docs/PROD_BOOTSTRAP.md` (Neon + migrations + seed + `ADMIN_TOKEN` bootstrap endpoint)
+- `docs/PROD_BOOTSTRAP.md` (Neon + migrations + seed + Google auth + admin bootstrap)
 
 (If you’re just looking for Next.js docs: https://nextjs.org/docs/app/building-your-application/deploying )

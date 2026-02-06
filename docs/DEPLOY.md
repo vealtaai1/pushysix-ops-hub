@@ -41,14 +41,18 @@ If it is not set (or not exactly `"true"`), the build will log:
 
 > Skipping prisma migrate deploy (set PRISMA_MIGRATE_DEPLOY=true to enable)
 
+## Auth (Google sign-in)
+
+Add these in **Vercel → Project → Settings → Environment Variables**:
+
+- `GOOGLE_CLIENT_ID`
+- `GOOGLE_CLIENT_SECRET`
+- `AUTH_SECRET` (or `NEXTAUTH_SECRET`) — generate a long random string
+- `NEXTAUTH_URL` (recommended) — your canonical deployment URL
+
 ## Optional app configuration env vars
 
 These are referenced in the codebase and may be needed depending on features you enable.
-
-### Admin attribution (temporary auth placeholder)
-
-- `ADMIN_REVIEWER_EMAIL`
-  - Email address used to attribute admin actions until real auth is implemented.
 
 ### Email (Postmark)
 

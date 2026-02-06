@@ -1,23 +1,9 @@
 import { NextResponse } from "next/server";
-import crypto from "crypto";
 import { prisma } from "@/lib/db";
+import { requireAdminOrThrow } from "@/lib/adminAuth";
 import { BillingCycleStartDay, ClientStatus, UserRole } from "@prisma/client";
 
 export const dynamic = "force-dynamic";
-
-function getProvidedToken(req: Request): string {
-  const header = req.headers.get("authorization") ?? "";
-  const m = header.match(/^Bearer\s+(.+)$/i);
-  if (m?.[1]) return m[1].trim();
-  return (req.headers.get("x-admin-token") ?? "").trim();
-}
-
-function timingSafeEqual(a: string, b: string): boolean {
-  const ba = Buffer.from(a);
-  const bb = Buffer.from(b);
-  if (ba.length !== bb.length) return false;
-  return crypto.timingSafeEqual(ba, bb);
-}
 
 function asSeedEmail(raw: unknown): string | null {
   if (typeof raw !== "string") return null;
@@ -27,28 +13,9 @@ function asSeedEmail(raw: unknown): string | null {
   return email;
 }
 
-export async function POST(req: Request) {
-  const expectedToken = (process.env.ADMIN_TOKEN ?? "").trim();
-  if (!expectedToken) {
-    return NextResponse.json(
-      {
-        ok: false,
-        message: "ADMIN_TOKEN is not configured on this deployment.",
-      },
-      { status: 503 },
-    );
-  }
-
-  const providedToken = getProvidedToken(req);
-  if (!providedToken || !timingSafeEqual(expectedToken, providedToken)) {
-    return NextResponse.json(
-      {
-        ok: false,
-        message: "Unauthorized.",
-      },
-      { status: 401 },
-    );
-  }
+export async function POST() {
+  // Only signed-in admins can run bootstrap in a deployed environment.
+  await requireAdminOrThrow({ message: "Forbidden: admin access required to bootstrap." });
 
   const seedEmail = asSeedEmail(process.env.ADMIN_SEED_EMAIL);
   if (!seedEmail) {

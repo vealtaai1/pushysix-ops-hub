@@ -1,54 +1,39 @@
-# Security (MVP)
+# Security
 
-This project currently uses a **temporary MVP admin gate** to prevent casual/unintended access to the admin portal.
+This project uses **Google sign-in** via **Auth.js/NextAuth** (Next.js App Router) with the **Prisma Adapter**.
 
 ## What is protected
 
-- All routes under **`/admin/*`**
-- Admin **server actions** (e.g. create client, approve/reject)
+- All routes under **`/worklog/*`** and **`/portal/*`** require a signed-in session.
+- All routes under **`/admin/*`** require a signed-in session **and** `User.role === ADMIN`.
+- Admin **server actions** (e.g. create client, approve/reject) also enforce `ADMIN` role server-side.
 
 Protection is implemented in:
 
-- `src/middleware.ts` (blocks/redirects requests to `/admin/*`)
-- `src/lib/adminAuth.ts` (shared auth helpers)
+- `src/middleware.ts` (blocks/redirects requests)
+- `src/lib/adminAuth.ts` (shared admin authorization helper for server actions/routes)
+- `src/auth.ts` (Auth.js/NextAuth configuration + session callbacks)
 
-## Configure admin access
+## Required environment variables
 
-Set **at least one** of the following environment variables:
+### Auth
 
-### Option A — Shared token (recommended for MVP)
+- `GOOGLE_CLIENT_ID`
+- `GOOGLE_CLIENT_SECRET`
+- `AUTH_SECRET` (or `NEXTAUTH_SECRET`)
+- `NEXTAUTH_URL` (recommended)
 
-- `ADMIN_TOKEN` — a shared secret token
+### Database
 
-How to provide it:
+- `DATABASE_URL`
+- `DIRECT_URL`
 
-- HTTP header: `X-Admin-Token: <token>`
-- or: `Authorization: Bearer <token>`
-- or (browser MVP): enter it on `/admin/login` (stored in a cookie)
+## Admin role management
 
-### Option B — Email allowlist (MVP placeholder)
+- Admin access is controlled by `User.role` in the database.
+- The seed script (`npm run prisma:seed`) upserts `ADMIN_SEED_EMAIL` as `role=ADMIN`.
 
-- `ADMIN_EMAIL_ALLOWLIST` — comma-separated allowlist of emails (case-insensitive)
+## Notes / limitations
 
-How to provide it:
-
-- Enter an email on `/admin/login` (stored in a cookie)
-- Or send header: `X-Admin-Email: you@company.com`
-
-Example:
-
-```bash
-ADMIN_EMAIL_ALLOWLIST="alice@pushysix.com,bob@pushysix.com"
-```
-
-## Failure behavior (user-friendly)
-
-- Visiting `/admin/*` without valid credentials redirects to **`/admin/login`**.
-- Posting/mutating without credentials returns **401** with a plain-text message.
-- If neither `ADMIN_TOKEN` nor `ADMIN_EMAIL_ALLOWLIST` is set, admin access fails closed with **503** and an explanation.
-
-## Important notes / limitations
-
-- This is **not** a full authentication system.
-- Cookies set by `/admin/login` are only an MVP convenience and are not suitable as a long-term auth strategy.
-- Replace this with real auth (e.g. NextAuth/Auth.js, Clerk, Cognito, etc.) before broad deployment.
+- This is SSO-style auth (Google) and assumes your Google OAuth app is configured appropriately.
+- If you need domain restrictions (e.g. only `@pushysix.com`), implement it in the NextAuth `signIn` callback.
