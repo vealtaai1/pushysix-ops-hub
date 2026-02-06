@@ -126,7 +126,7 @@ export default async function PortalPage({
       } else if (!dbError) {
         const dateUTC = parseISODateAsUTC(d.isoDate);
         const withinWindow = dateUTC >= windowStart && dateUTC <= windowEnd;
-        if (withinWindow) state = { kind: "RED" };
+        if (withinWindow) state = { kind: "RED", label: "Missing" };
       }
 
       return { ...d, state };

@@ -21,8 +21,8 @@ export default async function ApprovalsQueuePage() {
     orderBy: { createdAt: "asc" },
     include: {
       requestedByUser: { select: { email: true, name: true } },
-      worklog: { select: { id: true, workDate: true, status: true } },
-      dayOff: { select: { id: true, dayDate: true, status: true } },
+      worklog: { select: { id: true, workDate: true, status: true, approvalReason: true, submittedAt: true } },
+      dayOff: { select: { id: true, dayDate: true, status: true, approvalReason: true, submittedAt: true } },
     },
   });
 
@@ -55,9 +55,55 @@ export default async function ApprovalsQueuePage() {
                   <tr key={p.id} className="align-top">
                     <td className="border-b border-zinc-100 px-3 py-2 text-sm text-zinc-700">{fmtDateTime(p.createdAt)}</td>
                     <td className="border-b border-zinc-100 px-3 py-2 text-sm font-medium">{p.type}</td>
-                    <td className="border-b border-zinc-100 px-3 py-2 text-sm text-zinc-700">{p.requestedByUser.email}</td>
+                    <td className="border-b border-zinc-100 px-3 py-2 text-sm text-zinc-700">
+                      <div className="font-medium text-zinc-900">{p.requestedByUser.name ?? "(no name)"}</div>
+                      <div className="text-xs text-zinc-600">{p.requestedByUser.email}</div>
+                    </td>
                     <td className="border-b border-zinc-100 px-3 py-2 text-sm text-zinc-700">{date ? fmtDateTime(date).slice(0, 10) : "—"}</td>
-                    <td className="border-b border-zinc-100 px-3 py-2 text-sm text-zinc-700">{p.reason}</td>
+                    <td className="border-b border-zinc-100 px-3 py-2 text-sm text-zinc-700">
+                      <div>{p.reason}</div>
+                      <details className="mt-2">
+                        <summary className="cursor-pointer text-xs font-medium text-zinc-700 hover:underline">Details</summary>
+                        <div className="mt-2 space-y-2 rounded-md border border-zinc-200 bg-zinc-50 p-2 text-xs text-zinc-800">
+                          <div className="grid gap-1">
+                            <div>
+                              <span className="font-semibold">Request ID:</span> {p.id}
+                            </div>
+                            <div>
+                              <span className="font-semibold">Type:</span> {p.type}
+                            </div>
+                            {p.worklog ? (
+                              <div>
+                                <span className="font-semibold">Worklog:</span> {p.worklog.id} ({fmtDateTime(p.worklog.workDate).slice(0, 10)}) — {p.worklog.status}
+                                {p.worklog.approvalReason ? (
+                                  <>
+                                    {" "}
+                                    — <span className="italic">{p.worklog.approvalReason}</span>
+                                  </>
+                                ) : null}
+                              </div>
+                            ) : null}
+                            {p.dayOff ? (
+                              <div>
+                                <span className="font-semibold">Day off:</span> {p.dayOff.id} ({fmtDateTime(p.dayOff.dayDate).slice(0, 10)}) — {p.dayOff.status}
+                                {p.dayOff.approvalReason ? (
+                                  <>
+                                    {" "}
+                                    — <span className="italic">{p.dayOff.approvalReason}</span>
+                                  </>
+                                ) : null}
+                              </div>
+                            ) : null}
+                          </div>
+
+                          {p.payload ? (
+                            <pre className="max-h-60 overflow-auto whitespace-pre-wrap rounded border border-zinc-200 bg-white p-2">
+                              {JSON.stringify(p.payload, null, 2)}
+                            </pre>
+                          ) : null}
+                        </div>
+                      </details>
+                    </td>
                     <td className="border-b border-zinc-100 px-3 py-2">
                       <div className="flex flex-wrap gap-2">
                         <form action={approveRequest}>
@@ -76,7 +122,8 @@ export default async function ApprovalsQueuePage() {
                           <input type="hidden" name="id" value={p.id} />
                           <input
                             name="note"
-                            placeholder="Rejection reason"
+                            placeholder="Rejection reason (required)"
+                            required
                             className="h-9 w-56 rounded-md border border-zinc-300 bg-white px-3 text-sm"
                           />
                           <button className="ml-2 h-9 rounded-md bg-red-600 px-3 text-sm font-semibold text-white hover:opacity-90">

@@ -135,6 +135,17 @@ export function WorklogForm({
   const [submitState, setSubmitState] = React.useState<{ ok: boolean; message: string } | null>(null);
   const [submitting, setSubmitting] = React.useState(false);
 
+  const [existingWorklog, setExistingWorklog] = React.useState<
+    | null
+    | {
+        exists: boolean;
+        status?: "APPROVED" | "PENDING" | "REJECTED";
+        submittedAt?: string | null;
+      }
+  >(null);
+  const [checkingExistingWorklog, setCheckingExistingWorklog] = React.useState(false);
+  const [resubmitReason, setResubmitReason] = React.useState("");
+
   React.useEffect(() => {
     // Keep portal + worklog email aligned for "view as" workflows.
     if (initialEmail && typeof initialEmail === "string") {
@@ -157,6 +168,58 @@ export function WorklogForm({
   React.useEffect(() => {
     if (normalizedInitial) setWorkDate(normalizedInitial);
   }, [normalizedInitial]);
+
+  React.useEffect(() => {
+    const trimmedEmail = email.trim().toLowerCase();
+    const dateOk = /^\d{4}-\d{2}-\d{2}$/.test(workDate);
+    const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail);
+
+    if (!dateOk || !emailOk) {
+      setExistingWorklog(null);
+      setResubmitReason("");
+      return;
+    }
+
+    const ctrl = new AbortController();
+    setCheckingExistingWorklog(true);
+
+    (async () => {
+      try {
+        const res = await fetch("/api/worklog/status", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ email: trimmedEmail, workDate }),
+          signal: ctrl.signal,
+        });
+
+        const data = (await res.json()) as {
+          ok?: boolean;
+          exists?: boolean;
+          status?: "APPROVED" | "PENDING" | "REJECTED";
+          submittedAt?: string | null;
+        };
+
+        if (!res.ok || data?.ok !== true) {
+          setExistingWorklog(null);
+          return;
+        }
+
+        if (data.exists === true) {
+          setExistingWorklog({ exists: true, status: data.status, submittedAt: data.submittedAt ?? null });
+        } else {
+          setExistingWorklog({ exists: false });
+          setResubmitReason("");
+        }
+      } catch {
+        // Ignore background status check errors.
+        setExistingWorklog(null);
+      } finally {
+        setCheckingExistingWorklog(false);
+      }
+    })();
+
+    return () => ctrl.abort();
+  }, [email, workDate]);
 
   // Totals as text so 0 is deletable (no stuck placeholder)
   const [targetHoursText, setTargetHoursText] = React.useState<string>("0");
@@ -253,6 +316,10 @@ export function WorklogForm({
     !hasClientViolations &&
     !hasBucketViolations &&
     mileageComplete;
+
+  const isResubmission = existingWorklog?.exists === true;
+  const resubmitReasonOk = !isResubmission || resubmitReason.trim().length > 0;
+  const canSubmitWithResubmitRules = canSubmit && resubmitReasonOk;
 
   return (
     <div className="space-y-6">
@@ -512,6 +579,33 @@ export function WorklogForm({
         </div>
       ) : null}
 
+      {isResubmission ? (
+        <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950">
+          <div className="font-semibold">Resubmission (admin approval required)</div>
+          <div className="mt-1 text-amber-900">
+            A worklog already exists for <span className="font-medium">{workDate}</span>
+            {existingWorklog?.status ? (
+              <>
+                {" "}
+                (current status: <span className="font-medium">{existingWorklog.status}</span>)
+              </>
+            ) : null}
+            . Submitting again will replace the existing worklog and will require admin review.
+          </div>
+
+          <label className="mt-3 grid gap-1">
+            <span className="text-sm font-medium">Resubmission reason (required)</span>
+            <textarea
+              value={resubmitReason}
+              onChange={(e) => setResubmitReason(e.target.value)}
+              className="min-h-20 rounded-md border border-amber-300 bg-white px-3 py-2"
+              placeholder="What changed, and why are you resubmitting?"
+            />
+            {!resubmitReasonOk ? <span className="text-xs text-red-700">A reason is required to resubmit.</span> : null}
+          </label>
+        </div>
+      ) : null}
+
       <div className="flex flex-wrap items-center justify-end gap-3">
         {submitState ? (
           <div
@@ -526,17 +620,21 @@ export function WorklogForm({
 
         <button
           type="button"
-          disabled={!canSubmit || submitting || email.trim().length === 0}
+          disabled={!canSubmitWithResubmitRules || submitting || email.trim().length === 0}
           className={
             "h-10 rounded-md px-4 text-sm font-semibold text-white " +
-            (!canSubmit || submitting || email.trim().length === 0 ? "bg-zinc-300" : "bg-[#2EA3F2] hover:opacity-90")
+            (!canSubmitWithResubmitRules || submitting || email.trim().length === 0 ? "bg-zinc-300" : "bg-[#2EA3F2] hover:opacity-90")
           }
           title={
             email.trim().length === 0
               ? "Email is required"
-              : canSubmit
-                ? "Ready to submit"
-                : "Hours must match target exactly; task hour values must be valid; client + notes required for non-zero hours; and mileage must be allocated if entered"
+              : !resubmitReasonOk
+                ? "Resubmission reason is required"
+                : canSubmit
+                  ? isResubmission
+                    ? "Ready to resubmit (admin approval required)"
+                    : "Ready to submit"
+                  : "Hours must match target exactly; task hour values must be valid; client + notes required for non-zero hours; and mileage must be allocated if entered"
           }
           onClick={async () => {
             setSubmitting(true);
@@ -565,34 +663,32 @@ export function WorklogForm({
               })),
             };
 
-            let shouldResubmit = false;
-            try {
-              const res = await fetch("/api/worklog/status", {
-                method: "POST",
-                headers: { "content-type": "application/json" },
-                body: JSON.stringify({ email: trimmedEmail, workDate }),
-              });
-              const data = (await res.json()) as { ok?: boolean; exists?: boolean };
-              if (res.ok && data?.ok === true && data.exists === true) shouldResubmit = true;
-            } catch {
-              // If the status check fails, fall back to normal submit.
+            // If a worklog already exists for this date, we treat this as a resubmission.
+            // Resubmissions always require admin approval and a reason.
+            let shouldResubmit = existingWorklog?.exists === true;
+
+            // Safety net: if we don't know yet, re-check right before submit.
+            if (existingWorklog === null) {
+              try {
+                const res = await fetch("/api/worklog/status", {
+                  method: "POST",
+                  headers: { "content-type": "application/json" },
+                  body: JSON.stringify({ email: trimmedEmail, workDate }),
+                });
+                const data = (await res.json()) as { ok?: boolean; exists?: boolean };
+                if (res.ok && data?.ok === true && data.exists === true) shouldResubmit = true;
+              } catch {
+                // If the status check fails, fall back to normal submit.
+              }
             }
 
             const url = shouldResubmit ? "/api/worklog/resubmit" : "/api/worklog/submit";
 
             let payload: unknown = basePayload;
             if (shouldResubmit) {
-              const proceed = window.confirm(
-                "This date already has a submitted worklog. Submitting again will count as a resubmission and will require admin approval. Continue?",
-              );
-              if (!proceed) {
-                setSubmitting(false);
-                return;
-              }
-
-              const reason = (window.prompt("Resubmission reason (required):", "") ?? "").trim();
+              const reason = resubmitReason.trim();
               if (!reason) {
-                setSubmitState({ ok: false, message: "Resubmission cancelled — a reason is required." });
+                setSubmitState({ ok: false, message: "Resubmission requires a reason." });
                 setSubmitting(false);
                 return;
               }
@@ -619,7 +715,7 @@ export function WorklogForm({
             }
           }}
         >
-          {submitting ? "Submitting…" : "Submit worklog"}
+          {submitting ? "Submitting…" : isResubmission ? "Resubmit worklog" : "Submit worklog"}
         </button>
       </div>
     </div>

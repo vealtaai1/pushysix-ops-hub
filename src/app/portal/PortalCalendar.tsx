@@ -241,7 +241,7 @@ export function PortalCalendar({
             <span className="h-3 w-3 rounded-sm border border-amber-200 bg-amber-100" /> Pending approval
           </div>
           <div className="flex items-center gap-2">
-            <span className="h-3 w-3 rounded-sm border border-red-200 bg-red-100" /> Missing weekday log
+            <span className="h-3 w-3 rounded-sm border border-red-200 bg-red-100" /> Rejected / Missing weekday log
           </div>
           <div className="flex items-center gap-2">
             <span className="h-3 w-3 rounded-sm border border-sky-200 bg-sky-100" /> Weekend (no log required)
