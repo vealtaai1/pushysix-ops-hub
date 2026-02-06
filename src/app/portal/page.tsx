@@ -1,7 +1,6 @@
-import { prisma } from "@/lib/db";
-
 import { holidayNameForISODate } from "@/lib/holidays";
 import { isoDateInTimeZone, parseISODateAsUTC, CALGARY_TZ } from "@/lib/time";
+import { DbUnavailableCallout } from "@/app/_components/DbUnavailableCallout";
 import { buildMonthGrid, PortalCalendar, type DayState, type PortalMonth } from "./PortalCalendar";
 
 export const dynamic = "force-dynamic";
@@ -40,26 +39,42 @@ export default async function PortalPage({
   const rangeStart = startMonth;
   const rangeEnd = new Date(Date.UTC(endMonth.getUTCFullYear(), endMonth.getUTCMonth() + 1, 0));
 
-  const viewAsUser = viewAsEmail
-    ? await prisma.user.findUnique({ where: { email: viewAsEmail }, select: { id: true, email: true } })
-    : null;
+  let dbError: string | null = null;
 
-  const [worklogs, dayoffs] = await Promise.all([
-    prisma.worklog.findMany({
-      where: {
-        workDate: { gte: rangeStart, lte: rangeEnd },
-        ...(viewAsUser ? { userId: viewAsUser.id } : {}),
-      },
-      select: { workDate: true, status: true },
-    }),
-    prisma.dayOff.findMany({
-      where: {
-        dayDate: { gte: rangeStart, lte: rangeEnd },
-        ...(viewAsUser ? { userId: viewAsUser.id } : {}),
-      },
-      select: { dayDate: true, status: true },
-    }),
-  ]);
+  let viewAsUser: { id: string; email: string } | null = null;
+  let worklogs: Array<{ workDate: Date; status: "APPROVED" | "PENDING" | "REJECTED" }> = [];
+  let dayoffs: Array<{ dayDate: Date; status: "APPROVED" | "PENDING" | "REJECTED" }> = [];
+
+  try {
+    const { prisma } = await import("@/lib/db");
+
+    viewAsUser = viewAsEmail
+      ? await prisma.user.findUnique({ where: { email: viewAsEmail }, select: { id: true, email: true } })
+      : null;
+
+    const results = await Promise.all([
+      prisma.worklog.findMany({
+        where: {
+          workDate: { gte: rangeStart, lte: rangeEnd },
+          ...(viewAsUser ? { userId: viewAsUser.id } : {}),
+        },
+        select: { workDate: true, status: true },
+      }),
+      prisma.dayOff.findMany({
+        where: {
+          dayDate: { gte: rangeStart, lte: rangeEnd },
+          ...(viewAsUser ? { userId: viewAsUser.id } : {}),
+        },
+        select: { dayDate: true, status: true },
+      }),
+    ]);
+
+    worklogs = results[0];
+    dayoffs = results[1];
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    dbError = `Could not load portal status data from the database (${msg}).`;
+  }
 
   const worklogMap = new Map<string, "APPROVED" | "PENDING" | "REJECTED">(
     worklogs.map((w) => [
@@ -108,7 +123,7 @@ export default async function PortalPage({
         state = { kind: "RED", label: "Rejected" };
       } else if (isWeekend(d.isoDate)) {
         state = { kind: "BLUE" };
-      } else {
+      } else if (!dbError) {
         const dateUTC = parseISODateAsUTC(d.isoDate);
         const withinWindow = dateUTC >= windowStart && dateUTC <= windowEnd;
         if (withinWindow) state = { kind: "RED" };
@@ -131,6 +146,18 @@ export default async function PortalPage({
           </div>
         ) : null}
       </div>
+
+      {dbError ? (
+        <DbUnavailableCallout
+          title="Portal data unavailable"
+          message={
+            <>
+              The calendar can’t load worklog/day-off statuses right now because the database connection is unavailable. You can still
+              use the calendar UI, but status colors may be incomplete until the DB is back.
+            </>
+          }
+        />
+      ) : null}
 
       <PortalCalendar months={months} initialEmail={viewAsEmail} />
     </div>
