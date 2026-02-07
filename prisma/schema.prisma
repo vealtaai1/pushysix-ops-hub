@@ -102,10 +102,32 @@ model Client {
   updatedAt DateTime @updatedAt
 
   retainerCycles RetainerCycle[]
+  quotaItems     ClientQuotaItem[]
   worklogEntries WorklogEntry[]
   mileageEntries MileageEntry[]
 
   @@index([status])
+}
+
+model ClientQuotaItem {
+  id       String @id @default(cuid())
+  clientId String
+
+  // Stable key (optional, but useful for external mapping later)
+  key  String?
+  name String
+
+  // Per billing cycle (semi-monthly in current model)
+  limitPerCycle Int @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  client        Client        @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  worklogEntries WorklogEntry[]
+
+  @@index([clientId])
+  @@unique([clientId, name])
 }
 
 model RetainerCycle {
@@ -193,6 +215,9 @@ model WorklogEntry {
   bucketKey  String
   bucketName String
 
+  // Optional quota / deliverable marker (counts toward quotas when set)
+  quotaItemId String?
+
   minutes Int
   notes   String?
 
@@ -202,11 +227,13 @@ model WorklogEntry {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  worklog Worklog @relation(fields: [worklogId], references: [id], onDelete: Cascade)
-  client  Client  @relation(fields: [clientId], references: [id], onDelete: Restrict)
+  worklog    Worklog          @relation(fields: [worklogId], references: [id], onDelete: Cascade)
+  client     Client           @relation(fields: [clientId], references: [id], onDelete: Restrict)
+  quotaItem  ClientQuotaItem? @relation(fields: [quotaItemId], references: [id], onDelete: SetNull)
 
   @@index([clientId])
   @@index([bucketKey])
+  @@index([quotaItemId])
 }
 
 model MileageEntry {

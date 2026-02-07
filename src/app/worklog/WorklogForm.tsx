@@ -10,6 +10,7 @@ type TaskLine = {
   clientId: string | null;
   clientName: string;
   bucketKey: string;
+  quotaItemId: string | null;
   hoursText: string; // kept as text so the field can be cleared
   notes: string;
 };
@@ -234,10 +235,32 @@ export function WorklogForm({
       clientId: null,
       clientName: "",
       bucketKey: "",
+      quotaItemId: null,
       hoursText: "0",
       notes: "",
     },
   ]);
+
+  const [quotaItemsByClientId, setQuotaItemsByClientId] = React.useState<
+    Record<string, Array<{ id: string; name: string; limitPerCycle: number }> | undefined>
+  >({});
+
+  async function ensureQuotaItemsLoaded(clientId: string) {
+    if (!clientId) return;
+    if (quotaItemsByClientId[clientId]) return;
+
+    try {
+      const res = await fetch(`/api/worklog/quota-items?clientId=${encodeURIComponent(clientId)}`);
+      const data = (await res.json()) as { ok?: boolean; items?: Array<{ id: string; name: string; limitPerCycle: number }> };
+      if (!res.ok || data.ok !== true || !Array.isArray(data.items)) {
+        setQuotaItemsByClientId((prev) => ({ ...prev, [clientId]: [] }));
+        return;
+      }
+      setQuotaItemsByClientId((prev) => ({ ...prev, [clientId]: data.items! }));
+    } catch {
+      setQuotaItemsByClientId((prev) => ({ ...prev, [clientId]: [] }));
+    }
+  }
 
   const [mileage, setMileage] = React.useState<MileageLine[]>(() => []);
 
@@ -412,7 +435,15 @@ export function WorklogForm({
             onClick={() =>
               setTasks((prev) => [
                 ...prev,
-                { id: uid(), clientId: null, clientName: "", bucketKey: "", hoursText: "0", notes: "" },
+                {
+                  id: uid(),
+                  clientId: null,
+                  clientName: "",
+                  bucketKey: "",
+                  quotaItemId: null,
+                  hoursText: "0",
+                  notes: "",
+                },
               ])
             }
           >
@@ -426,6 +457,7 @@ export function WorklogForm({
               <tr className="text-left text-xs text-zinc-600">
                 <th className="border-b border-zinc-200 px-3 py-2">Client</th>
                 <th className="border-b border-zinc-200 px-3 py-2">Task category</th>
+                <th className="border-b border-zinc-200 px-3 py-2">Quota item (optional)</th>
                 <th className="border-b border-zinc-200 px-3 py-2">Hours</th>
                 <th className="border-b border-zinc-200 px-3 py-2">Notes</th>
                 <th className="border-b border-zinc-200 px-3 py-2"></th>
@@ -444,9 +476,14 @@ export function WorklogForm({
                         clients={clients}
                         valueName={t.clientName}
                         placeholder="Search client…"
-                        onSelect={(c) =>
-                          setTasks((prev) => prev.map((x) => (x.id === t.id ? { ...x, clientId: c.id, clientName: c.name } : x)))
-                        }
+                        onSelect={(c) => {
+                          void ensureQuotaItemsLoaded(c.id);
+                          setTasks((prev) =>
+                            prev.map((x) =>
+                              x.id === t.id ? { ...x, clientId: c.id, clientName: c.name, quotaItemId: null } : x
+                            )
+                          );
+                        }}
                       />
                       {t.clientId ? null : <div className="mt-1 text-xs text-zinc-500">Choose a client</div>}
                     </td>
@@ -466,6 +503,43 @@ export function WorklogForm({
                           </option>
                         ))}
                       </select>
+                    </td>
+
+                    <td className="border-b border-zinc-100 px-3 py-2">
+                      <select
+                        value={t.quotaItemId ?? ""}
+                        onFocus={() => {
+                          if (t.clientId) void ensureQuotaItemsLoaded(t.clientId);
+                        }}
+                        onChange={(e) =>
+                          setTasks((prev) =>
+                            prev.map((x) =>
+                              x.id === t.id
+                                ? { ...x, quotaItemId: e.target.value ? e.target.value : null }
+                                : x
+                            )
+                          )
+                        }
+                        className="h-10 w-full rounded-md border border-zinc-300 bg-white px-3"
+                        disabled={!t.clientId}
+                        title={!t.clientId ? "Select a client first" : "Optional: count this line toward a deliverable quota"}
+                      >
+                        <option value="">(none)</option>
+                        {(t.clientId ? quotaItemsByClientId[t.clientId] : [])?.map((qi) => (
+                          <option key={qi.id} value={qi.id}>
+                            {qi.name}
+                          </option>
+                        ))}
+                      </select>
+                      {!t.clientId ? (
+                        <div className="mt-1 text-xs text-zinc-500">Select a client first</div>
+                      ) : quotaItemsByClientId[t.clientId] === undefined ? (
+                        <div className="mt-1 text-xs text-zinc-500">(focus to load)</div>
+                      ) : quotaItemsByClientId[t.clientId]?.length ? (
+                        <div className="mt-1 text-xs text-zinc-500">Counts as 1 quota usage for this client</div>
+                      ) : (
+                        <div className="mt-1 text-xs text-zinc-500">No quota items set for this client</div>
+                      )}
                     </td>
 
                     <td className="border-b border-zinc-100 px-3 py-2">
@@ -653,6 +727,7 @@ export function WorklogForm({
                   clientId: t.clientId,
                   bucketKey: t.bucketKey,
                   bucketName: bucket?.name ?? t.bucketKey,
+                  quotaItemId: t.quotaItemId,
                   hours: parseNumberText(t.hoursText),
                   notes: t.notes,
                 };

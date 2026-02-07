@@ -14,6 +14,7 @@ type ResubmitWorklogBody = {
     bucketName?: string;
     hours: number;
     notes: string;
+    quotaItemId?: string | null;
   }>;
   mileage: Array<{
     clientId: string | null;
@@ -137,6 +138,23 @@ export async function POST(req: Request) {
   await prisma.mileageEntry.deleteMany({ where: { worklogId: updated.id } });
 
   try {
+    const quotaIds = Array.from(
+      new Set(
+        body.tasks
+          .map((t) => (typeof t.quotaItemId === "string" ? t.quotaItemId.trim() : ""))
+          .filter(Boolean)
+      )
+    );
+
+    const quotaItemsById = new Map<string, { id: string; clientId: string }>();
+    if (quotaIds.length > 0) {
+      const quotaItems = await prisma.clientQuotaItem.findMany({
+        where: { id: { in: quotaIds } },
+        select: { id: true, clientId: true },
+      });
+      for (const qi of quotaItems) quotaItemsById.set(qi.id, qi);
+    }
+
     const entryCreates = body.tasks
       .filter((t) => Number(t.hours) > 0)
       .map((t) => {
@@ -146,12 +164,22 @@ export async function POST(req: Request) {
         if (!Number.isFinite(hours) || hours <= 0) throw new Error("Invalid hours.");
         const notes = String(t.notes ?? "").trim();
         if (!notes) throw new Error("Notes are required for task hours > 0.");
+
+        const quotaItemIdRaw = typeof t.quotaItemId === "string" ? t.quotaItemId.trim() : "";
+        const quotaItemId = quotaItemIdRaw ? quotaItemIdRaw : null;
+        if (quotaItemId) {
+          const qi = quotaItemsById.get(quotaItemId);
+          if (!qi) throw new Error("Invalid quota item.");
+          if (qi.clientId !== t.clientId) throw new Error("Quota item does not belong to selected client.");
+        }
+
         const minutes = Math.round(hours * 60);
         return {
           worklogId: updated.id,
           clientId: t.clientId,
           bucketKey: t.bucketKey,
           bucketName: t.bucketName ?? t.bucketKey,
+          quotaItemId,
           minutes,
           notes,
         };
