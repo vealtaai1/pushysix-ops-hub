@@ -96,6 +96,13 @@ export function RetainersDashboardClient({ initialRows }: { initialRows: ClientR
   const [savingCycleDates, setSavingCycleDates] = React.useState(false);
   const [cycleSaveError, setCycleSaveError] = React.useState<string | null>(null);
 
+  const [editingQuotaId, setEditingQuotaId] = React.useState<string | null>(null);
+
+  React.useEffect(() => {
+    // Reset edit UI when switching clients / reloading detail
+    setEditingQuotaId(null);
+  }, [detail?.client.id]);
+
   async function loadCycles(clientId: string) {
     setCyclesLoading(true);
     try {
@@ -153,12 +160,21 @@ export function RetainersDashboardClient({ initialRows }: { initialRows: ClientR
     return initialRows.filter((r) => r.client.name.toLowerCase().includes(q));
   }, [initialRows, query]);
 
+  const [serviceFilterKey, setServiceFilterKey] = React.useState<string | null>(null);
+  const [employeeFilterId, setEmployeeFilterId] = React.useState<string | null>(null);
+
+  // Reset filters anytime we change the selected client/cycle.
+  React.useEffect(() => {
+    setServiceFilterKey(null);
+    setEmployeeFilterId(null);
+  }, [selected?.clientId, selected?.cycleId, selected?.startISO, selected?.endISO]);
+
   const servicePie = React.useMemo(() => {
-    if (!detail) return [] as Array<{ name: string; minutes: number; hours: number }>;
-    const m: Record<string, { name: string; minutes: number }> = {};
+    if (!detail) return [] as Array<{ bucketKey: string; name: string; minutes: number; hours: number }>;
+    const m: Record<string, { bucketKey: string; name: string; minutes: number }> = {};
     for (const e of detail.entries) {
       const key = e.bucketKey;
-      m[key] = m[key] ?? { name: e.bucketName ?? key, minutes: 0 };
+      m[key] = m[key] ?? { bucketKey: key, name: e.bucketName ?? key, minutes: 0 };
       m[key].minutes += e.minutes ?? 0;
     }
     return Object.values(m)
@@ -167,12 +183,12 @@ export function RetainersDashboardClient({ initialRows }: { initialRows: ClientR
   }, [detail]);
 
   const employeePie = React.useMemo(() => {
-    if (!detail) return [] as Array<{ name: string; minutes: number; hours: number; email: string }>;
-    const m: Record<string, { name: string; email: string; minutes: number }> = {};
+    if (!detail) return [] as Array<{ employeeId: string; name: string; minutes: number; hours: number; email: string }>;
+    const m: Record<string, { employeeId: string; name: string; email: string; minutes: number }> = {};
     for (const e of detail.entries) {
       const u = e.worklog.user;
       const key = u.id;
-      m[key] = m[key] ?? { name: u.name ?? u.email, email: u.email, minutes: 0 };
+      m[key] = m[key] ?? { employeeId: key, name: u.name ?? u.email, email: u.email, minutes: 0 };
       m[key].minutes += e.minutes ?? 0;
     }
     return Object.values(m)
@@ -180,10 +196,23 @@ export function RetainersDashboardClient({ initialRows }: { initialRows: ClientR
       .sort((a, b) => b.minutes - a.minutes);
   }, [detail]);
 
-  const totalDetailHours = React.useMemo(() => {
+  const filteredEntries = React.useMemo(() => {
+    if (!detail) return [];
+    return detail.entries.filter((e) => {
+      if (serviceFilterKey && e.bucketKey !== serviceFilterKey) return false;
+      if (employeeFilterId && e.worklog.user.id !== employeeFilterId) return false;
+      return true;
+    });
+  }, [detail, serviceFilterKey, employeeFilterId]);
+
+  const totalAllDetailHours = React.useMemo(() => {
     if (!detail) return 0;
     return detail.entries.reduce((sum, e) => sum + (e.minutes ?? 0), 0) / 60;
   }, [detail]);
+
+  const totalFilteredDetailHours = React.useMemo(() => {
+    return filteredEntries.reduce((sum, e) => sum + (e.minutes ?? 0), 0) / 60;
+  }, [filteredEntries]);
 
   return (
     <div className="space-y-6">
@@ -397,9 +426,23 @@ export function RetainersDashboardClient({ initialRows }: { initialRows: ClientR
                         <div className="mt-2 h-56">
                           <ResponsiveContainer width="100%" height="100%">
                             <PieChart>
-                              <Pie data={servicePie} dataKey="hours" nameKey="name" outerRadius={80}>
-                                {servicePie.map((_, i) => (
-                                  <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />
+                              <Pie
+                                data={servicePie}
+                                dataKey="hours"
+                                nameKey="name"
+                                outerRadius={80}
+                                onClick={(data) => {
+                                  const key = (data as { bucketKey?: string } | undefined)?.bucketKey;
+                                  if (!key) return;
+                                  setServiceFilterKey((prev) => (prev === key ? null : key));
+                                }}
+                              >
+                                {servicePie.map((d, i) => (
+                                  <Cell
+                                    key={d.bucketKey}
+                                    fill={PIE_COLORS[i % PIE_COLORS.length]}
+                                    opacity={serviceFilterKey && d.bucketKey !== serviceFilterKey ? 0.25 : 1}
+                                  />
                                 ))}
                               </Pie>
                               <Tooltip formatter={(v: unknown) => `${fmtHours(Number(v))}h`} />
@@ -413,9 +456,23 @@ export function RetainersDashboardClient({ initialRows }: { initialRows: ClientR
                         <div className="mt-2 h-56">
                           <ResponsiveContainer width="100%" height="100%">
                             <PieChart>
-                              <Pie data={employeePie} dataKey="hours" nameKey="name" outerRadius={80}>
-                                {employeePie.map((_, i) => (
-                                  <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />
+                              <Pie
+                                data={employeePie}
+                                dataKey="hours"
+                                nameKey="name"
+                                outerRadius={80}
+                                onClick={(data) => {
+                                  const key = (data as { employeeId?: string } | undefined)?.employeeId;
+                                  if (!key) return;
+                                  setEmployeeFilterId((prev) => (prev === key ? null : key));
+                                }}
+                              >
+                                {employeePie.map((d, i) => (
+                                  <Cell
+                                    key={d.employeeId}
+                                    fill={PIE_COLORS[i % PIE_COLORS.length]}
+                                    opacity={employeeFilterId && d.employeeId !== employeeFilterId ? 0.25 : 1}
+                                  />
                                 ))}
                               </Pie>
                               <Tooltip formatter={(v: unknown) => `${fmtHours(Number(v))}h`} />
@@ -426,9 +483,56 @@ export function RetainersDashboardClient({ initialRows }: { initialRows: ClientR
                     </div>
 
                     <div className="rounded-lg border border-zinc-200">
-                      <div className="flex items-center justify-between border-b border-zinc-200 px-3 py-2">
+                      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-zinc-200 px-3 py-2">
                         <div className="text-sm font-semibold">Work log ledger</div>
-                        <div className="text-xs text-zinc-600">Total: {fmtHours(totalDetailHours)}h</div>
+
+                        <div className="flex flex-wrap items-center gap-2 text-xs">
+                          {serviceFilterKey ? (
+                            <span className="inline-flex items-center gap-2 rounded-md border border-zinc-200 bg-zinc-50 px-2 py-1 text-zinc-700">
+                              Service: {servicePie.find((x) => x.bucketKey === serviceFilterKey)?.name ?? serviceFilterKey}
+                              <button
+                                type="button"
+                                className="text-zinc-500 hover:text-zinc-900"
+                                title="Clear service filter"
+                                onClick={() => setServiceFilterKey(null)}
+                              >
+                                ×
+                              </button>
+                            </span>
+                          ) : null}
+
+                          {employeeFilterId ? (
+                            <span className="inline-flex items-center gap-2 rounded-md border border-zinc-200 bg-zinc-50 px-2 py-1 text-zinc-700">
+                              Employee: {employeePie.find((x) => x.employeeId === employeeFilterId)?.name ?? employeeFilterId}
+                              <button
+                                type="button"
+                                className="text-zinc-500 hover:text-zinc-900"
+                                title="Clear employee filter"
+                                onClick={() => setEmployeeFilterId(null)}
+                              >
+                                ×
+                              </button>
+                            </span>
+                          ) : null}
+
+                          {serviceFilterKey || employeeFilterId ? (
+                            <button
+                              type="button"
+                              className="h-7 rounded-md border border-zinc-300 bg-white px-2 text-xs text-zinc-700 hover:bg-zinc-50"
+                              onClick={() => {
+                                setServiceFilterKey(null);
+                                setEmployeeFilterId(null);
+                              }}
+                            >
+                              Clear filters
+                            </button>
+                          ) : null}
+
+                          <span className="text-zinc-600">
+                            Total: {fmtHours(totalFilteredDetailHours)}h
+                            {serviceFilterKey || employeeFilterId ? ` (of ${fmtHours(totalAllDetailHours)}h)` : ""}
+                          </span>
+                        </div>
                       </div>
                       <div className="max-h-[360px] overflow-auto">
                         <table className="w-full border-separate border-spacing-0">
@@ -443,16 +547,24 @@ export function RetainersDashboardClient({ initialRows }: { initialRows: ClientR
                             </tr>
                           </thead>
                           <tbody>
-                            {detail.entries.map((e) => (
-                              <tr key={e.id} className="align-top text-sm">
-                                <td className="border-b border-zinc-100 px-3 py-2">{String(e.worklog.workDate).slice(0, 10)}</td>
-                                <td className="border-b border-zinc-100 px-3 py-2">{e.worklog.user.name ?? e.worklog.user.email}</td>
-                                <td className="border-b border-zinc-100 px-3 py-2">{e.bucketName}</td>
-                                <td className="border-b border-zinc-100 px-3 py-2">{e.quotaItem?.name ?? "—"}</td>
-                                <td className="border-b border-zinc-100 px-3 py-2">{fmtHours((e.minutes ?? 0) / 60)}</td>
-                                <td className="border-b border-zinc-100 px-3 py-2">{e.notes ?? ""}</td>
+                            {filteredEntries.length === 0 ? (
+                              <tr>
+                                <td className="px-3 py-6 text-sm text-zinc-600" colSpan={6}>
+                                  No ledger entries match the current filter(s).
+                                </td>
                               </tr>
-                            ))}
+                            ) : (
+                              filteredEntries.map((e) => (
+                                <tr key={e.id} className="align-top text-sm">
+                                  <td className="border-b border-zinc-100 px-3 py-2">{String(e.worklog.workDate).slice(0, 10)}</td>
+                                  <td className="border-b border-zinc-100 px-3 py-2">{e.worklog.user.name ?? e.worklog.user.email}</td>
+                                  <td className="border-b border-zinc-100 px-3 py-2">{e.bucketName}</td>
+                                  <td className="border-b border-zinc-100 px-3 py-2">{e.quotaItem?.name ?? "—"}</td>
+                                  <td className="border-b border-zinc-100 px-3 py-2">{fmtHours((e.minutes ?? 0) / 60)}</td>
+                                  <td className="border-b border-zinc-100 px-3 py-2">{e.notes ?? ""}</td>
+                                </tr>
+                              ))
+                            )}
                           </tbody>
                         </table>
                       </div>
@@ -608,6 +720,9 @@ export function RetainersDashboardClient({ initialRows }: { initialRows: ClientR
                                 ? usage.days > qi.limitPerCycleDays
                                 : usage.minutes > qi.limitPerCycleMinutes;
 
+                            const limitDisplay =
+                              qi.usageMode === "PER_DAY" ? qi.limitPerCycleDays : Math.round(qi.limitPerCycleMinutes / 60);
+
                             return (
                               <div
                                 key={qi.id}
@@ -627,7 +742,60 @@ export function RetainersDashboardClient({ initialRows }: { initialRows: ClientR
                                     {usedLabel}
                                   </div>
                                 </div>
-                                <div className="mt-2 flex gap-2">
+
+                                {editingQuotaId === qi.id ? (
+                                  <div className="mt-3 rounded-md border border-zinc-200 bg-zinc-50 p-3">
+                                    <div className="text-xs font-semibold text-zinc-600">Edit quota item</div>
+                                    <form action={upsertClientQuotaItem} className="mt-2 grid gap-2">
+                                      <input type="hidden" name="id" value={qi.id} />
+                                      <input type="hidden" name="clientId" value={detail.client.id} />
+                                      <input
+                                        name="name"
+                                        defaultValue={qi.name}
+                                        className="h-10 rounded-md border border-zinc-300 bg-white px-3"
+                                      />
+                                      <select
+                                        name="usageMode"
+                                        defaultValue={qi.usageMode}
+                                        className="h-10 rounded-md border border-zinc-300 bg-white px-3"
+                                      >
+                                        <option value="PER_HOUR">Based on hours</option>
+                                        <option value="PER_DAY">1 per day (filming)</option>
+                                      </select>
+                                      <input
+                                        name="limit"
+                                        defaultValue={limitDisplay}
+                                        className="h-10 rounded-md border border-zinc-300 bg-white px-3"
+                                      />
+                                      <div className="flex items-center gap-3">
+                                        <button
+                                          type="submit"
+                                          className="h-10 rounded-md bg-zinc-900 px-3 text-sm font-semibold text-white hover:opacity-90"
+                                        >
+                                          Save
+                                        </button>
+                                        <button
+                                          type="button"
+                                          onClick={() => setEditingQuotaId(null)}
+                                          className="text-sm text-zinc-600 hover:underline"
+                                        >
+                                          Cancel
+                                        </button>
+                                      </div>
+                                    </form>
+                                  </div>
+                                ) : null}
+
+                                <div className="mt-2 flex flex-wrap items-center gap-3">
+                                  {editingQuotaId === qi.id ? null : (
+                                    <button
+                                      type="button"
+                                      onClick={() => setEditingQuotaId(qi.id)}
+                                      className="text-xs text-zinc-600 hover:underline"
+                                    >
+                                      Edit
+                                    </button>
+                                  )}
                                   <form action={deleteClientQuotaItem}>
                                     <input type="hidden" name="id" value={qi.id} />
                                     <button type="submit" className="text-xs text-zinc-600 hover:underline">
