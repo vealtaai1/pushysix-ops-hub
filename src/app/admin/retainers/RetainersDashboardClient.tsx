@@ -84,21 +84,52 @@ const PIE_COLORS = [
 
 export function RetainersDashboardClient({ initialRows }: { initialRows: ClientRow[] }) {
   const [query, setQuery] = React.useState("");
-  const [selected, setSelected] = React.useState<{ clientId: string; startISO: string; endISO: string } | null>(null);
+  const [selected, setSelected] = React.useState<{ clientId: string; cycleId: string | null; startISO: string; endISO: string } | null>(null);
+  const [cycles, setCycles] = React.useState<Array<{ id: string; startISO: string; endISO: string }> | null>(null);
+  const [cyclesLoading, setCyclesLoading] = React.useState(false);
   const [detail, setDetail] = React.useState<DetailPayload | null>(null);
   const [loadingDetail, setLoadingDetail] = React.useState(false);
   const [detailError, setDetailError] = React.useState<string | null>(null);
 
-  async function loadDetail(sel: { clientId: string; startISO: string; endISO: string }) {
-    setSelected(sel);
+  const [cycleStartEdit, setCycleStartEdit] = React.useState<string>("");
+  const [cycleEndEdit, setCycleEndEdit] = React.useState<string>("");
+  const [savingCycleDates, setSavingCycleDates] = React.useState(false);
+  const [cycleSaveError, setCycleSaveError] = React.useState<string | null>(null);
+
+  async function loadCycles(clientId: string) {
+    setCyclesLoading(true);
+    try {
+      const res = await fetch(`/api/admin/retainers/cycles?clientId=${encodeURIComponent(clientId)}&ensureCurrent=true&limit=18`);
+      const data = (await res.json()) as {
+        ok?: boolean;
+        cycles?: Array<{ id: string; startISO: string; endISO: string }>;
+        current?: { id: string | null; range: { startISO: string; endISO: string } };
+      };
+      if (!res.ok || data.ok !== true || !Array.isArray(data.cycles)) {
+        setCycles([]);
+        return;
+      }
+      setCycles(data.cycles);
+      return data.current?.id ?? null;
+    } catch {
+      setCycles([]);
+      return null;
+    } finally {
+      setCyclesLoading(false);
+    }
+  }
+
+  async function loadDetail(sel: { clientId: string; cycleId?: string | null; startISO: string; endISO: string }) {
+    setSelected({ clientId: sel.clientId, cycleId: sel.cycleId ?? null, startISO: sel.startISO, endISO: sel.endISO });
     setLoadingDetail(true);
     setDetail(null);
     setDetailError(null);
 
     try {
+      const cycleParam = sel.cycleId ? `&cycleId=${encodeURIComponent(sel.cycleId)}` : "";
       const url = `/api/admin/retainers/detail?clientId=${encodeURIComponent(sel.clientId)}&startISO=${encodeURIComponent(
         sel.startISO
-      )}&endISO=${encodeURIComponent(sel.endISO)}`;
+      )}&endISO=${encodeURIComponent(sel.endISO)}${cycleParam}`;
       const res = await fetch(url);
       const data = (await res.json()) as DetailPayload;
       if (!res.ok || data.ok !== true) {
@@ -106,6 +137,9 @@ export function RetainersDashboardClient({ initialRows }: { initialRows: ClientR
         return;
       }
       setDetail(data);
+      setCycleStartEdit(data.range.startISO);
+      setCycleEndEdit(data.range.endISO);
+      setCycleSaveError(null);
     } catch {
       setDetailError("Network error loading detail.");
     } finally {
@@ -186,7 +220,15 @@ export function RetainersDashboardClient({ initialRows }: { initialRows: ClientR
                 "rounded-xl border p-4 text-left shadow-sm transition hover:shadow " +
                 (r.overAny ? "border-red-200 bg-red-50" : "border-zinc-200 bg-white")
               }
-              onClick={() => void loadDetail({ clientId: r.client.id, startISO: r.range.startISO, endISO: r.range.endISO })}
+              onClick={async () => {
+                const currentCycleId = await loadCycles(r.client.id);
+                void loadDetail({
+                  clientId: r.client.id,
+                  cycleId: currentCycleId,
+                  startISO: r.range.startISO,
+                  endISO: r.range.endISO,
+                });
+              }}
             >
               <div className="flex items-start justify-between gap-3">
                 <div>
@@ -242,26 +284,104 @@ export function RetainersDashboardClient({ initialRows }: { initialRows: ClientR
       {selected ? (
         <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/40 p-4" role="dialog" aria-modal="true">
           <div className="w-full max-w-5xl rounded-xl bg-white shadow-xl">
-            <div className="flex items-start justify-between gap-3 border-b border-zinc-200 p-4">
-              <div>
+            <div className="flex flex-col gap-3 border-b border-zinc-200 p-4 sm:flex-row sm:items-start sm:justify-between">
+              <div className="min-w-0">
                 <div className="text-lg font-semibold text-zinc-900">
                   {detail?.client?.name ?? "Loading…"}
                 </div>
-                <div className="mt-0.5 text-xs text-zinc-600">
-                  Cycle {selected.startISO} → {selected.endISO}
+
+                <div className="mt-0.5 flex flex-wrap items-center gap-2 text-xs text-zinc-600">
+                  <span>
+                    Cycle {selected.startISO} → {selected.endISO}
+                  </span>
+                  {cyclesLoading ? <span className="text-zinc-400">(loading cycles…)</span> : null}
                 </div>
+
+                {cycles && cycles.length > 0 ? (
+                  <div className="mt-3 flex flex-wrap items-center gap-2">
+                    <button
+                      type="button"
+                      className="h-9 rounded-md border border-zinc-300 bg-white px-3 text-sm hover:bg-zinc-50 disabled:opacity-50"
+                      disabled={!selected.cycleId || cycles.findIndex((c) => c.id === selected.cycleId) >= cycles.length - 1}
+                      onClick={() => {
+                        const idx = selected.cycleId ? cycles.findIndex((c) => c.id === selected.cycleId) : -1;
+                        const next = idx >= 0 ? cycles[idx + 1] : null;
+                        if (!next) return;
+                        void loadDetail({ clientId: selected.clientId, cycleId: next.id, startISO: next.startISO, endISO: next.endISO });
+                      }}
+                      title="Previous cycle"
+                    >
+                      ← Prev
+                    </button>
+
+                    <select
+                      className="h-9 rounded-md border border-zinc-300 bg-white px-3 text-sm"
+                      value={selected.cycleId ?? ""}
+                      onChange={(e) => {
+                        const id = e.target.value;
+                        const cyc = cycles.find((c) => c.id === id);
+                        if (!cyc) return;
+                        void loadDetail({ clientId: selected.clientId, cycleId: cyc.id, startISO: cyc.startISO, endISO: cyc.endISO });
+                      }}
+                    >
+                      {cycles.map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {c.startISO} → {c.endISO}
+                        </option>
+                      ))}
+                    </select>
+
+                    <button
+                      type="button"
+                      className="h-9 rounded-md border border-zinc-300 bg-white px-3 text-sm hover:bg-zinc-50 disabled:opacity-50"
+                      disabled={!selected.cycleId || cycles.findIndex((c) => c.id === selected.cycleId) <= 0}
+                      onClick={() => {
+                        const idx = selected.cycleId ? cycles.findIndex((c) => c.id === selected.cycleId) : -1;
+                        const prev = idx > 0 ? cycles[idx - 1] : null;
+                        if (!prev) return;
+                        void loadDetail({ clientId: selected.clientId, cycleId: prev.id, startISO: prev.startISO, endISO: prev.endISO });
+                      }}
+                      title="Next cycle"
+                    >
+                      Next →
+                    </button>
+
+                    <button
+                      type="button"
+                      className="h-9 rounded-md border border-zinc-300 bg-white px-3 text-sm hover:bg-zinc-50"
+                      onClick={async () => {
+                        const currentCycleId = await loadCycles(selected.clientId);
+                        const c = cycles[0];
+                        if (currentCycleId) {
+                          const found = (cycles ?? []).find((x) => x.id === currentCycleId);
+                          if (found) {
+                            void loadDetail({ clientId: selected.clientId, cycleId: found.id, startISO: found.startISO, endISO: found.endISO });
+                            return;
+                          }
+                        }
+                        if (c) void loadDetail({ clientId: selected.clientId, cycleId: c.id, startISO: c.startISO, endISO: c.endISO });
+                      }}
+                    >
+                      Refresh cycles
+                    </button>
+                  </div>
+                ) : null}
               </div>
-              <button
-                type="button"
-                className="h-9 rounded-md border border-zinc-300 bg-white px-3 text-sm hover:bg-zinc-50"
-                onClick={() => {
-                  setSelected(null);
-                  setDetail(null);
-                  setDetailError(null);
-                }}
-              >
-                Close
-              </button>
+
+              <div className="flex items-start gap-2">
+                <button
+                  type="button"
+                  className="h-9 rounded-md border border-zinc-300 bg-white px-3 text-sm hover:bg-zinc-50"
+                  onClick={() => {
+                    setSelected(null);
+                    setDetail(null);
+                    setDetailError(null);
+                    setCycles(null);
+                  }}
+                >
+                  Close
+                </button>
+              </div>
             </div>
 
             <div className="p-4">
@@ -340,6 +460,87 @@ export function RetainersDashboardClient({ initialRows }: { initialRows: ClientR
                   </div>
 
                   <div className="space-y-4">
+                    <div className="rounded-lg border border-zinc-200 p-3">
+                      <div className="text-sm font-semibold">Cycle dates (editable)</div>
+                      <div className="mt-1 text-xs text-zinc-600">
+                        Past cycles are editable. Changing dates will change which work logs are included.
+                      </div>
+
+                      <div className="mt-3 grid gap-2">
+                        <label className="grid gap-1">
+                          <span className="text-xs font-semibold text-zinc-600">Start (YYYY-MM-DD)</span>
+                          <input
+                            value={cycleStartEdit}
+                            onChange={(e) => setCycleStartEdit(e.target.value)}
+                            className="h-10 rounded-md border border-zinc-300 bg-white px-3"
+                          />
+                        </label>
+                        <label className="grid gap-1">
+                          <span className="text-xs font-semibold text-zinc-600">End (YYYY-MM-DD)</span>
+                          <input
+                            value={cycleEndEdit}
+                            onChange={(e) => setCycleEndEdit(e.target.value)}
+                            className="h-10 rounded-md border border-zinc-300 bg-white px-3"
+                          />
+                        </label>
+
+                        {cycleSaveError ? <div className="text-sm text-red-700">{cycleSaveError}</div> : null}
+
+                        <button
+                          type="button"
+                          disabled={!selected.cycleId || savingCycleDates}
+                          className={
+                            "h-10 rounded-md px-3 text-sm font-semibold text-white " +
+                            (!selected.cycleId || savingCycleDates ? "bg-zinc-300" : "bg-zinc-900 hover:opacity-90")
+                          }
+                          title={!selected.cycleId ? "No saved cycle record selected" : "Save cycle date changes"}
+                          onClick={async () => {
+                            if (!selected.cycleId) {
+                              setCycleSaveError("This cycle isn’t saved yet. Click ‘Refresh cycles’ first.");
+                              return;
+                            }
+                            setSavingCycleDates(true);
+                            setCycleSaveError(null);
+                            try {
+                              const res = await fetch("/api/admin/retainers/cycles", {
+                                method: "PATCH",
+                                headers: { "content-type": "application/json" },
+                                body: JSON.stringify({ id: selected.cycleId, startISO: cycleStartEdit.trim(), endISO: cycleEndEdit.trim() }),
+                              });
+                              const data = (await res.json()) as { ok?: boolean; message?: string };
+                              if (!res.ok || data.ok !== true) {
+                                setCycleSaveError(data.message ?? "Failed to save cycle.");
+                                return;
+                              }
+                              // Update local cycles list so the dropdown reflects the new range.
+                              setCycles((prev) =>
+                                prev
+                                  ? prev.map((c) =>
+                                      c.id === selected.cycleId
+                                        ? { ...c, startISO: cycleStartEdit.trim(), endISO: cycleEndEdit.trim() }
+                                        : c
+                                    )
+                                  : prev
+                              );
+
+                              void loadDetail({
+                                clientId: selected.clientId,
+                                cycleId: selected.cycleId,
+                                startISO: cycleStartEdit.trim(),
+                                endISO: cycleEndEdit.trim(),
+                              });
+                            } catch {
+                              setCycleSaveError("Network error saving cycle.");
+                            } finally {
+                              setSavingCycleDates(false);
+                            }
+                          }}
+                        >
+                          {savingCycleDates ? "Saving…" : "Save cycle dates"}
+                        </button>
+                      </div>
+                    </div>
+
                     <div className="rounded-lg border border-zinc-200 p-3">
                       <div className="text-sm font-semibold">Retainer settings</div>
                       <form

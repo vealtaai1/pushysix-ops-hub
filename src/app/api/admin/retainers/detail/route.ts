@@ -22,6 +22,7 @@ export async function GET(req: Request) {
   const clientId = (url.searchParams.get("clientId") ?? "").trim();
   const startISO = (url.searchParams.get("startISO") ?? "").trim();
   const endISO = (url.searchParams.get("endISO") ?? "").trim();
+  const cycleId = (url.searchParams.get("cycleId") ?? "").trim();
 
   if (!clientId) {
     return NextResponse.json({ ok: false, message: "clientId is required" }, { status: 400 });
@@ -44,8 +45,30 @@ export async function GET(req: Request) {
     return NextResponse.json({ ok: false, message: "Client not found" }, { status: 404 });
   }
 
-  // If no explicit range provided, default to current cycle.
-  const range = startISO && endISO ? { startISO, endISO } : getRetainerCycleRange(new Date(), client.billingCycleStartDay, CALGARY_TZ);
+  // Determine range: explicit start/end OR cycleId OR current cycle.
+  let range = startISO && endISO ? { startISO, endISO } : null;
+
+  if (!range && cycleId) {
+    const cyc = await prisma.retainerCycle.findUnique({
+      where: { id: cycleId },
+      select: { id: true, clientId: true, startDate: true, endDate: true },
+    });
+    if (!cyc) {
+      return NextResponse.json({ ok: false, message: "Cycle not found" }, { status: 404 });
+    }
+    if (cyc.clientId !== clientId) {
+      return NextResponse.json({ ok: false, message: "Cycle does not belong to client" }, { status: 400 });
+    }
+
+    range = {
+      startISO: cyc.startDate.toISOString().slice(0, 10),
+      endISO: cyc.endDate.toISOString().slice(0, 10),
+    };
+  }
+
+  if (!range) {
+    range = getRetainerCycleRange(new Date(), client.billingCycleStartDay, CALGARY_TZ);
+  }
 
   const startUTC = parseISODateAsUTC(range.startISO);
   const endExclusiveUTC = addDaysUTC(parseISODateAsUTC(range.endISO), 1);
