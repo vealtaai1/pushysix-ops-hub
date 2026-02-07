@@ -65,7 +65,7 @@ export async function GET(req: Request) {
       bucketKey: true,
       bucketName: true,
       quotaItemId: true,
-      quotaItem: { select: { id: true, name: true, limitPerCycle: true } },
+      quotaItem: { select: { id: true, name: true, usageMode: true, limitPerCycleDays: true, limitPerCycleMinutes: true } },
       worklog: {
         select: {
           workDate: true,
@@ -78,13 +78,31 @@ export async function GET(req: Request) {
   const quotaItems = await prisma.clientQuotaItem.findMany({
     where: { clientId },
     orderBy: [{ name: "asc" }],
-    select: { id: true, name: true, limitPerCycle: true },
+    select: { id: true, name: true, usageMode: true, limitPerCycleDays: true, limitPerCycleMinutes: true },
   });
 
-  const quotaUsage: Record<string, number> = {};
+  // Usage rules:
+  // - PER_DAY: distinct work dates where any tagged minutes exist
+  // - PER_HOUR: sum of minutes / 60
+  const daySets: Record<string, Set<string>> = {};
+  const minuteSums: Record<string, number> = {};
+
   for (const e of entries) {
     if (!e.quotaItemId) continue;
-    quotaUsage[e.quotaItemId] = (quotaUsage[e.quotaItemId] ?? 0) + 1;
+    const qid = e.quotaItemId;
+    minuteSums[qid] = (minuteSums[qid] ?? 0) + (e.minutes ?? 0);
+
+    const d = String(e.worklog.workDate).slice(0, 10);
+    daySets[qid] = daySets[qid] ?? new Set<string>();
+    if ((e.minutes ?? 0) > 0) daySets[qid].add(d);
+  }
+
+  const quotaUsage: Record<string, { days: number; minutes: number }> = {};
+  for (const qi of quotaItems) {
+    quotaUsage[qi.id] = {
+      days: daySets[qi.id]?.size ?? 0,
+      minutes: minuteSums[qi.id] ?? 0,
+    };
   }
 
   return NextResponse.json({

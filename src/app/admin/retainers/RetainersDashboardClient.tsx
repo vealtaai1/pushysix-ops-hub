@@ -42,11 +42,11 @@ type DetailPayload = {
     bucketKey: string;
     bucketName: string;
     quotaItemId: string | null;
-    quotaItem: { id: string; name: string; limitPerCycle: number } | null;
+    quotaItem: { id: string; name: string; usageMode: "PER_DAY" | "PER_HOUR"; limitPerCycleDays: number; limitPerCycleMinutes: number } | null;
     worklog: { workDate: string; user: { id: string; name: string | null; email: string } };
   }>;
-  quotaItems: Array<{ id: string; name: string; limitPerCycle: number }>;
-  quotaUsage: Record<string, number>;
+  quotaItems: Array<{ id: string; name: string; usageMode: "PER_DAY" | "PER_HOUR"; limitPerCycleDays: number; limitPerCycleMinutes: number }>;
+  quotaUsage: Record<string, { days: number; minutes: number }>;
 };
 
 function fmtHours(h: number): string {
@@ -395,14 +395,35 @@ export function RetainersDashboardClient({ initialRows }: { initialRows: ClientR
                           <div className="text-sm text-zinc-600">No quota items set for this client.</div>
                         ) : (
                           detail.quotaItems.map((qi) => {
-                            const used = detail.quotaUsage[qi.id] ?? 0;
-                            const isOver = used > qi.limitPerCycle;
+                            const usage = detail.quotaUsage[qi.id] ?? { days: 0, minutes: 0 };
+
+                            const usedLabel =
+                              qi.usageMode === "PER_DAY"
+                                ? `${usage.days} / ${qi.limitPerCycleDays}`
+                                : `${fmtHours(usage.minutes / 60)}h / ${fmtHours(qi.limitPerCycleMinutes / 60)}h`;
+
+                            const isOver =
+                              qi.usageMode === "PER_DAY"
+                                ? usage.days > qi.limitPerCycleDays
+                                : usage.minutes > qi.limitPerCycleMinutes;
+
                             return (
-                              <div key={qi.id} className={"rounded-md border px-3 py-2 " + (isOver ? "border-red-200 bg-red-50" : "border-zinc-200 bg-white")}>
+                              <div
+                                key={qi.id}
+                                className={
+                                  "rounded-md border px-3 py-2 " +
+                                  (isOver ? "border-red-200 bg-red-50" : "border-zinc-200 bg-white")
+                                }
+                              >
                                 <div className="flex items-center justify-between gap-2">
-                                  <div className="text-sm font-medium">{qi.name}</div>
+                                  <div className="text-sm font-medium">
+                                    {qi.name}
+                                    <span className="ml-2 text-xs font-normal text-zinc-500">
+                                      ({qi.usageMode === "PER_DAY" ? "per day" : "hours"})
+                                    </span>
+                                  </div>
                                   <div className={"text-sm font-semibold " + (isOver ? "text-red-700" : "text-zinc-800")}>
-                                    {used} / {qi.limitPerCycle}
+                                    {usedLabel}
                                   </div>
                                 </div>
                                 <div className="mt-2 flex gap-2">
@@ -428,12 +449,19 @@ export function RetainersDashboardClient({ initialRows }: { initialRows: ClientR
                             placeholder="e.g., Film Shoot"
                             className="h-10 rounded-md border border-zinc-300 bg-white px-3"
                           />
+                          <select name="usageMode" className="h-10 rounded-md border border-zinc-300 bg-white px-3">
+                            <option value="PER_HOUR">Based on hours</option>
+                            <option value="PER_DAY">1 per day (filming)</option>
+                          </select>
                           <input
-                            name="limitPerCycle"
-                            placeholder="Limit per cycle (e.g., 2)"
+                            name="limit"
+                            placeholder="Limit per cycle (hours or days)"
                             className="h-10 rounded-md border border-zinc-300 bg-white px-3"
                           />
-                          <button type="submit" className="h-10 rounded-md bg-zinc-900 px-3 text-sm font-semibold text-white hover:opacity-90">
+                          <button
+                            type="submit"
+                            className="h-10 rounded-md bg-zinc-900 px-3 text-sm font-semibold text-white hover:opacity-90"
+                          >
                             Add
                           </button>
                         </form>

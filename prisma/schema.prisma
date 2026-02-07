@@ -109,6 +109,11 @@ model Client {
   @@index([status])
 }
 
+enum QuotaUsageMode {
+  PER_DAY
+  PER_HOUR
+}
+
 model ClientQuotaItem {
   id       String @id @default(cuid())
   clientId String
@@ -117,13 +122,19 @@ model ClientQuotaItem {
   key  String?
   name String
 
-  // Per billing cycle (semi-monthly in current model)
-  limitPerCycle Int @default(0)
+  // How usage is computed from worklog lines tagged with this item.
+  // - PER_DAY: counts distinct work dates within the cycle.
+  // - PER_HOUR: sums minutes within the cycle.
+  usageMode QuotaUsageMode @default(PER_HOUR)
+
+  // Limits per billing cycle
+  limitPerCycleDays    Int @default(0)
+  limitPerCycleMinutes Int @default(0)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  client        Client        @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  client         Client        @relation(fields: [clientId], references: [id], onDelete: Cascade)
   worklogEntries WorklogEntry[]
 
   @@index([clientId])

@@ -242,7 +242,10 @@ export function WorklogForm({
   ]);
 
   const [quotaItemsByClientId, setQuotaItemsByClientId] = React.useState<
-    Record<string, Array<{ id: string; name: string; limitPerCycle: number }> | undefined>
+    Record<
+      string,
+      Array<{ id: string; name: string; usageMode: "PER_DAY" | "PER_HOUR"; limitPerCycleDays: number; limitPerCycleMinutes: number }> | undefined
+    >
   >({});
 
   async function ensureQuotaItemsLoaded(clientId: string) {
@@ -251,7 +254,10 @@ export function WorklogForm({
 
     try {
       const res = await fetch(`/api/worklog/quota-items?clientId=${encodeURIComponent(clientId)}`);
-      const data = (await res.json()) as { ok?: boolean; items?: Array<{ id: string; name: string; limitPerCycle: number }> };
+      const data = (await res.json()) as {
+        ok?: boolean;
+        items?: Array<{ id: string; name: string; usageMode: "PER_DAY" | "PER_HOUR"; limitPerCycleDays: number; limitPerCycleMinutes: number }>;
+      };
       if (!res.ok || data.ok !== true || !Array.isArray(data.items)) {
         setQuotaItemsByClientId((prev) => ({ ...prev, [clientId]: [] }));
         return;
@@ -536,7 +542,7 @@ export function WorklogForm({
                       ) : quotaItemsByClientId[t.clientId] === undefined ? (
                         <div className="mt-1 text-xs text-zinc-500">(focus to load)</div>
                       ) : quotaItemsByClientId[t.clientId]?.length ? (
-                        <div className="mt-1 text-xs text-zinc-500">Counts as 1 quota usage for this client</div>
+                        <div className="mt-1 text-xs text-zinc-500">Counts usage based on quota rule (per-day or hours)</div>
                       ) : (
                         <div className="mt-1 text-xs text-zinc-500">No quota items set for this client</div>
                       )}

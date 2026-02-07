@@ -22,21 +22,29 @@ export async function upsertClientQuotaItem(formData: FormData): Promise<void> {
   const id = asString(formData.get("id")).trim();
   const clientId = asString(formData.get("clientId")).trim();
   const name = asString(formData.get("name")).trim();
-  const limitRaw = asString(formData.get("limitPerCycle")).trim();
+  const usageModeRaw = asString(formData.get("usageMode")).trim();
+  const limitRaw = asString(formData.get("limit")).trim();
   const limit = parseIntStrict(limitRaw);
 
   if (!clientId) throw new Error("clientId is required");
   if (!name) throw new Error("Name is required");
-  if (limit === null || limit < 0) throw new Error("limitPerCycle must be a whole number >= 0");
+  if (limit === null || limit < 0) throw new Error("limit must be a whole number >= 0");
+
+  const usageMode = usageModeRaw === "PER_DAY" ? ("PER_DAY" as const) : ("PER_HOUR" as const);
+
+  const data =
+    usageMode === "PER_DAY"
+      ? { name, usageMode, limitPerCycleDays: limit, limitPerCycleMinutes: 0 }
+      : { name, usageMode, limitPerCycleDays: 0, limitPerCycleMinutes: limit * 60 };
 
   if (id) {
     await prisma.clientQuotaItem.update({
       where: { id },
-      data: { name, limitPerCycle: limit },
+      data,
     });
   } else {
     await prisma.clientQuotaItem.create({
-      data: { clientId, name, limitPerCycle: limit },
+      data: { clientId, ...data },
     });
   }
 

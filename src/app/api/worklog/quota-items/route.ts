@@ -11,7 +11,7 @@ export async function GET(req: Request) {
   const items = await prisma.clientQuotaItem.findMany({
     where: { clientId },
     orderBy: [{ name: "asc" }],
-    select: { id: true, name: true, limitPerCycle: true },
+    select: { id: true, name: true, usageMode: true, limitPerCycleDays: true, limitPerCycleMinutes: true },
   });
 
   return NextResponse.json({ ok: true, items });
