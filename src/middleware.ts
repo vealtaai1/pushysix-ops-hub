@@ -4,9 +4,14 @@ function hasAuthCookie(req: NextRequest) {
   // With database sessions, NextAuth stores the session token in a cookie.
   // Cookie name varies depending on secure context.
   return Boolean(
+    // NextAuth v4 cookie names
     req.cookies.get("next-auth.session-token")?.value ||
       req.cookies.get("__Secure-next-auth.session-token")?.value ||
-      req.cookies.get("__Host-next-auth.session-token")?.value
+      req.cookies.get("__Host-next-auth.session-token")?.value ||
+      // Auth.js / NextAuth v5 cookie names
+      req.cookies.get("authjs.session-token")?.value ||
+      req.cookies.get("__Secure-authjs.session-token")?.value ||
+      req.cookies.get("__Host-authjs.session-token")?.value
   );
 }
 
