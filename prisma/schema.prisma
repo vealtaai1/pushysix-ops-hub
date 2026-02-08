@@ -102,10 +102,43 @@ model Client {
   updatedAt DateTime @updatedAt
 
   retainerCycles RetainerCycle[]
+  quotaItems     ClientQuotaItem[]
   worklogEntries WorklogEntry[]
   mileageEntries MileageEntry[]
 
   @@index([status])
+}
+
+enum QuotaUsageMode {
+  PER_DAY
+  PER_HOUR
+}
+
+model ClientQuotaItem {
+  id       String @id @default(cuid())
+  clientId String
+
+  // Stable key (optional, but useful for external mapping later)
+  key  String?
+  name String
+
+  // How usage is computed from worklog lines tagged with this item.
+  // - PER_DAY: counts distinct work dates within the cycle.
+  // - PER_HOUR: sums minutes within the cycle.
+  usageMode QuotaUsageMode @default(PER_HOUR)
+
+  // Limits per billing cycle
+  limitPerCycleDays    Int @default(0)
+  limitPerCycleMinutes Int @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  client         Client        @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  worklogEntries WorklogEntry[]
+
+  @@index([clientId])
+  @@unique([clientId, name])
 }
 
 model RetainerCycle {
@@ -193,6 +226,9 @@ model WorklogEntry {
   bucketKey  String
   bucketName String
 
+  // Optional quota / deliverable marker (counts toward quotas when set)
+  quotaItemId String?
+
   minutes Int
   notes   String?
 
@@ -202,11 +238,13 @@ model WorklogEntry {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  worklog Worklog @relation(fields: [worklogId], references: [id], onDelete: Cascade)
-  client  Client  @relation(fields: [clientId], references: [id], onDelete: Restrict)
+  worklog    Worklog          @relation(fields: [worklogId], references: [id], onDelete: Cascade)
+  client     Client           @relation(fields: [clientId], references: [id], onDelete: Restrict)
+  quotaItem  ClientQuotaItem? @relation(fields: [quotaItemId], references: [id], onDelete: SetNull)
 
   @@index([clientId])
   @@index([bucketKey])
+  @@index([quotaItemId])
 }
 
 model MileageEntry {
