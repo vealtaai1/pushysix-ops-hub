@@ -22,6 +22,10 @@ type ClientRow = {
   overAny: boolean;
   shoots: number;
   shootsLimit: number | null;
+  quotaOverAny: boolean;
+  quotaOverCount: number;
+  quotaWorstPercentUsed: number | null;
+  quotaOverScore: number;
 };
 
 type DetailPayload = {
@@ -86,7 +90,7 @@ const PIE_COLORS = [
 export function RetainersDashboardClient({ initialRows }: { initialRows: ClientRow[] }) {
   const [query, setQuery] = React.useState("");
   const [atRiskOnly, setAtRiskOnly] = React.useState(false);
-  const [sortKey, setSortKey] = React.useState<"RISK" | "NAME" | "PCT" | "OVER">("RISK");
+  const [sortKey, setSortKey] = React.useState<"RISK" | "NAME" | "OVER">("RISK");
   const [selected, setSelected] = React.useState<{ clientId: string; cycleId: string | null; startISO: string; endISO: string } | null>(null);
   const [cycles, setCycles] = React.useState<Array<{ id: string; startISO: string; endISO: string }> | null>(null);
   const [cyclesLoading, setCyclesLoading] = React.useState(false);
@@ -167,24 +171,40 @@ export function RetainersDashboardClient({ initialRows }: { initialRows: ClientR
     if (atRiskOnly) {
       next = next.filter((r) => {
         const percent = r.totalPercentUsed;
-        return r.overAny || (percent != null && percent >= 90);
+        const quotaPct = r.quotaWorstPercentUsed;
+        return r.overAny || r.quotaOverAny || (percent != null && percent >= 90) || (quotaPct != null && quotaPct >= 90);
       });
     }
 
     const riskScore = (r: ClientRow) => {
       const percent = r.totalPercentUsed ?? 0;
-      const overBy = Math.max(0, r.totalUsedHours - r.totalLimitHours);
-      // Primary: any hard overage (total/capture/shoots). Secondary: total % used.
-      return (r.overAny ? 10_000 : 0) + overBy * 100 + percent;
+      const overByHours = Math.max(0, r.totalUsedHours - r.totalLimitHours);
+      const quotaWorstPct = r.quotaWorstPercentUsed ?? 0;
+
+      // Heuristic (high to low):
+      // 1) Any hard overage: total/capture/shoots OR any quota item over.
+      // 2) Magnitude of overage hours.
+      // 3) Quota overage severity.
+      // 4) Total % used.
+      return (
+        (r.overAny ? 50_000 : 0) +
+        (r.quotaOverAny ? 25_000 : 0) +
+        overByHours * 1000 +
+        (r.quotaOverScore ?? 0) * 5000 +
+        Math.max(0, quotaWorstPct - 100) * 50 +
+        quotaWorstPct +
+        percent
+      );
     };
 
     next = [...next].sort((a, b) => {
       if (sortKey === "NAME") return a.client.name.localeCompare(b.client.name);
-      if (sortKey === "PCT") return (b.totalPercentUsed ?? -1) - (a.totalPercentUsed ?? -1);
       if (sortKey === "OVER") {
         const ao = Math.max(0, a.totalUsedHours - a.totalLimitHours);
         const bo = Math.max(0, b.totalUsedHours - b.totalLimitHours);
-        return bo - ao;
+        if (bo !== ao) return bo - ao;
+        // tie-break on quota overages
+        return (b.quotaOverScore ?? 0) - (a.quotaOverScore ?? 0);
       }
       // RISK
       return riskScore(b) - riskScore(a);
@@ -253,6 +273,9 @@ export function RetainersDashboardClient({ initialRows }: { initialRows: ClientR
       limitHours: number;
       projectedOverByHours: number;
       projectedPercentUsed: number | null;
+      daysToLimit: number | null;
+      limitReachedISO: string | null;
+      limitReachedInCycle: boolean;
     };
 
     const start = parseISODateAsUTC(detail.range.startISO);
@@ -277,6 +300,13 @@ export function RetainersDashboardClient({ initialRows }: { initialRows: ClientR
     const projectedOverByHours = projectedHours - limitHours;
     const projectedPercentUsed = limitHours > 0 ? (projectedHours / limitHours) * 100 : null;
 
+    const daysToLimit = burnRateHoursPerDay > 0 ? limitHours / burnRateHoursPerDay : null;
+    const limitReachedISO =
+      daysToLimit != null && Number.isFinite(daysToLimit)
+        ? new Date(start.getTime() + (Math.max(0, Math.ceil(daysToLimit) - 1) * msPerDay)).toISOString().slice(0, 10)
+        : null;
+    const limitReachedInCycle = limitReachedISO != null ? limitReachedISO <= detail.range.endISO : false;
+
     return {
       todayISO,
       cycleDays,
@@ -286,6 +316,9 @@ export function RetainersDashboardClient({ initialRows }: { initialRows: ClientR
       limitHours,
       projectedOverByHours,
       projectedPercentUsed,
+      daysToLimit,
+      limitReachedISO,
+      limitReachedInCycle,
     };
   }, [detail, totalAllDetailHours]);
 
@@ -324,10 +357,9 @@ export function RetainersDashboardClient({ initialRows }: { initialRows: ClientR
               value={sortKey}
               onChange={(e) => setSortKey(e.target.value as any)}
             >
-              <option value="RISK">At risk</option>
-              <option value="PCT">% used</option>
-              <option value="OVER">Overages</option>
               <option value="NAME">Name</option>
+              <option value="RISK">Most at risk</option>
+              <option value="OVER">Most over</option>
             </select>
           </label>
         </div>
@@ -400,6 +432,16 @@ export function RetainersDashboardClient({ initialRows }: { initialRows: ClientR
                   {r.shootsLimit != null ? (
                     <span className={"rounded-md border px-2 py-1 text-xs " + badgeClass(shootBad ? "bad" : "ok")}>
                       Shoots {r.shoots}/{r.shootsLimit}
+                    </span>
+                  ) : null}
+
+                  {r.quotaOverAny ? (
+                    <span className={"rounded-md border px-2 py-1 text-xs " + badgeClass("bad")}>
+                      Quotas over ({r.quotaOverCount})
+                    </span>
+                  ) : r.quotaWorstPercentUsed != null && r.quotaWorstPercentUsed >= 90 ? (
+                    <span className={"rounded-md border px-2 py-1 text-xs " + badgeClass("warn")}>
+                      Quotas near limit ({Math.round(r.quotaWorstPercentUsed)}%)
                     </span>
                   ) : null}
                 </div>
@@ -700,6 +742,15 @@ export function RetainersDashboardClient({ initialRows }: { initialRows: ClientR
                                 {fmtHours(burnProjection.projectedOverByHours)}h
                               </span>
                             </div>
+
+                            {burnProjection.limitReachedISO ? (
+                              <div className="flex items-baseline justify-between">
+                                <span className="text-zinc-600">Est. limit reached</span>
+                                <span className={"font-semibold " + (burnProjection.limitReachedInCycle ? "text-red-700" : "text-zinc-900")}>
+                                  {burnProjection.limitReachedInCycle ? burnProjection.limitReachedISO : "After cycle end"}
+                                </span>
+                              </div>
+                            ) : null}
                             {burnProjection.projectedPercentUsed != null ? (
                               <div className="mt-1 text-xs text-zinc-600">
                                 ~{Math.round(burnProjection.projectedPercentUsed)}% projected used ({burnProjection.daysElapsed}/{burnProjection.cycleDays} days)
