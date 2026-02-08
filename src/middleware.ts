@@ -3,7 +3,11 @@ import { NextResponse, type NextRequest } from "next/server";
 function hasAuthCookie(req: NextRequest) {
   // With database sessions, NextAuth stores the session token in a cookie.
   // Cookie name varies depending on secure context.
-  return Boolean(
+  //
+  // Note: On some Edge runtimes, `req.cookies.get()` can behave differently than
+  // the raw Cookie header for __Secure/__Host cookies, so we check both.
+
+  const viaApi = Boolean(
     // NextAuth v4 cookie names
     req.cookies.get("next-auth.session-token")?.value ||
       req.cookies.get("__Secure-next-auth.session-token")?.value ||
@@ -12,6 +16,17 @@ function hasAuthCookie(req: NextRequest) {
       req.cookies.get("authjs.session-token")?.value ||
       req.cookies.get("__Secure-authjs.session-token")?.value ||
       req.cookies.get("__Host-authjs.session-token")?.value
+  );
+  if (viaApi) return true;
+
+  const raw = req.headers.get("cookie") ?? "";
+  return (
+    raw.includes("next-auth.session-token=") ||
+    raw.includes("__Secure-next-auth.session-token=") ||
+    raw.includes("__Host-next-auth.session-token=") ||
+    raw.includes("authjs.session-token=") ||
+    raw.includes("__Secure-authjs.session-token=") ||
+    raw.includes("__Host-authjs.session-token=")
   );
 }
 
