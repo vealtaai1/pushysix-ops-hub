@@ -13,9 +13,48 @@ function asSeedEmail(raw: unknown): string | null {
   return email;
 }
 
-export async function POST() {
-  // Only signed-in admins can run bootstrap in a deployed environment.
+function getBootstrapTokenFromRequest(req: Request): string | null {
+  const url = new URL(req.url);
+  const q = (url.searchParams.get("token") ?? "").trim();
+  if (q) return q;
+  const h = (req.headers.get("x-admin-bootstrap-token") ?? "").trim();
+  if (h) return h;
+  return null;
+}
+
+async function isBootstrapAuthorized(req: Request): Promise<void> {
+  const envToken = (process.env.ADMIN_BOOTSTRAP_TOKEN ?? "").trim();
+  const provided = getBootstrapTokenFromRequest(req);
+
+  if (envToken && provided && provided === envToken) {
+    // Safety guard: only allow token-based bootstrap if there are no existing admins.
+    const adminCount = await prisma.user.count({ where: { role: UserRole.ADMIN } });
+    if (adminCount > 0) {
+      throw new Error("Bootstrap token rejected: an admin already exists.");
+    }
+    return;
+  }
+
+  // Default: only signed-in admins can run bootstrap.
   await requireAdminOrThrow({ message: "Forbidden: admin access required to bootstrap." });
+}
+
+export async function GET(req: Request) {
+  // Convenience for browser usage; supports token via ?token=...
+  try {
+    await isBootstrapAuthorized(req);
+  } catch (e) {
+    return NextResponse.json(
+      { ok: false, message: e instanceof Error ? e.message : "Unauthorized" },
+      { status: 403 }
+    );
+  }
+
+  return POST(req);
+}
+
+export async function POST(req: Request) {
+  await isBootstrapAuthorized(req);
 
   const seedEmail = asSeedEmail(process.env.ADMIN_SEED_EMAIL);
   if (!seedEmail) {
