@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { CALGARY_TZ, isoDateInTimeZone, parseISODateAsUTC } from "@/lib/time";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
 import { updateClientRetainerBasics, upsertClientQuotaItem, deleteClientQuotaItem } from "./actions";
 
@@ -84,6 +85,8 @@ const PIE_COLORS = [
 
 export function RetainersDashboardClient({ initialRows }: { initialRows: ClientRow[] }) {
   const [query, setQuery] = React.useState("");
+  const [atRiskOnly, setAtRiskOnly] = React.useState(false);
+  const [sortKey, setSortKey] = React.useState<"RISK" | "NAME" | "PCT" | "OVER">("RISK");
   const [selected, setSelected] = React.useState<{ clientId: string; cycleId: string | null; startISO: string; endISO: string } | null>(null);
   const [cycles, setCycles] = React.useState<Array<{ id: string; startISO: string; endISO: string }> | null>(null);
   const [cyclesLoading, setCyclesLoading] = React.useState(false);
@@ -156,9 +159,39 @@ export function RetainersDashboardClient({ initialRows }: { initialRows: ClientR
 
   const rows = React.useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return initialRows;
-    return initialRows.filter((r) => r.client.name.toLowerCase().includes(q));
-  }, [initialRows, query]);
+
+    let next = initialRows;
+
+    if (q) next = next.filter((r) => r.client.name.toLowerCase().includes(q));
+
+    if (atRiskOnly) {
+      next = next.filter((r) => {
+        const percent = r.totalPercentUsed;
+        return r.overAny || (percent != null && percent >= 90);
+      });
+    }
+
+    const riskScore = (r: ClientRow) => {
+      const percent = r.totalPercentUsed ?? 0;
+      const overBy = Math.max(0, r.totalUsedHours - r.totalLimitHours);
+      // Primary: any hard overage (total/capture/shoots). Secondary: total % used.
+      return (r.overAny ? 10_000 : 0) + overBy * 100 + percent;
+    };
+
+    next = [...next].sort((a, b) => {
+      if (sortKey === "NAME") return a.client.name.localeCompare(b.client.name);
+      if (sortKey === "PCT") return (b.totalPercentUsed ?? -1) - (a.totalPercentUsed ?? -1);
+      if (sortKey === "OVER") {
+        const ao = Math.max(0, a.totalUsedHours - a.totalLimitHours);
+        const bo = Math.max(0, b.totalUsedHours - b.totalLimitHours);
+        return bo - ao;
+      }
+      // RISK
+      return riskScore(b) - riskScore(a);
+    });
+
+    return next;
+  }, [initialRows, query, atRiskOnly, sortKey]);
 
   const [serviceFilterKey, setServiceFilterKey] = React.useState<string | null>(null);
   const [employeeFilterId, setEmployeeFilterId] = React.useState<string | null>(null);
@@ -210,6 +243,52 @@ export function RetainersDashboardClient({ initialRows }: { initialRows: ClientR
     return detail.entries.reduce((sum, e) => sum + (e.minutes ?? 0), 0) / 60;
   }, [detail]);
 
+  const burnProjection = React.useMemo(() => {
+    if (!detail) return null as null | {
+      todayISO: string;
+      cycleDays: number;
+      daysElapsed: number;
+      burnRateHoursPerDay: number;
+      projectedHours: number;
+      limitHours: number;
+      projectedOverByHours: number;
+      projectedPercentUsed: number | null;
+    };
+
+    const start = parseISODateAsUTC(detail.range.startISO);
+    const end = parseISODateAsUTC(detail.range.endISO);
+    if (!Number.isFinite(start.getTime()) || !Number.isFinite(end.getTime())) return null;
+
+    const msPerDay = 24 * 60 * 60 * 1000;
+    const cycleDays = Math.max(1, Math.floor((end.getTime() - start.getTime()) / msPerDay) + 1);
+
+    const todayISO = isoDateInTimeZone(new Date(), CALGARY_TZ);
+    const effectiveEndISO = todayISO > detail.range.endISO ? detail.range.endISO : todayISO;
+    if (effectiveEndISO < detail.range.startISO) return null;
+
+    const effectiveEnd = parseISODateAsUTC(effectiveEndISO);
+    const daysElapsed = Math.max(1, Math.floor((effectiveEnd.getTime() - start.getTime()) / msPerDay) + 1);
+
+    const burnRateHoursPerDay = totalAllDetailHours / daysElapsed;
+    const projectedHours = burnRateHoursPerDay * cycleDays;
+
+    // Semi-monthly cycle gets half of the monthly retainer hours.
+    const limitHours = (detail.client.monthlyRetainerHours ?? 0) / 2;
+    const projectedOverByHours = projectedHours - limitHours;
+    const projectedPercentUsed = limitHours > 0 ? (projectedHours / limitHours) * 100 : null;
+
+    return {
+      todayISO,
+      cycleDays,
+      daysElapsed,
+      burnRateHoursPerDay,
+      projectedHours,
+      limitHours,
+      projectedOverByHours,
+      projectedPercentUsed,
+    };
+  }, [detail, totalAllDetailHours]);
+
   const totalFilteredDetailHours = React.useMemo(() => {
     return filteredEntries.reduce((sum, e) => sum + (e.minutes ?? 0), 0) / 60;
   }, [filteredEntries]);
@@ -222,15 +301,36 @@ export function RetainersDashboardClient({ initialRows }: { initialRows: ClientR
           <p className="text-sm text-zinc-600">Visual overview + drill-down by client and cycle.</p>
         </div>
 
-        <label className="grid gap-1">
-          <span className="text-xs font-semibold text-zinc-600">Search</span>
-          <input
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search client…"
-            className="h-10 w-64 rounded-md border border-zinc-300 bg-white px-3"
-          />
-        </label>
+        <div className="flex flex-wrap items-end gap-3">
+          <label className="grid gap-1">
+            <span className="text-xs font-semibold text-zinc-600">Search</span>
+            <input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search client…"
+              className="h-10 w-64 rounded-md border border-zinc-300 bg-white px-3"
+            />
+          </label>
+
+          <label className="flex h-10 items-center gap-2 rounded-md border border-zinc-300 bg-white px-3 text-sm">
+            <input type="checkbox" checked={atRiskOnly} onChange={(e) => setAtRiskOnly(e.target.checked)} />
+            <span className="text-sm text-zinc-700">At risk only</span>
+          </label>
+
+          <label className="grid gap-1">
+            <span className="text-xs font-semibold text-zinc-600">Sort</span>
+            <select
+              className="h-10 w-44 rounded-md border border-zinc-300 bg-white px-3 text-sm"
+              value={sortKey}
+              onChange={(e) => setSortKey(e.target.value as any)}
+            >
+              <option value="RISK">At risk</option>
+              <option value="PCT">% used</option>
+              <option value="OVER">Overages</option>
+              <option value="NAME">Name</option>
+            </select>
+          </label>
+        </div>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -572,6 +672,50 @@ export function RetainersDashboardClient({ initialRows }: { initialRows: ClientR
                   </div>
 
                   <div className="space-y-4">
+                    <div className="rounded-lg border border-zinc-200 p-3">
+                      <div className="text-sm font-semibold">Burn rate projection</div>
+                      <div className="mt-1 text-xs text-zinc-600">
+                        Projected total usage if current pace continues (based on days elapsed in this cycle).
+                      </div>
+
+                      <div className="mt-3 grid gap-1 text-sm">
+                        {burnProjection ? (
+                          <>
+                            <div className="flex items-baseline justify-between">
+                              <span className="text-zinc-600">Burn rate</span>
+                              <span className="font-semibold text-zinc-900">{fmtHours(burnProjection.burnRateHoursPerDay)}h/day</span>
+                            </div>
+                            <div className="flex items-baseline justify-between">
+                              <span className="text-zinc-600">Projected total</span>
+                              <span className="font-semibold text-zinc-900">{fmtHours(burnProjection.projectedHours)}h</span>
+                            </div>
+                            <div className="flex items-baseline justify-between">
+                              <span className="text-zinc-600">Retainer limit</span>
+                              <span className="font-semibold text-zinc-900">{fmtHours(burnProjection.limitHours)}h</span>
+                            </div>
+                            <div className="flex items-baseline justify-between">
+                              <span className="text-zinc-600">Projected over/under</span>
+                              <span className={"font-semibold " + (burnProjection.projectedOverByHours > 0 ? "text-red-700" : "text-emerald-700")}>
+                                {burnProjection.projectedOverByHours > 0 ? "+" : ""}
+                                {fmtHours(burnProjection.projectedOverByHours)}h
+                              </span>
+                            </div>
+                            {burnProjection.projectedPercentUsed != null ? (
+                              <div className="mt-1 text-xs text-zinc-600">
+                                ~{Math.round(burnProjection.projectedPercentUsed)}% projected used ({burnProjection.daysElapsed}/{burnProjection.cycleDays} days)
+                              </div>
+                            ) : (
+                              <div className="mt-1 text-xs text-zinc-600">
+                                ({burnProjection.daysElapsed}/{burnProjection.cycleDays} days)
+                              </div>
+                            )}
+                          </>
+                        ) : (
+                          <div className="text-sm text-zinc-600">Not enough data yet to project.</div>
+                        )}
+                      </div>
+                    </div>
+
                     <div className="rounded-lg border border-zinc-200 p-3">
                       <div className="text-sm font-semibold">Cycle dates (editable)</div>
                       <div className="mt-1 text-xs text-zinc-600">
