@@ -24,5 +24,6 @@ export default async function AdminLayout({ children }: { children: ReactNode })
     );
   }
 
-  return <>{children}</>;
+  // Admin stays light theme regardless of global employee theme.
+  return <div className="theme-light">{children}</div>;
 }
