@@ -116,6 +116,11 @@ export function RetainersDashboardClient({ initialRows }: { initialRows: ClientR
   const [savingBucket, setSavingBucket] = React.useState<string | null>(null);
   const [bucketError, setBucketError] = React.useState<string | null>(null);
   const [showAddBucket, setShowAddBucket] = React.useState(false);
+  const [bucketOptions, setBucketOptions] = React.useState<Array<{ bucketKey: string; bucketName: string }> | null>(null);
+  const [bucketOptionsLoading, setBucketOptionsLoading] = React.useState(false);
+  const [bucketOptionsError, setBucketOptionsError] = React.useState<string | null>(null);
+
+  const [addBucketPresetKey, setAddBucketPresetKey] = React.useState<string>("");
   const [addBucketKey, setAddBucketKey] = React.useState("");
   const [addBucketName, setAddBucketName] = React.useState("");
   const [addBucketLimitHours, setAddBucketLimitHours] = React.useState("");
@@ -166,7 +171,9 @@ export function RetainersDashboardClient({ initialRows }: { initialRows: ClientR
       setCycleEndEdit(data.range.endISO);
       setCycleSaveError(null);
       setBucketError(null);
+      setBucketOptionsError(null);
       setShowAddBucket(false);
+      setAddBucketPresetKey("");
       setAddBucketKey("");
       setAddBucketName("");
       setAddBucketLimitHours("");
@@ -178,6 +185,25 @@ export function RetainersDashboardClient({ initialRows }: { initialRows: ClientR
         next[k] = String((bl.minutesLimit ?? 0) / 60);
       }
       setBucketEdit(next);
+
+      // Load bucket options (existing categories) for this client.
+      setBucketOptionsLoading(true);
+      setBucketOptionsError(null);
+      try {
+        const r = await fetch(`/api/admin/retainers/buckets?clientId=${encodeURIComponent(sel.clientId)}&limit=120`);
+        const j = (await r.json()) as { ok?: boolean; buckets?: Array<{ bucketKey: string; bucketName: string }>; message?: string };
+        if (!r.ok || j.ok !== true || !Array.isArray(j.buckets)) {
+          setBucketOptions([]);
+          setBucketOptionsError(j.message ?? "Failed to load categories.");
+        } else {
+          setBucketOptions(j.buckets);
+        }
+      } catch {
+        setBucketOptions([]);
+        setBucketOptionsError("Network error loading categories.");
+      } finally {
+        setBucketOptionsLoading(false);
+      }
     } catch {
       setDetailError("Network error loading detail.");
     } finally {
@@ -943,34 +969,63 @@ export function RetainersDashboardClient({ initialRows }: { initialRows: ClientR
 
                       {showAddBucket ? (
                         <div className="mt-3 grid gap-2 rounded-md border border-zinc-200 bg-zinc-50 p-3">
-                          <div className="grid gap-2 sm:grid-cols-3">
+                          <div className="grid gap-2">
                             <label className="grid gap-1">
-                              <span className="text-xs font-semibold text-zinc-600">Bucket key</span>
-                              <input
-                                value={addBucketKey}
-                                onChange={(e) => setAddBucketKey(e.target.value)}
-                                placeholder="e.g. VIDEO_EDITING"
-                                className="h-10 rounded-md border border-zinc-300 bg-white px-3"
-                              />
+                              <span className="text-xs font-semibold text-zinc-600">Choose an existing category (recommended)</span>
+                              <select
+                                value={addBucketPresetKey}
+                                onChange={(e) => {
+                                  const key = e.target.value;
+                                  setAddBucketPresetKey(key);
+                                  if (!key) return;
+                                  const opt = (bucketOptions ?? []).find((o) => o.bucketKey === key);
+                                  if (!opt) return;
+                                  setAddBucketKey(opt.bucketKey);
+                                  setAddBucketName(opt.bucketName);
+                                }}
+                                className="h-10 w-full rounded-md border border-zinc-300 bg-white px-3 text-sm"
+                                disabled={bucketOptionsLoading || !selected.clientId}
+                              >
+                                <option value="">{bucketOptionsLoading ? "Loading categories…" : "Select category…"}</option>
+                                {(bucketOptions ?? []).map((o) => (
+                                  <option key={o.bucketKey} value={o.bucketKey}>
+                                    {o.bucketName} ({o.bucketKey})
+                                  </option>
+                                ))}
+                              </select>
+                              {bucketOptionsError ? <span className="text-xs text-red-700">{bucketOptionsError}</span> : null}
+                              <span className="text-xs text-zinc-500">Pulled from existing worklog entries for this client.</span>
                             </label>
-                            <label className="grid gap-1">
-                              <span className="text-xs font-semibold text-zinc-600">Name</span>
-                              <input
-                                value={addBucketName}
-                                onChange={(e) => setAddBucketName(e.target.value)}
-                                placeholder="e.g. Video editing"
-                                className="h-10 rounded-md border border-zinc-300 bg-white px-3"
-                              />
-                            </label>
-                            <label className="grid gap-1">
-                              <span className="text-xs font-semibold text-zinc-600">Limit (hours)</span>
-                              <input
-                                value={addBucketLimitHours}
-                                onChange={(e) => setAddBucketLimitHours(e.target.value)}
-                                placeholder="e.g. 6"
-                                className="h-10 rounded-md border border-zinc-300 bg-white px-3"
-                              />
-                            </label>
+
+                            <div className="grid gap-2 sm:grid-cols-3">
+                              <label className="grid gap-1">
+                                <span className="text-xs font-semibold text-zinc-600">Bucket key</span>
+                                <input
+                                  value={addBucketKey}
+                                  onChange={(e) => setAddBucketKey(e.target.value)}
+                                  placeholder="e.g. VIDEO_EDITING"
+                                  className="h-10 rounded-md border border-zinc-300 bg-white px-3"
+                                />
+                              </label>
+                              <label className="grid gap-1">
+                                <span className="text-xs font-semibold text-zinc-600">Name</span>
+                                <input
+                                  value={addBucketName}
+                                  onChange={(e) => setAddBucketName(e.target.value)}
+                                  placeholder="e.g. Video editing"
+                                  className="h-10 rounded-md border border-zinc-300 bg-white px-3"
+                                />
+                              </label>
+                              <label className="grid gap-1">
+                                <span className="text-xs font-semibold text-zinc-600">Limit (hours)</span>
+                                <input
+                                  value={addBucketLimitHours}
+                                  onChange={(e) => setAddBucketLimitHours(e.target.value)}
+                                  placeholder="e.g. 6"
+                                  className="h-10 rounded-md border border-zinc-300 bg-white px-3"
+                                />
+                              </label>
+                            </div>
                           </div>
 
                           <div className="flex items-center justify-end gap-2">
@@ -979,10 +1034,12 @@ export function RetainersDashboardClient({ initialRows }: { initialRows: ClientR
                               className="h-10 rounded-md border border-zinc-300 bg-white px-3 text-sm hover:bg-zinc-50"
                               onClick={() => {
                                 setShowAddBucket(false);
+                                setAddBucketPresetKey("");
                                 setAddBucketKey("");
                                 setAddBucketName("");
                                 setAddBucketLimitHours("");
                                 setBucketError(null);
+                                setBucketOptionsError(null);
                               }}
                             >
                               Close
@@ -1034,6 +1091,7 @@ export function RetainersDashboardClient({ initialRows }: { initialRows: ClientR
                                   }
 
                                   setShowAddBucket(false);
+                                  setAddBucketPresetKey("");
                                   setAddBucketKey("");
                                   setAddBucketName("");
                                   setAddBucketLimitHours("");
