@@ -182,7 +182,7 @@ export function RetainersDashboardClient({ initialRows }: { initialRows: ClientR
       const next: Record<string, string> = {};
       for (const bl of data.bucketLimits ?? []) {
         const k = String(bl.id ?? bl.bucketKey);
-        next[k] = String((bl.minutesLimit ?? 0) / 60);
+        next[k] = fmtHours((bl.minutesLimit ?? 0) / 60);
       }
       setBucketEdit(next);
 
@@ -523,7 +523,12 @@ export function RetainersDashboardClient({ initialRows }: { initialRows: ClientR
                     <button
                       type="button"
                       className="h-9 rounded-md border border-zinc-300 bg-white px-3 text-sm hover:bg-zinc-50 disabled:opacity-50"
-                      disabled={!selected.cycleId || cycles.findIndex((c) => c.id === selected.cycleId) >= cycles.length - 1}
+                      disabled={
+                        loadingDetail ||
+                        cyclesLoading ||
+                        !selected.cycleId ||
+                        cycles.findIndex((c) => c.id === selected.cycleId) >= cycles.length - 1
+                      }
                       onClick={() => {
                         const idx = selected.cycleId ? cycles.findIndex((c) => c.id === selected.cycleId) : -1;
                         const next = idx >= 0 ? cycles[idx + 1] : null;
@@ -536,7 +541,8 @@ export function RetainersDashboardClient({ initialRows }: { initialRows: ClientR
                     </button>
 
                     <select
-                      className="h-9 rounded-md border border-zinc-300 bg-white px-3 text-sm"
+                      className="h-9 rounded-md border border-zinc-300 bg-white px-3 text-sm disabled:opacity-50"
+                      disabled={loadingDetail || cyclesLoading}
                       value={selected.cycleId ?? ""}
                       onChange={(e) => {
                         const id = e.target.value;
@@ -555,7 +561,12 @@ export function RetainersDashboardClient({ initialRows }: { initialRows: ClientR
                     <button
                       type="button"
                       className="h-9 rounded-md border border-zinc-300 bg-white px-3 text-sm hover:bg-zinc-50 disabled:opacity-50"
-                      disabled={!selected.cycleId || cycles.findIndex((c) => c.id === selected.cycleId) <= 0}
+                      disabled={
+                        loadingDetail ||
+                        cyclesLoading ||
+                        !selected.cycleId ||
+                        cycles.findIndex((c) => c.id === selected.cycleId) <= 0
+                      }
                       onClick={() => {
                         const idx = selected.cycleId ? cycles.findIndex((c) => c.id === selected.cycleId) : -1;
                         const prev = idx > 0 ? cycles[idx - 1] : null;
@@ -569,7 +580,8 @@ export function RetainersDashboardClient({ initialRows }: { initialRows: ClientR
 
                     <button
                       type="button"
-                      className="h-9 rounded-md border border-zinc-300 bg-white px-3 text-sm hover:bg-zinc-50"
+                      className="h-9 rounded-md border border-zinc-300 bg-white px-3 text-sm hover:bg-zinc-50 disabled:opacity-50"
+                      disabled={cyclesLoading || loadingDetail}
                       onClick={async () => {
                         const currentCycleId = await loadCycles(selected.clientId);
                         const c = cycles[0];
@@ -827,7 +839,8 @@ export function RetainersDashboardClient({ initialRows }: { initialRows: ClientR
                           <input
                             value={cycleStartEdit}
                             onChange={(e) => setCycleStartEdit(e.target.value)}
-                            className="h-10 rounded-md border border-zinc-300 bg-white px-3"
+                            disabled={savingCycleDates || loadingDetail}
+                            className="h-10 rounded-md border border-zinc-300 bg-white px-3 disabled:opacity-50"
                           />
                         </label>
                         <label className="grid gap-1">
@@ -835,7 +848,8 @@ export function RetainersDashboardClient({ initialRows }: { initialRows: ClientR
                           <input
                             value={cycleEndEdit}
                             onChange={(e) => setCycleEndEdit(e.target.value)}
-                            className="h-10 rounded-md border border-zinc-300 bg-white px-3"
+                            disabled={savingCycleDates || loadingDetail}
+                            className="h-10 rounded-md border border-zinc-300 bg-white px-3 disabled:opacity-50"
                           />
                         </label>
 
@@ -854,13 +868,20 @@ export function RetainersDashboardClient({ initialRows }: { initialRows: ClientR
                               setCycleSaveError("This cycle isn’t saved yet. Click ‘Refresh cycles’ first.");
                               return;
                             }
+
+                            const nextStart = cycleStartEdit.trim();
+                            const nextEnd = cycleEndEdit.trim();
+                            if (detail && (nextStart !== detail.range.startISO || nextEnd !== detail.range.endISO)) {
+                              if (!confirm("Save cycle date changes? This will change which work logs are included in the cycle.")) return;
+                            }
+
                             setSavingCycleDates(true);
                             setCycleSaveError(null);
                             try {
                               const res = await fetch("/api/admin/retainers/cycles", {
                                 method: "PATCH",
                                 headers: { "content-type": "application/json" },
-                                body: JSON.stringify({ id: selected.cycleId, startISO: cycleStartEdit.trim(), endISO: cycleEndEdit.trim() }),
+                                body: JSON.stringify({ id: selected.cycleId, startISO: nextStart, endISO: nextEnd }),
                               });
                               const data = (await res.json()) as { ok?: boolean; message?: string };
                               if (!res.ok || data.ok !== true) {
@@ -872,7 +893,7 @@ export function RetainersDashboardClient({ initialRows }: { initialRows: ClientR
                                 prev
                                   ? prev.map((c) =>
                                       c.id === selected.cycleId
-                                        ? { ...c, startISO: cycleStartEdit.trim(), endISO: cycleEndEdit.trim() }
+                                        ? { ...c, startISO: nextStart, endISO: nextEnd }
                                         : c
                                     )
                                   : prev
@@ -881,8 +902,8 @@ export function RetainersDashboardClient({ initialRows }: { initialRows: ClientR
                               void loadDetail({
                                 clientId: selected.clientId,
                                 cycleId: selected.cycleId,
-                                startISO: cycleStartEdit.trim(),
-                                endISO: cycleEndEdit.trim(),
+                                startISO: nextStart,
+                                endISO: nextEnd,
                               });
                             } catch {
                               setCycleSaveError("Network error saving cycle.");
@@ -986,7 +1007,13 @@ export function RetainersDashboardClient({ initialRows }: { initialRows: ClientR
                                 className="h-10 w-full rounded-md border border-zinc-300 bg-white px-3 text-sm"
                                 disabled={bucketOptionsLoading || !selected.clientId}
                               >
-                                <option value="">{bucketOptionsLoading ? "Loading categories…" : "Select category…"}</option>
+                                <option value="">
+                                  {bucketOptionsLoading
+                                    ? "Loading categories…"
+                                    : (bucketOptions ?? []).length === 0
+                                      ? "No categories found"
+                                      : "Select category…"}
+                                </option>
                                 {(bucketOptions ?? []).map((o) => (
                                   <option key={o.bucketKey} value={o.bucketKey}>
                                     {o.bucketName} ({o.bucketKey})
@@ -994,7 +1021,13 @@ export function RetainersDashboardClient({ initialRows }: { initialRows: ClientR
                                 ))}
                               </select>
                               {bucketOptionsError ? <span className="text-xs text-red-700">{bucketOptionsError}</span> : null}
-                              <span className="text-xs text-zinc-500">Pulled from existing worklog entries for this client.</span>
+                              {!bucketOptionsLoading && (bucketOptions ?? []).length === 0 ? (
+                                <span className="text-xs text-zinc-500">
+                                  No existing categories found for this client yet — you can still enter a key/name manually.
+                                </span>
+                              ) : (
+                                <span className="text-xs text-zinc-500">Pulled from existing worklog entries for this client.</span>
+                              )}
                             </label>
 
                             <div className="grid gap-2 sm:grid-cols-3">
@@ -1145,6 +1178,9 @@ export function RetainersDashboardClient({ initialRows }: { initialRows: ClientR
                                   <div className={"font-semibold " + (isOver ? "text-red-700" : "text-zinc-900")}>
                                     {fmtHours(usedHours)}h
                                   </div>
+                                  <div className="text-xs text-zinc-500">
+                                    of {fmtHours(limitHours)}h{limitHours > 0 ? ` (${Math.round(pct)}%)` : ""}
+                                  </div>
                                   <div className="mt-1 h-2 w-full overflow-hidden rounded-full bg-zinc-100">
                                     <div
                                       className={"h-2 rounded-full " + (isOver ? "bg-red-500" : pct >= 90 ? "bg-yellow-500" : "bg-emerald-500")}
@@ -1155,7 +1191,7 @@ export function RetainersDashboardClient({ initialRows }: { initialRows: ClientR
 
                                 <div className="col-span-3">
                                   <input
-                                    value={bucketEdit[rowKey] ?? String(limitHours)}
+                                    value={bucketEdit[rowKey] ?? fmtHours(limitHours)}
                                     onChange={(e) => setBucketEdit((prev) => ({ ...prev, [rowKey]: e.target.value }))}
                                     className="h-9 w-full rounded-md border border-zinc-300 bg-white px-2 text-sm"
                                   />
