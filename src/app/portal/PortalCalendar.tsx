@@ -83,6 +83,34 @@ export function PortalCalendar({ months }: { months: PortalMonth[] }) {
 
   const now = React.useMemo(() => new Date(), []);
 
+  // Month navigation: show ONE month at a time.
+  // The server provides a +/-6 month window; we default to the current month.
+  const monthIndexByKey = React.useMemo(() => {
+    const m = new Map<string, number>();
+    months.forEach((x, idx) => m.set(`${x.yyyy}-${x.monthIndex0}`, idx));
+    return m;
+  }, [months]);
+
+  const currentMonthKey = React.useMemo(() => {
+    const todayIso = isoDateInTimeZone(now, CALGARY_TZ);
+    const d = parseISODateAsUTC(todayIso);
+    return `${d.getUTCFullYear()}-${d.getUTCMonth()}`;
+  }, [now]);
+
+  const defaultMonthIndex = React.useMemo(() => {
+    return monthIndexByKey.get(currentMonthKey) ?? 0;
+  }, [monthIndexByKey, currentMonthKey]);
+
+  const [activeMonthIndex, setActiveMonthIndex] = React.useState<number>(defaultMonthIndex);
+
+  React.useEffect(() => {
+    // Keep active month stable if the months array changes (refresh), but clamp.
+    setActiveMonthIndex((prev) => {
+      const next = Number.isFinite(prev) ? prev : defaultMonthIndex;
+      return Math.max(0, Math.min(months.length - 1, next));
+    });
+  }, [months.length, defaultMonthIndex]);
+
   const currentLogIso = React.useMemo(() => {
     const hh = hourInTimeZone(now, CALGARY_TZ);
     const todayIso = isoDateInTimeZone(now, CALGARY_TZ);
@@ -100,6 +128,11 @@ export function PortalCalendar({ months }: { months: PortalMonth[] }) {
     const d = new Date(Date.UTC(m.yyyy, m.monthIndex0, 1));
     return format(d, "MMMM yyyy");
   }
+
+  const activeMonth = months[activeMonthIndex] ?? months[0];
+
+  const canGoPrev = activeMonthIndex > 0;
+  const canGoNext = activeMonthIndex < months.length - 1;
 
   const weekdayLabels = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
@@ -218,13 +251,43 @@ export function PortalCalendar({ months }: { months: PortalMonth[] }) {
         </div>
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-2">
-        {months.map((m) => (
-          <section key={`${m.yyyy}-${m.monthIndex0}`} className="overflow-hidden rounded-lg border border-zinc-200">
-            <div className="bg-zinc-50 px-4 py-3">
-              <div className="text-sm font-semibold">{monthTitle(m)}</div>
-            </div>
+      <div className="space-y-3">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="text-sm font-semibold text-zinc-900">{activeMonth ? monthTitle(activeMonth) : ""}</div>
 
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              className="h-9 rounded-md border border-zinc-300 bg-white px-3 text-sm hover:bg-zinc-50 disabled:opacity-50"
+              disabled={!canGoPrev}
+              onClick={() => setActiveMonthIndex((i) => Math.max(0, i - 1))}
+              title="Previous month"
+            >
+              ←
+            </button>
+            <button
+              type="button"
+              className="h-9 rounded-md border border-zinc-300 bg-white px-3 text-sm hover:bg-zinc-50 disabled:opacity-50"
+              disabled={!canGoNext}
+              onClick={() => setActiveMonthIndex((i) => Math.min(months.length - 1, i + 1))}
+              title="Next month"
+            >
+              →
+            </button>
+
+            <button
+              type="button"
+              className="h-9 rounded-md border border-zinc-300 bg-white px-3 text-sm hover:bg-zinc-50"
+              onClick={() => setActiveMonthIndex(defaultMonthIndex)}
+              title="Jump to current month"
+            >
+              Today
+            </button>
+          </div>
+        </div>
+
+        {activeMonth ? (
+          <section key={`${activeMonth.yyyy}-${activeMonth.monthIndex0}`} className="overflow-hidden rounded-lg border border-zinc-200">
             <div className="grid grid-cols-7 gap-px bg-zinc-200">
               {weekdayLabels.map((w) => (
                 <div key={w} className="bg-white px-2 py-2 text-center text-xs font-semibold text-zinc-600">
@@ -232,7 +295,7 @@ export function PortalCalendar({ months }: { months: PortalMonth[] }) {
                 </div>
               ))}
 
-              {m.days.map((d) => (
+              {activeMonth.days.map((d) => (
                 <button
                   key={d.isoDate}
                   type="button"
@@ -250,7 +313,11 @@ export function PortalCalendar({ months }: { months: PortalMonth[] }) {
               ))}
             </div>
           </section>
-        ))}
+        ) : null}
+
+        <div className="text-xs text-zinc-500">
+          Showing a 13-month window (6 months back/forward). Use arrows to navigate.
+        </div>
       </div>
 
       <Dialog

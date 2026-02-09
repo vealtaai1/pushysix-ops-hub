@@ -35,6 +35,9 @@ export default function RootLayout({
                 <a className="text-zinc-600 hover:text-[#2EA3F2]" href="/portal">
                   Shift Log
                 </a>
+                <a className="text-zinc-600 hover:text-[#2EA3F2]" href="/equipment">
+                  Equipment
+                </a>
                 <a className="text-zinc-600 hover:text-[#2EA3F2]" href="/admin/clients">
                   Admin
                 </a>
