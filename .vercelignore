@@ -1,0 +1,6 @@
+# Prevent local secrets from being uploaded when deploying via Vercel CLI
+.env
+.env.*
+
+# Allow example env file
+!.env.example

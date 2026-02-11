@@ -3,7 +3,9 @@
 import * as React from "react";
 import { CALGARY_TZ, isoDateInTimeZone, parseISODateAsUTC } from "@/lib/time";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
-import { updateClientRetainerBasics, upsertClientQuotaItem, deleteClientQuotaItem } from "./actions";
+import { updateClientRetainerBasics } from "./actions";
+
+// NOTE: Quota items are being replaced by per-cycle category restrictions derived from bucketKey.
 
 type ClientRow = {
   client: {
@@ -22,10 +24,10 @@ type ClientRow = {
   overAny: boolean;
   shoots: number;
   shootsLimit: number | null;
-  quotaOverAny: boolean;
-  quotaOverCount: number;
-  quotaWorstPercentUsed: number | null;
-  quotaOverScore: number;
+  categoryOverAny: boolean;
+  categoryOverCount: number;
+  categoryWorstPercentUsed: number | null;
+  categoryOverScore: number;
 };
 
 type DetailPayload = {
@@ -40,24 +42,31 @@ type DetailPayload = {
     maxCaptureHoursPerCycle: number | null;
   };
   range: { startISO: string; endISO: string };
+  cycle: { id: string; startISO: string; endISO: string } | null;
+  bucketLimits: Array<{ id?: string; bucketKey: string; bucketName: string; minutesLimit: number }>;
+  bucketUsage: Record<string, number>;
   entries: Array<{
     id: string;
     minutes: number;
     notes: string | null;
     bucketKey: string;
     bucketName: string;
-    quotaItemId: string | null;
-    quotaItem: { id: string; name: string; usageMode: "PER_DAY" | "PER_HOUR"; limitPerCycleDays: number; limitPerCycleMinutes: number } | null;
     worklog: { workDate: string; user: { id: string; name: string | null; email: string } };
   }>;
-  quotaItems: Array<{ id: string; name: string; usageMode: "PER_DAY" | "PER_HOUR"; limitPerCycleDays: number; limitPerCycleMinutes: number }>;
-  quotaUsage: Record<string, { days: number; minutes: number }>;
 };
 
 function fmtHours(h: number): string {
   if (!Number.isFinite(h)) return "—";
   const s = h.toFixed(1);
   return s.endsWith(".0") ? s.slice(0, -2) : s;
+}
+
+function parseHoursToMinutes(raw: string): number | null {
+  const s = raw.trim();
+  if (!s) return null;
+  const n = Number(s);
+  if (!Number.isFinite(n) || n < 0) return null;
+  return Math.round(n * 60);
 }
 
 function progressColorClass(percentUsed: number | null, isOver: boolean) {
@@ -103,12 +112,19 @@ export function RetainersDashboardClient({ initialRows }: { initialRows: ClientR
   const [savingCycleDates, setSavingCycleDates] = React.useState(false);
   const [cycleSaveError, setCycleSaveError] = React.useState<string | null>(null);
 
-  const [editingQuotaId, setEditingQuotaId] = React.useState<string | null>(null);
+  const [bucketEdit, setBucketEdit] = React.useState<Record<string, string>>({});
+  const [savingBucket, setSavingBucket] = React.useState<string | null>(null);
+  const [bucketError, setBucketError] = React.useState<string | null>(null);
+  const [showAddBucket, setShowAddBucket] = React.useState(false);
+  const [bucketOptions, setBucketOptions] = React.useState<Array<{ bucketKey: string; bucketName: string }> | null>(null);
+  const [bucketOptionsLoading, setBucketOptionsLoading] = React.useState(false);
+  const [bucketOptionsError, setBucketOptionsError] = React.useState<string | null>(null);
 
-  React.useEffect(() => {
-    // Reset edit UI when switching clients / reloading detail
-    setEditingQuotaId(null);
-  }, [detail?.client.id]);
+  const [addBucketPresetKey, setAddBucketPresetKey] = React.useState<string>("");
+  const [addBucketKey, setAddBucketKey] = React.useState("");
+  const [addBucketName, setAddBucketName] = React.useState("");
+  const [addBucketLimitHours, setAddBucketLimitHours] = React.useState("");
+  const [addingBucket, setAddingBucket] = React.useState(false);
 
   async function loadCycles(clientId: string) {
     setCyclesLoading(true);
@@ -154,6 +170,40 @@ export function RetainersDashboardClient({ initialRows }: { initialRows: ClientR
       setCycleStartEdit(data.range.startISO);
       setCycleEndEdit(data.range.endISO);
       setCycleSaveError(null);
+      setBucketError(null);
+      setBucketOptionsError(null);
+      setShowAddBucket(false);
+      setAddBucketPresetKey("");
+      setAddBucketKey("");
+      setAddBucketName("");
+      setAddBucketLimitHours("");
+
+      // Initialize editable limits (stored as hours strings).
+      const next: Record<string, string> = {};
+      for (const bl of data.bucketLimits ?? []) {
+        const k = String(bl.id ?? bl.bucketKey);
+        next[k] = fmtHours((bl.minutesLimit ?? 0) / 60);
+      }
+      setBucketEdit(next);
+
+      // Load bucket options (existing categories) for this client.
+      setBucketOptionsLoading(true);
+      setBucketOptionsError(null);
+      try {
+        const r = await fetch(`/api/admin/retainers/buckets?clientId=${encodeURIComponent(sel.clientId)}&limit=120`);
+        const j = (await r.json()) as { ok?: boolean; buckets?: Array<{ bucketKey: string; bucketName: string }>; message?: string };
+        if (!r.ok || j.ok !== true || !Array.isArray(j.buckets)) {
+          setBucketOptions([]);
+          setBucketOptionsError(j.message ?? "Failed to load categories.");
+        } else {
+          setBucketOptions(j.buckets);
+        }
+      } catch {
+        setBucketOptions([]);
+        setBucketOptionsError("Network error loading categories.");
+      } finally {
+        setBucketOptionsLoading(false);
+      }
     } catch {
       setDetailError("Network error loading detail.");
     } finally {
@@ -171,28 +221,28 @@ export function RetainersDashboardClient({ initialRows }: { initialRows: ClientR
     if (atRiskOnly) {
       next = next.filter((r) => {
         const percent = r.totalPercentUsed;
-        const quotaPct = r.quotaWorstPercentUsed;
-        return r.overAny || r.quotaOverAny || (percent != null && percent >= 90) || (quotaPct != null && quotaPct >= 90);
+        const categoryPct = r.categoryWorstPercentUsed;
+        return r.overAny || r.categoryOverAny || (percent != null && percent >= 90) || (categoryPct != null && categoryPct >= 90);
       });
     }
 
     const riskScore = (r: ClientRow) => {
       const percent = r.totalPercentUsed ?? 0;
       const overByHours = Math.max(0, r.totalUsedHours - r.totalLimitHours);
-      const quotaWorstPct = r.quotaWorstPercentUsed ?? 0;
+      const categoryWorstPct = r.categoryWorstPercentUsed ?? 0;
 
       // Heuristic (high to low):
-      // 1) Any hard overage: total/capture/shoots OR any quota item over.
+      // 1) Any hard overage: total/capture/shoots OR any category restriction over.
       // 2) Magnitude of overage hours.
-      // 3) Quota overage severity.
+      // 3) Category restriction severity.
       // 4) Total % used.
       return (
         (r.overAny ? 50_000 : 0) +
-        (r.quotaOverAny ? 25_000 : 0) +
+        (r.categoryOverAny ? 25_000 : 0) +
         overByHours * 1000 +
-        (r.quotaOverScore ?? 0) * 5000 +
-        Math.max(0, quotaWorstPct - 100) * 50 +
-        quotaWorstPct +
+        (r.categoryOverScore ?? 0) * 5000 +
+        Math.max(0, categoryWorstPct - 100) * 50 +
+        categoryWorstPct +
         percent
       );
     };
@@ -203,8 +253,8 @@ export function RetainersDashboardClient({ initialRows }: { initialRows: ClientR
         const ao = Math.max(0, a.totalUsedHours - a.totalLimitHours);
         const bo = Math.max(0, b.totalUsedHours - b.totalLimitHours);
         if (bo !== ao) return bo - ao;
-        // tie-break on quota overages
-        return (b.quotaOverScore ?? 0) - (a.quotaOverScore ?? 0);
+        // tie-break on category overages
+        return (b.categoryOverScore ?? 0) - (a.categoryOverScore ?? 0);
       }
       // RISK
       return riskScore(b) - riskScore(a);
@@ -435,13 +485,13 @@ export function RetainersDashboardClient({ initialRows }: { initialRows: ClientR
                     </span>
                   ) : null}
 
-                  {r.quotaOverAny ? (
+                  {r.categoryOverAny ? (
                     <span className={"rounded-md border px-2 py-1 text-xs " + badgeClass("bad")}>
-                      Quotas over ({r.quotaOverCount})
+                      Categories over ({r.categoryOverCount})
                     </span>
-                  ) : r.quotaWorstPercentUsed != null && r.quotaWorstPercentUsed >= 90 ? (
+                  ) : r.categoryWorstPercentUsed != null && r.categoryWorstPercentUsed >= 90 ? (
                     <span className={"rounded-md border px-2 py-1 text-xs " + badgeClass("warn")}>
-                      Quotas near limit ({Math.round(r.quotaWorstPercentUsed)}%)
+                      Categories near limit ({Math.round(r.categoryWorstPercentUsed)}%)
                     </span>
                   ) : null}
                 </div>
@@ -473,7 +523,12 @@ export function RetainersDashboardClient({ initialRows }: { initialRows: ClientR
                     <button
                       type="button"
                       className="h-9 rounded-md border border-zinc-300 bg-white px-3 text-sm hover:bg-zinc-50 disabled:opacity-50"
-                      disabled={!selected.cycleId || cycles.findIndex((c) => c.id === selected.cycleId) >= cycles.length - 1}
+                      disabled={
+                        loadingDetail ||
+                        cyclesLoading ||
+                        !selected.cycleId ||
+                        cycles.findIndex((c) => c.id === selected.cycleId) >= cycles.length - 1
+                      }
                       onClick={() => {
                         const idx = selected.cycleId ? cycles.findIndex((c) => c.id === selected.cycleId) : -1;
                         const next = idx >= 0 ? cycles[idx + 1] : null;
@@ -486,7 +541,8 @@ export function RetainersDashboardClient({ initialRows }: { initialRows: ClientR
                     </button>
 
                     <select
-                      className="h-9 rounded-md border border-zinc-300 bg-white px-3 text-sm"
+                      className="h-9 rounded-md border border-zinc-300 bg-white px-3 text-sm disabled:opacity-50"
+                      disabled={loadingDetail || cyclesLoading}
                       value={selected.cycleId ?? ""}
                       onChange={(e) => {
                         const id = e.target.value;
@@ -505,7 +561,12 @@ export function RetainersDashboardClient({ initialRows }: { initialRows: ClientR
                     <button
                       type="button"
                       className="h-9 rounded-md border border-zinc-300 bg-white px-3 text-sm hover:bg-zinc-50 disabled:opacity-50"
-                      disabled={!selected.cycleId || cycles.findIndex((c) => c.id === selected.cycleId) <= 0}
+                      disabled={
+                        loadingDetail ||
+                        cyclesLoading ||
+                        !selected.cycleId ||
+                        cycles.findIndex((c) => c.id === selected.cycleId) <= 0
+                      }
                       onClick={() => {
                         const idx = selected.cycleId ? cycles.findIndex((c) => c.id === selected.cycleId) : -1;
                         const prev = idx > 0 ? cycles[idx - 1] : null;
@@ -519,7 +580,8 @@ export function RetainersDashboardClient({ initialRows }: { initialRows: ClientR
 
                     <button
                       type="button"
-                      className="h-9 rounded-md border border-zinc-300 bg-white px-3 text-sm hover:bg-zinc-50"
+                      className="h-9 rounded-md border border-zinc-300 bg-white px-3 text-sm hover:bg-zinc-50 disabled:opacity-50"
+                      disabled={cyclesLoading || loadingDetail}
                       onClick={async () => {
                         const currentCycleId = await loadCycles(selected.clientId);
                         const c = cycles[0];
@@ -683,7 +745,6 @@ export function RetainersDashboardClient({ initialRows }: { initialRows: ClientR
                               <th className="border-b border-zinc-200 px-3 py-2">Date</th>
                               <th className="border-b border-zinc-200 px-3 py-2">Employee</th>
                               <th className="border-b border-zinc-200 px-3 py-2">Service</th>
-                              <th className="border-b border-zinc-200 px-3 py-2">Quota</th>
                               <th className="border-b border-zinc-200 px-3 py-2">Hours</th>
                               <th className="border-b border-zinc-200 px-3 py-2">Notes</th>
                             </tr>
@@ -691,7 +752,7 @@ export function RetainersDashboardClient({ initialRows }: { initialRows: ClientR
                           <tbody>
                             {filteredEntries.length === 0 ? (
                               <tr>
-                                <td className="px-3 py-6 text-sm text-zinc-600" colSpan={6}>
+                                <td className="px-3 py-6 text-sm text-zinc-600" colSpan={5}>
                                   No ledger entries match the current filter(s).
                                 </td>
                               </tr>
@@ -701,7 +762,6 @@ export function RetainersDashboardClient({ initialRows }: { initialRows: ClientR
                                   <td className="border-b border-zinc-100 px-3 py-2">{String(e.worklog.workDate).slice(0, 10)}</td>
                                   <td className="border-b border-zinc-100 px-3 py-2">{e.worklog.user.name ?? e.worklog.user.email}</td>
                                   <td className="border-b border-zinc-100 px-3 py-2">{e.bucketName}</td>
-                                  <td className="border-b border-zinc-100 px-3 py-2">{e.quotaItem?.name ?? "—"}</td>
                                   <td className="border-b border-zinc-100 px-3 py-2">{fmtHours((e.minutes ?? 0) / 60)}</td>
                                   <td className="border-b border-zinc-100 px-3 py-2">{e.notes ?? ""}</td>
                                 </tr>
@@ -779,7 +839,8 @@ export function RetainersDashboardClient({ initialRows }: { initialRows: ClientR
                           <input
                             value={cycleStartEdit}
                             onChange={(e) => setCycleStartEdit(e.target.value)}
-                            className="h-10 rounded-md border border-zinc-300 bg-white px-3"
+                            disabled={savingCycleDates || loadingDetail}
+                            className="h-10 rounded-md border border-zinc-300 bg-white px-3 disabled:opacity-50"
                           />
                         </label>
                         <label className="grid gap-1">
@@ -787,7 +848,8 @@ export function RetainersDashboardClient({ initialRows }: { initialRows: ClientR
                           <input
                             value={cycleEndEdit}
                             onChange={(e) => setCycleEndEdit(e.target.value)}
-                            className="h-10 rounded-md border border-zinc-300 bg-white px-3"
+                            disabled={savingCycleDates || loadingDetail}
+                            className="h-10 rounded-md border border-zinc-300 bg-white px-3 disabled:opacity-50"
                           />
                         </label>
 
@@ -806,13 +868,20 @@ export function RetainersDashboardClient({ initialRows }: { initialRows: ClientR
                               setCycleSaveError("This cycle isn’t saved yet. Click ‘Refresh cycles’ first.");
                               return;
                             }
+
+                            const nextStart = cycleStartEdit.trim();
+                            const nextEnd = cycleEndEdit.trim();
+                            if (detail && (nextStart !== detail.range.startISO || nextEnd !== detail.range.endISO)) {
+                              if (!confirm("Save cycle date changes? This will change which work logs are included in the cycle.")) return;
+                            }
+
                             setSavingCycleDates(true);
                             setCycleSaveError(null);
                             try {
                               const res = await fetch("/api/admin/retainers/cycles", {
                                 method: "PATCH",
                                 headers: { "content-type": "application/json" },
-                                body: JSON.stringify({ id: selected.cycleId, startISO: cycleStartEdit.trim(), endISO: cycleEndEdit.trim() }),
+                                body: JSON.stringify({ id: selected.cycleId, startISO: nextStart, endISO: nextEnd }),
                               });
                               const data = (await res.json()) as { ok?: boolean; message?: string };
                               if (!res.ok || data.ok !== true) {
@@ -824,7 +893,7 @@ export function RetainersDashboardClient({ initialRows }: { initialRows: ClientR
                                 prev
                                   ? prev.map((c) =>
                                       c.id === selected.cycleId
-                                        ? { ...c, startISO: cycleStartEdit.trim(), endISO: cycleEndEdit.trim() }
+                                        ? { ...c, startISO: nextStart, endISO: nextEnd }
                                         : c
                                     )
                                   : prev
@@ -833,8 +902,8 @@ export function RetainersDashboardClient({ initialRows }: { initialRows: ClientR
                               void loadDetail({
                                 clientId: selected.clientId,
                                 cycleId: selected.cycleId,
-                                startISO: cycleStartEdit.trim(),
-                                endISO: cycleEndEdit.trim(),
+                                startISO: nextStart,
+                                endISO: nextEnd,
                               });
                             } catch {
                               setCycleSaveError("Network error saving cycle.");
@@ -891,144 +960,331 @@ export function RetainersDashboardClient({ initialRows }: { initialRows: ClientR
                     <div className="rounded-lg border border-zinc-200 p-3">
                       <div className="flex items-start justify-between gap-3">
                         <div>
-                          <div className="text-sm font-semibold">Quota tracker</div>
-                          <div className="mt-0.5 text-xs text-zinc-600">
-                            Quotas increment when a work log line is tagged with a quota item.
+                          <div className="text-sm font-semibold">Service restrictions (category quotas)</div>
+                          <div className="mt-1 text-xs text-zinc-600">
+                            Per-cycle limits by task category (bucketKey). Limits are stored on the selected cycle record.
                           </div>
                         </div>
+
+                        <button
+                          type="button"
+                          className="h-9 rounded-md border border-zinc-300 bg-white px-3 text-sm hover:bg-zinc-50 disabled:opacity-50"
+                          disabled={!selected.cycleId}
+                          title={!selected.cycleId ? "No saved cycle record selected (click ‘Refresh cycles’ first)" : "Add service restriction"}
+                          onClick={() => {
+                            setBucketError(null);
+                            setShowAddBucket((v) => !v);
+                          }}
+                        >
+                          {showAddBucket ? "Cancel" : "Add"}
+                        </button>
                       </div>
 
-                      <div className="mt-3 space-y-2">
-                        {detail.quotaItems.length === 0 ? (
-                          <div className="text-sm text-zinc-600">No quota items set for this client.</div>
+                      {!selected.cycleId ? (
+                        <div className="mt-3 rounded-md border border-yellow-200 bg-yellow-50 px-3 py-2 text-xs text-yellow-900">
+                          This cycle isn’t saved yet, so quotas can’t be edited. Click <span className="font-semibold">Refresh cycles</span> to create/select the saved cycle record.
+                        </div>
+                      ) : null}
+
+                      {bucketError ? <div className="mt-3 text-sm text-red-700">{bucketError}</div> : null}
+
+                      {showAddBucket ? (
+                        <div className="mt-3 grid gap-2 rounded-md border border-zinc-200 bg-zinc-50 p-3">
+                          <div className="grid gap-2">
+                            <label className="grid gap-1">
+                              <span className="text-xs font-semibold text-zinc-600">Choose an existing category (recommended)</span>
+                              <select
+                                value={addBucketPresetKey}
+                                onChange={(e) => {
+                                  const key = e.target.value;
+                                  setAddBucketPresetKey(key);
+                                  if (!key) return;
+                                  const opt = (bucketOptions ?? []).find((o) => o.bucketKey === key);
+                                  if (!opt) return;
+                                  setAddBucketKey(opt.bucketKey);
+                                  setAddBucketName(opt.bucketName);
+                                }}
+                                className="h-10 w-full rounded-md border border-zinc-300 bg-white px-3 text-sm"
+                                disabled={bucketOptionsLoading || !selected.clientId}
+                              >
+                                <option value="">
+                                  {bucketOptionsLoading
+                                    ? "Loading categories…"
+                                    : (bucketOptions ?? []).length === 0
+                                      ? "No categories found"
+                                      : "Select category…"}
+                                </option>
+                                {(bucketOptions ?? []).map((o) => (
+                                  <option key={o.bucketKey} value={o.bucketKey}>
+                                    {o.bucketName} ({o.bucketKey})
+                                  </option>
+                                ))}
+                              </select>
+                              {bucketOptionsError ? <span className="text-xs text-red-700">{bucketOptionsError}</span> : null}
+                              {!bucketOptionsLoading && (bucketOptions ?? []).length === 0 ? (
+                                <span className="text-xs text-zinc-500">
+                                  No existing categories found for this client yet — you can still enter a key/name manually.
+                                </span>
+                              ) : (
+                                <span className="text-xs text-zinc-500">Pulled from existing worklog entries for this client.</span>
+                              )}
+                            </label>
+
+                            <div className="grid gap-2 sm:grid-cols-3">
+                              <label className="grid gap-1">
+                                <span className="text-xs font-semibold text-zinc-600">Bucket key</span>
+                                <input
+                                  value={addBucketKey}
+                                  onChange={(e) => setAddBucketKey(e.target.value)}
+                                  placeholder="e.g. VIDEO_EDITING"
+                                  className="h-10 rounded-md border border-zinc-300 bg-white px-3"
+                                />
+                              </label>
+                              <label className="grid gap-1">
+                                <span className="text-xs font-semibold text-zinc-600">Name</span>
+                                <input
+                                  value={addBucketName}
+                                  onChange={(e) => setAddBucketName(e.target.value)}
+                                  placeholder="e.g. Video editing"
+                                  className="h-10 rounded-md border border-zinc-300 bg-white px-3"
+                                />
+                              </label>
+                              <label className="grid gap-1">
+                                <span className="text-xs font-semibold text-zinc-600">Limit (hours)</span>
+                                <input
+                                  value={addBucketLimitHours}
+                                  onChange={(e) => setAddBucketLimitHours(e.target.value)}
+                                  placeholder="e.g. 6"
+                                  className="h-10 rounded-md border border-zinc-300 bg-white px-3"
+                                />
+                              </label>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center justify-end gap-2">
+                            <button
+                              type="button"
+                              className="h-10 rounded-md border border-zinc-300 bg-white px-3 text-sm hover:bg-zinc-50"
+                              onClick={() => {
+                                setShowAddBucket(false);
+                                setAddBucketPresetKey("");
+                                setAddBucketKey("");
+                                setAddBucketName("");
+                                setAddBucketLimitHours("");
+                                setBucketError(null);
+                                setBucketOptionsError(null);
+                              }}
+                            >
+                              Close
+                            </button>
+                            <button
+                              type="button"
+                              disabled={addingBucket || !selected.cycleId}
+                              className={
+                                "h-10 rounded-md px-3 text-sm font-semibold text-white " +
+                                (addingBucket || !selected.cycleId ? "bg-zinc-300" : "bg-zinc-900 hover:opacity-90")
+                              }
+                              onClick={async () => {
+                                if (!selected.cycleId) return;
+
+                                const bucketKey = addBucketKey.trim();
+                                const bucketName = addBucketName.trim();
+                                const minutesLimit = parseHoursToMinutes(addBucketLimitHours);
+
+                                if (!bucketKey) {
+                                  setBucketError("Bucket key is required.");
+                                  return;
+                                }
+                                if (!bucketName) {
+                                  setBucketError("Bucket name is required.");
+                                  return;
+                                }
+                                if (minutesLimit == null) {
+                                  setBucketError("Limit (hours) must be a number >= 0.");
+                                  return;
+                                }
+
+                                setAddingBucket(true);
+                                setBucketError(null);
+                                try {
+                                  const res = await fetch("/api/admin/retainers/bucket-limits", {
+                                    method: "POST",
+                                    headers: { "content-type": "application/json" },
+                                    body: JSON.stringify({
+                                      cycleId: selected.cycleId,
+                                      bucketKey,
+                                      bucketName,
+                                      minutesLimit,
+                                    }),
+                                  });
+                                  const data = (await res.json()) as { ok?: boolean; message?: string };
+                                  if (!res.ok || data.ok !== true) {
+                                    setBucketError(data.message ?? "Failed to add restriction.");
+                                    return;
+                                  }
+
+                                  setShowAddBucket(false);
+                                  setAddBucketPresetKey("");
+                                  setAddBucketKey("");
+                                  setAddBucketName("");
+                                  setAddBucketLimitHours("");
+                                  await loadDetail({
+                                    clientId: selected.clientId,
+                                    cycleId: selected.cycleId,
+                                    startISO: selected.startISO,
+                                    endISO: selected.endISO,
+                                  });
+                                } catch {
+                                  setBucketError("Network error adding restriction.");
+                                } finally {
+                                  setAddingBucket(false);
+                                }
+                              }}
+                            >
+                              {addingBucket ? "Adding…" : "Save restriction"}
+                            </button>
+                          </div>
+                        </div>
+                      ) : null}
+
+                      <div className="mt-3 overflow-hidden rounded-md border border-zinc-200">
+                        <div className="grid grid-cols-12 gap-2 bg-zinc-50 px-3 py-2 text-xs font-semibold text-zinc-600">
+                          <div className="col-span-4">Service</div>
+                          <div className="col-span-3">Used</div>
+                          <div className="col-span-3">Limit (hrs)</div>
+                          <div className="col-span-2 text-right">Actions</div>
+                        </div>
+
+                        {(detail.bucketLimits?.length ?? 0) === 0 ? (
+                          <div className="px-3 py-6 text-sm text-zinc-600">No service restrictions set for this cycle.</div>
                         ) : (
-                          detail.quotaItems.map((qi) => {
-                            const usage = detail.quotaUsage[qi.id] ?? { days: 0, minutes: 0 };
+                          detail.bucketLimits.map((bl) => {
+                            const usedMinutes = detail.bucketUsage?.[bl.bucketKey] ?? 0;
+                            const usedHours = usedMinutes / 60;
+                            const limitHours = (bl.minutesLimit ?? 0) / 60;
+                            const pct = limitHours > 0 ? (usedHours / limitHours) * 100 : usedHours > 0 ? 100 : 0;
+                            const isOver = usedMinutes > (bl.minutesLimit ?? 0);
 
-                            const usedLabel =
-                              qi.usageMode === "PER_DAY"
-                                ? `${usage.days} / ${qi.limitPerCycleDays}`
-                                : `${fmtHours(usage.minutes / 60)}h / ${fmtHours(qi.limitPerCycleMinutes / 60)}h`;
-
-                            const isOver =
-                              qi.usageMode === "PER_DAY"
-                                ? usage.days > qi.limitPerCycleDays
-                                : usage.minutes > qi.limitPerCycleMinutes;
-
-                            const limitDisplay =
-                              qi.usageMode === "PER_DAY" ? qi.limitPerCycleDays : Math.round(qi.limitPerCycleMinutes / 60);
+                            const rowKey = String(bl.id ?? bl.bucketKey);
 
                             return (
-                              <div
-                                key={qi.id}
-                                className={
-                                  "rounded-md border px-3 py-2 " +
-                                  (isOver ? "border-red-200 bg-red-50" : "border-zinc-200 bg-white")
-                                }
-                              >
-                                <div className="flex items-center justify-between gap-2">
-                                  <div className="text-sm font-medium">
-                                    {qi.name}
-                                    <span className="ml-2 text-xs font-normal text-zinc-500">
-                                      ({qi.usageMode === "PER_DAY" ? "per day" : "hours"})
-                                    </span>
+                              <div key={rowKey} className="grid grid-cols-12 items-center gap-2 border-t border-zinc-200 px-3 py-2 text-sm">
+                                <div className="col-span-4 min-w-0">
+                                  <div className="truncate font-medium text-zinc-900">{bl.bucketName}</div>
+                                  <div className="truncate text-xs text-zinc-500">{bl.bucketKey}</div>
+                                </div>
+
+                                <div className="col-span-3">
+                                  <div className={"font-semibold " + (isOver ? "text-red-700" : "text-zinc-900")}>
+                                    {fmtHours(usedHours)}h
                                   </div>
-                                  <div className={"text-sm font-semibold " + (isOver ? "text-red-700" : "text-zinc-800")}>
-                                    {usedLabel}
+                                  <div className="text-xs text-zinc-500">
+                                    of {fmtHours(limitHours)}h{limitHours > 0 ? ` (${Math.round(pct)}%)` : ""}
+                                  </div>
+                                  <div className="mt-1 h-2 w-full overflow-hidden rounded-full bg-zinc-100">
+                                    <div
+                                      className={"h-2 rounded-full " + (isOver ? "bg-red-500" : pct >= 90 ? "bg-yellow-500" : "bg-emerald-500")}
+                                      style={{ width: `${Math.max(0, Math.min(100, pct))}%` }}
+                                    />
                                   </div>
                                 </div>
 
-                                {editingQuotaId === qi.id ? (
-                                  <div className="mt-3 rounded-md border border-zinc-200 bg-zinc-50 p-3">
-                                    <div className="text-xs font-semibold text-zinc-600">Edit quota item</div>
-                                    <form action={upsertClientQuotaItem} className="mt-2 grid gap-2">
-                                      <input type="hidden" name="id" value={qi.id} />
-                                      <input type="hidden" name="clientId" value={detail.client.id} />
-                                      <input
-                                        name="name"
-                                        defaultValue={qi.name}
-                                        className="h-10 rounded-md border border-zinc-300 bg-white px-3"
-                                      />
-                                      <select
-                                        name="usageMode"
-                                        defaultValue={qi.usageMode}
-                                        className="h-10 rounded-md border border-zinc-300 bg-white px-3"
-                                      >
-                                        <option value="PER_HOUR">Based on hours</option>
-                                        <option value="PER_DAY">1 per day (filming)</option>
-                                      </select>
-                                      <input
-                                        name="limit"
-                                        defaultValue={limitDisplay}
-                                        className="h-10 rounded-md border border-zinc-300 bg-white px-3"
-                                      />
-                                      <div className="flex items-center gap-3">
-                                        <button
-                                          type="submit"
-                                          className="h-10 rounded-md bg-zinc-900 px-3 text-sm font-semibold text-white hover:opacity-90"
-                                        >
-                                          Save
-                                        </button>
-                                        <button
-                                          type="button"
-                                          onClick={() => setEditingQuotaId(null)}
-                                          className="text-sm text-zinc-600 hover:underline"
-                                        >
-                                          Cancel
-                                        </button>
-                                      </div>
-                                    </form>
-                                  </div>
-                                ) : null}
+                                <div className="col-span-3">
+                                  <input
+                                    value={bucketEdit[rowKey] ?? fmtHours(limitHours)}
+                                    onChange={(e) => setBucketEdit((prev) => ({ ...prev, [rowKey]: e.target.value }))}
+                                    className="h-9 w-full rounded-md border border-zinc-300 bg-white px-2 text-sm"
+                                  />
+                                </div>
 
-                                <div className="mt-2 flex flex-wrap items-center gap-3">
-                                  {editingQuotaId === qi.id ? null : (
-                                    <button
-                                      type="button"
-                                      onClick={() => setEditingQuotaId(qi.id)}
-                                      className="text-xs text-zinc-600 hover:underline"
-                                    >
-                                      Edit
-                                    </button>
-                                  )}
-                                  <form action={deleteClientQuotaItem}>
-                                    <input type="hidden" name="id" value={qi.id} />
-                                    <button type="submit" className="text-xs text-zinc-600 hover:underline">
-                                      Delete
-                                    </button>
-                                  </form>
+                                <div className="col-span-2 flex justify-end gap-2">
+                                  <button
+                                    type="button"
+                                    disabled={savingBucket === rowKey || !selected.cycleId}
+                                    className="h-9 rounded-md border border-zinc-300 bg-white px-2 text-xs hover:bg-zinc-50 disabled:opacity-50"
+                                    onClick={async () => {
+                                      if (!selected.cycleId) return;
+                                      const minutesLimit = parseHoursToMinutes(bucketEdit[rowKey] ?? "");
+                                      if (minutesLimit == null) {
+                                        setBucketError("Limit (hrs) must be a number >= 0.");
+                                        return;
+                                      }
+                                      setSavingBucket(rowKey);
+                                      setBucketError(null);
+                                      try {
+                                        const res = await fetch("/api/admin/retainers/bucket-limits", {
+                                          method: "POST",
+                                          headers: { "content-type": "application/json" },
+                                          body: JSON.stringify({
+                                            cycleId: selected.cycleId,
+                                            bucketKey: bl.bucketKey,
+                                            bucketName: bl.bucketName,
+                                            minutesLimit,
+                                          }),
+                                        });
+                                        const data = (await res.json()) as { ok?: boolean; message?: string };
+                                        if (!res.ok || data.ok !== true) {
+                                          setBucketError(data.message ?? "Failed to save restriction.");
+                                          return;
+                                        }
+                                        await loadDetail({
+                                          clientId: selected.clientId,
+                                          cycleId: selected.cycleId,
+                                          startISO: selected.startISO,
+                                          endISO: selected.endISO,
+                                        });
+                                      } catch {
+                                        setBucketError("Network error saving restriction.");
+                                      } finally {
+                                        setSavingBucket(null);
+                                      }
+                                    }}
+                                  >
+                                    {savingBucket === rowKey ? "Saving…" : "Save"}
+                                  </button>
+
+                                  <button
+                                    type="button"
+                                    disabled={!selected.cycleId || savingBucket === rowKey}
+                                    className="h-9 rounded-md border border-zinc-300 bg-white px-2 text-xs hover:bg-zinc-50 disabled:opacity-50"
+                                    onClick={async () => {
+                                      const id = bl.id;
+                                      if (!id) {
+                                        setBucketError("Can’t delete: bucket limit id missing. Refresh cycles/detail and try again.");
+                                        return;
+                                      }
+                                      if (!confirm(`Delete restriction for ${bl.bucketName}?`)) return;
+                                      setSavingBucket(rowKey);
+                                      setBucketError(null);
+                                      try {
+                                        const res = await fetch(`/api/admin/retainers/bucket-limits?id=${encodeURIComponent(id)}`, {
+                                          method: "DELETE",
+                                        });
+                                        const data = (await res.json()) as { ok?: boolean; message?: string };
+                                        if (!res.ok || data.ok !== true) {
+                                          setBucketError(data.message ?? "Failed to delete restriction.");
+                                          return;
+                                        }
+                                        await loadDetail({
+                                          clientId: selected.clientId,
+                                          cycleId: selected.cycleId,
+                                          startISO: selected.startISO,
+                                          endISO: selected.endISO,
+                                        });
+                                      } catch {
+                                        setBucketError("Network error deleting restriction.");
+                                      } finally {
+                                        setSavingBucket(null);
+                                      }
+                                    }}
+                                  >
+                                    Delete
+                                  </button>
                                 </div>
                               </div>
                             );
                           })
                         )}
-                      </div>
-
-                      <div className="mt-4 rounded-md border border-zinc-200 bg-zinc-50 p-3">
-                        <div className="text-xs font-semibold text-zinc-600">Add quota item</div>
-                        <form action={upsertClientQuotaItem} className="mt-2 grid gap-2">
-                          <input type="hidden" name="clientId" value={detail.client.id} />
-                          <input
-                            name="name"
-                            placeholder="e.g., Film Shoot"
-                            className="h-10 rounded-md border border-zinc-300 bg-white px-3"
-                          />
-                          <select name="usageMode" className="h-10 rounded-md border border-zinc-300 bg-white px-3">
-                            <option value="PER_HOUR">Based on hours</option>
-                            <option value="PER_DAY">1 per day (filming)</option>
-                          </select>
-                          <input
-                            name="limit"
-                            placeholder="Limit per cycle (hours or days)"
-                            className="h-10 rounded-md border border-zinc-300 bg-white px-3"
-                          />
-                          <button
-                            type="submit"
-                            className="h-10 rounded-md bg-zinc-900 px-3 text-sm font-semibold text-white hover:opacity-90"
-                          >
-                            Add
-                          </button>
-                        </form>
                       </div>
                     </div>
                   </div>

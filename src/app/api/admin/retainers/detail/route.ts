@@ -48,18 +48,32 @@ export async function GET(req: Request) {
   // Determine range: explicit start/end OR cycleId OR current cycle.
   let range = startISO && endISO ? { startISO, endISO } : null;
 
+  let cycle:
+    | null
+    | {
+        id: string;
+        startDate: Date;
+        endDate: Date;
+        bucketLimits: Array<{ id: string; bucketKey: string; bucketName: string; minutesLimit: number }>;
+      } = null;
+
   if (!range && cycleId) {
     const cyc = await prisma.retainerCycle.findUnique({
       where: { id: cycleId },
-      select: { id: true, clientId: true, startDate: true, endDate: true },
+      select: {
+        id: true,
+        clientId: true,
+        startDate: true,
+        endDate: true,
+        bucketLimits: { select: { id: true, bucketKey: true, bucketName: true, minutesLimit: true }, orderBy: [{ bucketName: "asc" }] },
+      },
     });
-    if (!cyc) {
-      return NextResponse.json({ ok: false, message: "Cycle not found" }, { status: 404 });
-    }
+    if (!cyc) return NextResponse.json({ ok: false, message: "Cycle not found" }, { status: 404 });
     if (cyc.clientId !== clientId) {
       return NextResponse.json({ ok: false, message: "Cycle does not belong to client" }, { status: 400 });
     }
 
+    cycle = { id: cyc.id, startDate: cyc.startDate, endDate: cyc.endDate, bucketLimits: cyc.bucketLimits };
     range = {
       startISO: cyc.startDate.toISOString().slice(0, 10),
       endISO: cyc.endDate.toISOString().slice(0, 10),
@@ -71,7 +85,21 @@ export async function GET(req: Request) {
   }
 
   const startUTC = parseISODateAsUTC(range.startISO);
-  const endExclusiveUTC = addDaysUTC(parseISODateAsUTC(range.endISO), 1);
+  const endUTC = parseISODateAsUTC(range.endISO);
+  const endExclusiveUTC = addDaysUTC(endUTC, 1);
+
+  if (!cycle) {
+    const cyc = await prisma.retainerCycle.findFirst({
+      where: { clientId, startDate: startUTC, endDate: endUTC },
+      select: {
+        id: true,
+        startDate: true,
+        endDate: true,
+        bucketLimits: { select: { id: true, bucketKey: true, bucketName: true, minutesLimit: true }, orderBy: [{ bucketName: "asc" }] },
+      },
+    });
+    if (cyc) cycle = { id: cyc.id, startDate: cyc.startDate, endDate: cyc.endDate, bucketLimits: cyc.bucketLimits };
+  }
 
   const entries = await prisma.worklogEntry.findMany({
     where: {
@@ -87,8 +115,6 @@ export async function GET(req: Request) {
       notes: true,
       bucketKey: true,
       bucketName: true,
-      quotaItemId: true,
-      quotaItem: { select: { id: true, name: true, usageMode: true, limitPerCycleDays: true, limitPerCycleMinutes: true } },
       worklog: {
         select: {
           workDate: true,
@@ -98,42 +124,24 @@ export async function GET(req: Request) {
     },
   });
 
-  const quotaItems = await prisma.clientQuotaItem.findMany({
-    where: { clientId },
-    orderBy: [{ name: "asc" }],
-    select: { id: true, name: true, usageMode: true, limitPerCycleDays: true, limitPerCycleMinutes: true },
-  });
-
-  // Usage rules:
-  // - PER_DAY: distinct work dates where any tagged minutes exist
-  // - PER_HOUR: sum of minutes / 60
-  const daySets: Record<string, Set<string>> = {};
-  const minuteSums: Record<string, number> = {};
-
+  const bucketUsage: Record<string, number> = {};
   for (const e of entries) {
-    if (!e.quotaItemId) continue;
-    const qid = e.quotaItemId;
-    minuteSums[qid] = (minuteSums[qid] ?? 0) + (e.minutes ?? 0);
-
-    const d = String(e.worklog.workDate).slice(0, 10);
-    daySets[qid] = daySets[qid] ?? new Set<string>();
-    if ((e.minutes ?? 0) > 0) daySets[qid].add(d);
-  }
-
-  const quotaUsage: Record<string, { days: number; minutes: number }> = {};
-  for (const qi of quotaItems) {
-    quotaUsage[qi.id] = {
-      days: daySets[qi.id]?.size ?? 0,
-      minutes: minuteSums[qi.id] ?? 0,
-    };
+    bucketUsage[e.bucketKey] = (bucketUsage[e.bucketKey] ?? 0) + (e.minutes ?? 0);
   }
 
   return NextResponse.json({
     ok: true,
     client,
     range,
+    cycle: cycle
+      ? {
+          id: cycle.id,
+          startISO: cycle.startDate.toISOString().slice(0, 10),
+          endISO: cycle.endDate.toISOString().slice(0, 10),
+        }
+      : null,
+    bucketLimits: cycle?.bucketLimits ?? [],
+    bucketUsage,
     entries,
-    quotaItems,
-    quotaUsage,
   });
 }
