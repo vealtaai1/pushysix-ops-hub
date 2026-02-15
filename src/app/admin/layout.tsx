@@ -11,6 +11,7 @@ const ADMIN_LINKS: Array<{ href: string; label: string }> = [
   { href: "/admin/approvals", label: "Approvals" },
   { href: "/admin/equipment", label: "Equipment" },
   { href: "/admin/payroll", label: "Payroll" },
+  { href: "/admin/users", label: "Users" },
 ];
 
 export default async function AdminLayout({ children }: { children: ReactNode }) {
