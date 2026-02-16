@@ -16,12 +16,12 @@ export function LoginClient() {
     return "/worklog";
   }, [sp]);
 
+  const [password, setPassword] = useState("");
+
   return (
     <main style={{ maxWidth: 560, margin: "40px auto", padding: 16 }}>
       <h1 style={{ fontSize: 28, fontWeight: 700 }}>Sign in</h1>
-      <p style={{ marginTop: 8, color: "#444" }}>
-        Enter your email and we&apos;ll send you a sign-in link.
-      </p>
+      <p style={{ marginTop: 8, color: "#444" }}>Use your email + password to access PushySix Ops Hub.</p>
 
       <form
         onSubmit={async (e) => {
@@ -29,7 +29,14 @@ export function LoginClient() {
           setError(null);
           setLoading(true);
           try {
-            await signIn("email", { email, callbackUrl });
+            const res = await signIn("credentials", {
+              email,
+              password,
+              callbackUrl,
+              redirect: true,
+            });
+            // If redirect is false, res?.error would be set; but we redirect.
+            void res;
           } catch (err) {
             setError(err instanceof Error ? err.message : "Sign-in failed");
           } finally {
@@ -47,11 +54,19 @@ export function LoginClient() {
             autoComplete="email"
             placeholder="you@pushysix.com"
             required
-            style={{
-              padding: "10px 12px",
-              borderRadius: 10,
-              border: "1px solid #ccc",
-            }}
+            style={{ padding: "10px 12px", borderRadius: 10, border: "1px solid #ccc" }}
+          />
+        </label>
+
+        <label style={{ display: "grid", gap: 6 }}>
+          <span style={{ fontSize: 13, color: "#444", fontWeight: 600 }}>Password</span>
+          <input
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            type="password"
+            autoComplete="current-password"
+            required
+            style={{ padding: "10px 12px", borderRadius: 10, border: "1px solid #ccc" }}
           />
         </label>
 
@@ -67,13 +82,13 @@ export function LoginClient() {
             fontWeight: 600,
           }}
         >
-          {loading ? "Sending…" : "Email me a sign-in link"}
+          {loading ? "Signing in…" : "Sign in"}
         </button>
 
         {error ? <p style={{ color: "#b91c1c", fontSize: 13 }}>{error}</p> : null}
 
         <p style={{ color: "#666", fontSize: 13, margin: 0 }}>
-          If you don&apos;t receive an email within a minute, check spam or contact an admin.
+          New here? Ask an admin to invite you (they&apos;ll send you a set-password link).
         </p>
       </form>
 

@@ -29,7 +29,8 @@
     "react": "19.2.3",
     "react-dom": "19.2.3",
     "recharts": "^3.7.0",
-    "resend": "^6.9.1"
+    "resend": "^6.9.1",
+    "bcryptjs": "^2.4.3"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.3.3",
@@ -37,6 +38,7 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@types/bcryptjs": "^2.4.6",
     "eslint": "8.57.0",
     "eslint-config-next": "15.1.12",
     "prisma": "^6.19.2",

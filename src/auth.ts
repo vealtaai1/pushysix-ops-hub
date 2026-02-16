@@ -1,15 +1,49 @@
 import NextAuth from "next-auth";
-import Email from "next-auth/providers/email";
+import Credentials from "next-auth/providers/credentials";
 import { PrismaAdapter } from "@auth/prisma-adapter";
-import { createHash as nodeCreateHash } from "crypto";
 
 import { prisma } from "@/lib/db";
-import { sendPostmarkEmail } from "@/lib/email/postmark";
+import { hashPassword, validatePassword, verifyPassword } from "@/lib/password";
 
-function getAuthSecret(): string {
-  const s = (process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET ?? "").trim();
-  if (!s) throw new Error("AUTH_SECRET (or NEXTAUTH_SECRET) is required");
-  return s;
+function normalizeEmail(raw: unknown): string | null {
+  if (typeof raw !== "string") return null;
+  const email = raw.trim().toLowerCase();
+  if (!email) return null;
+  if (!/^\S+@\S+\.\S+$/.test(email)) return null;
+  return email;
+}
+
+async function ensureSeedAdmin(): Promise<void> {
+  const seedEmail = normalizeEmail(process.env.ADMIN_SEED_EMAIL);
+  if (!seedEmail) return;
+
+  const seedPassword = (process.env.ADMIN_SEED_PASSWORD ?? "").trim();
+  if (!seedPassword) {
+    // Still ensure role is ADMIN if the user exists.
+    await prisma.user.updateMany({ where: { email: seedEmail }, data: { role: "ADMIN" } });
+    return;
+  }
+
+  const err = validatePassword(seedPassword);
+  if (err) throw new Error(`ADMIN_SEED_PASSWORD invalid: ${err}`);
+
+  const existing = await prisma.user.findUnique({
+    where: { email: seedEmail },
+    select: { id: true, passwordHash: true },
+  });
+
+  // Only set the password if it's not already set.
+  if (existing?.passwordHash) {
+    await prisma.user.update({ where: { email: seedEmail }, data: { role: "ADMIN" } });
+    return;
+  }
+
+  const passwordHash = await hashPassword(seedPassword);
+  await prisma.user.upsert({
+    where: { email: seedEmail },
+    update: { role: "ADMIN", passwordHash },
+    create: { email: seedEmail, role: "ADMIN", passwordHash, name: "Paul" },
+  });
 }
 
 export const {
@@ -24,60 +58,35 @@ export const {
     signIn: "/login",
   },
   providers: [
-    Email({
-      // Auth.js currently requires a `server` config (Nodemailer) even if we override
-      // `sendVerificationRequest`. We don't use SMTP here (Postmark API send), but we
-      // provide a minimal placeholder to satisfy the provider validation.
-      server: { host: "localhost", port: 0 },
-      from: process.env.EMAIL_FROM ?? "noreply@pushysix.com",
-      // Default is 24h; keep it explicit.
-      maxAge: 24 * 60 * 60,
-      async sendVerificationRequest({ identifier, url }) {
-        // Minimal, no-template email.
-        await sendPostmarkEmail({
-          to: identifier,
-          subject: "Your PushySix Ops Hub sign-in link",
-          textBody: `Sign in to PushySix Ops Hub using this link:\n\n${url}\n\nIf you didn't request this, you can ignore this email.`,
-          htmlBody: `
-            <p>Sign in to <strong>PushySix Ops Hub</strong> using this link:</p>
-            <p><a href="${url}">${url}</a></p>
-            <p style="color:#666">If you didn't request this, you can ignore this email.</p>
-          `.trim(),
-          tag: "auth-signin",
+    Credentials({
+      credentials: {
+        email: { label: "Email", type: "email" },
+        password: { label: "Password", type: "password" },
+      },
+      async authorize(credentials) {
+        await ensureSeedAdmin();
+
+        const email = normalizeEmail(credentials?.email);
+        const password = typeof credentials?.password === "string" ? credentials.password : "";
+
+        if (!email || !password) return null;
+
+        const user = await prisma.user.findUnique({
+          where: { email },
+          select: { id: true, email: true, name: true, role: true, passwordHash: true },
         });
+
+        if (!user?.passwordHash) return null;
+
+        const ok = await verifyPassword(password, user.passwordHash);
+        if (!ok) return null;
+
+        return { id: user.id, email: user.email, name: user.name, role: user.role };
       },
     }),
   ],
   callbacks: {
-    async signIn({ user, email }) {
-      const identifier = (user.email ?? "").trim().toLowerCase();
-      const seedAdmin = (process.env.ADMIN_SEED_EMAIL ?? "").trim().toLowerCase();
-      const isSeedAdmin = Boolean(seedAdmin && identifier && identifier === seedAdmin);
-
-      const existing = identifier
-        ? await prisma.user.findUnique({ where: { email: identifier }, select: { id: true } })
-        : null;
-
-      // When requesting a magic link, only allow known users (or the seed admin).
-      if (email?.verificationRequest) {
-        if (existing) return true;
-        if (isSeedAdmin) return true;
-        return false;
-      }
-
-      // On actual sign-in, ensure seed admin is always promoted to ADMIN.
-      if (isSeedAdmin) {
-        await prisma.user.upsert({
-          where: { email: identifier },
-          update: { role: "ADMIN" },
-          create: { email: identifier, role: "ADMIN", name: "Paul" },
-        });
-      }
-
-      return true;
-    },
     async session({ session, user }) {
-      // Persist id/role in the session for authorization checks.
       if (session.user) {
         session.user.id = user.id;
         session.user.role = (user as typeof user & { role?: "ADMIN" | "EMPLOYEE" }).role ?? "EMPLOYEE";
@@ -86,9 +95,3 @@ export const {
     },
   },
 });
-
-export async function createHashedEmailToken(rawToken: string): Promise<string> {
-  // Matches @auth/core createHash(hex sha256)
-  const secret = getAuthSecret();
-  return nodeCreateHash("sha256").update(`${rawToken}${secret}`).digest("hex");
-}

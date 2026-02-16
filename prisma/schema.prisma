@@ -59,6 +59,8 @@ model User {
   image         String?
   role          UserRole  @default(EMPLOYEE)
 
+  passwordHash String?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -83,6 +85,9 @@ model User {
   dayOffsApproved DayOff[] @relation("DayOffsApprovedBy")
 
   auditLogs AuditLog[]
+
+  // Auth
+  passwordResetTokens PasswordResetToken[]
 
   // Equipment sign-out
   equipmentLoans EquipmentLoan[]
@@ -144,11 +149,11 @@ model ClientQuotaItem {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  client         Client        @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  client         Client         @relation(fields: [clientId], references: [id], onDelete: Cascade)
   worklogEntries WorklogEntry[]
 
-  @@index([clientId])
   @@unique([clientId, name])
+  @@index([clientId])
 }
 
 model RetainerCycle {
@@ -248,9 +253,9 @@ model WorklogEntry {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  worklog    Worklog          @relation(fields: [worklogId], references: [id], onDelete: Cascade)
-  client     Client           @relation(fields: [clientId], references: [id], onDelete: Restrict)
-  quotaItem  ClientQuotaItem? @relation(fields: [quotaItemId], references: [id], onDelete: SetNull)
+  worklog   Worklog          @relation(fields: [worklogId], references: [id], onDelete: Cascade)
+  client    Client           @relation(fields: [clientId], references: [id], onDelete: Restrict)
+  quotaItem ClientQuotaItem? @relation(fields: [quotaItemId], references: [id], onDelete: SetNull)
 
   @@index([clientId])
   @@index([bucketKey])
@@ -360,7 +365,7 @@ model ApprovalRequest {
 model EquipmentItem {
   id String @id @default(cuid())
 
-  name String
+  name    String
   barcode String @unique
 
   status EquipmentItemStatus @default(AVAILABLE)
@@ -381,17 +386,17 @@ model EquipmentLoan {
   itemId String
   userId String
 
-  checkedOutAt DateTime @default(now())
-  checkedInAt DateTime?
+  checkedOutAt DateTime  @default(now())
+  checkedInAt  DateTime?
 
   checkoutNotes String?
-  checkinNotes String?
+  checkinNotes  String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   item EquipmentItem @relation(fields: [itemId], references: [id], onDelete: Restrict)
-  user User @relation(fields: [userId], references: [id], onDelete: Restrict)
+  user User          @relation(fields: [userId], references: [id], onDelete: Restrict)
 
   @@index([userId, checkedOutAt])
   @@index([itemId, checkedOutAt])
@@ -453,6 +458,19 @@ model VerificationToken {
   expires    DateTime
 
   @@unique([identifier, token])
+}
+
+model PasswordResetToken {
+  id        String   @id @default(cuid())
+  userId    String
+  tokenHash String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
 }
 
 //
