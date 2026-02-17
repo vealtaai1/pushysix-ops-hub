@@ -8,8 +8,8 @@ I will ~~strike through~~ items as they are completed, and add notes for anythin
 ## Login / Auth
 - [x] ~~Remove placeholder on login page (`you@pushysix.com`)~~
 - [ ] Shared login for admins + users (no separate flows)
-- [ ] Session persistence broken (sign in → navigate → asked to sign in again) — fix
-- [ ] Admin access blocked after login (paul@pushysix.com can’t access admin pages) — fix
+- [x] ~~Session persistence broken (sign in → navigate → asked to sign in again) — fix~~ (middleware cookie gate supports NextAuth v4 + Auth.js v5 cookie names, incl. __Secure/__Host)
+- [x] ~~Admin access blocked after login (paul@pushysix.com can’t access admin pages) — fix~~ (/admin layout enforces session + ADMIN role from JWT/session callbacks)
 - [ ] Header: when logged in, show “Signed in as xxx@xxx.com” (clean, top-right)
 
 ## Navigation / Pages / IA
