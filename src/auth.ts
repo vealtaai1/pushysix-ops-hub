@@ -3,6 +3,7 @@ import Credentials from "next-auth/providers/credentials";
 import { PrismaAdapter } from "@auth/prisma-adapter";
 
 import { prisma } from "@/lib/db";
+import { getAuthSecret } from "@/lib/authSecret";
 import { hashPassword, validatePassword, verifyPassword } from "@/lib/password";
 
 function normalizeEmail(raw: unknown): string | null {
@@ -52,6 +53,10 @@ export const {
   signIn,
   signOut,
 } = NextAuth({
+  // Explicitly provide a secret so Auth.js doesn't crash at runtime when env vars
+  // aren't set (common in local dev).
+  // In production, getAuthSecret() will still hard-require AUTH_SECRET.
+  secret: getAuthSecret(),
   adapter: PrismaAdapter(prisma),
   session: { strategy: "jwt" },
   pages: {

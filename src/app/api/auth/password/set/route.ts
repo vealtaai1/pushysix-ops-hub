@@ -3,12 +3,7 @@ import { createHash } from "crypto";
 
 import { prisma } from "@/lib/db";
 import { hashPassword, validatePassword } from "@/lib/password";
-
-function getAuthSecret(): string {
-  const s = (process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET ?? "").trim();
-  if (!s) throw new Error("AUTH_SECRET (or NEXTAUTH_SECRET) is required");
-  return s;
-}
+import { getAuthSecret } from "@/lib/authSecret";
 
 function hashToken(raw: string): string {
   return createHash("sha256").update(`${raw}${getAuthSecret()}`).digest("hex");

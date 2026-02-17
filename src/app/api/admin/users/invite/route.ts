@@ -4,12 +4,7 @@ import { createHash, randomBytes } from "crypto";
 import { prisma } from "@/lib/db";
 import { requireAdminOrThrow } from "@/lib/adminAuth";
 import { sendPostmarkEmail } from "@/lib/email/postmark";
-
-function getAuthSecret(): string {
-  const s = (process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET ?? "").trim();
-  if (!s) throw new Error("AUTH_SECRET (or NEXTAUTH_SECRET) is required");
-  return s;
-}
+import { getAuthSecret } from "@/lib/authSecret";
 
 function normalizeEmail(raw: unknown): string | null {
   if (typeof raw !== "string") return null;
