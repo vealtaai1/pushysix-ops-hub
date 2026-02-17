@@ -21,9 +21,9 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={`${openSans.variable} font-sans antialiased`}>
-        {/* Default: employee-facing dark theme */}
-        <div className="theme-dark min-h-dvh" style={{ background: "var(--background)", color: "var(--foreground)" }}>
-          <header className="border-b" style={{ borderColor: "var(--border)" }}>
+        {/* Default: light theme */}
+        <div className="min-h-dvh bg-zinc-50 text-zinc-950">
+          <header className="border-b border-zinc-200 bg-white">
             <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3">
               <div className="flex items-center gap-3">
                 {/* Placeholder emblem */}
@@ -43,14 +43,8 @@ export default function RootLayout({
               </div>
 
               <nav className="flex items-center gap-4 text-sm">
-                <a className="hover:opacity-90" style={{ color: "var(--muted)" }} href="/portal">
-                  Shift Log
-                </a>
-                <a className="hover:opacity-90" style={{ color: "var(--muted)" }} href="/equipment">
-                  Equipment
-                </a>
-                <a className="hover:opacity-90" style={{ color: "var(--muted)" }} href="/admin/clients">
-                  Admin
+                <a className="text-zinc-700 hover:text-zinc-900" href="/portal">
+                  Portal
                 </a>
                 <AuthButtons />
               </nav>
