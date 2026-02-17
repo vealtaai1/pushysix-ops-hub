@@ -37,32 +37,32 @@ export default async function AdminLayout({ children }: { children: ReactNode })
   }
 
   // Admin stays light theme regardless of global employee theme.
+  // NOTE: RootLayout already renders the global app header. To avoid a duplicated header
+  // on /admin routes, keep admin navigation in-page (not in a second <header>).
   return (
-    <div className="theme-light min-h-screen bg-zinc-50">
-      <header className="border-b border-zinc-200 bg-white">
-        <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-3">
-          <div className="flex items-center gap-3">
-            <Link href="/admin/retainers" className="text-sm font-semibold text-zinc-900">
-              Ops Hub — Admin
-            </Link>
-            <span className="hidden text-xs text-zinc-400 sm:inline">{session.user.email}</span>
-          </div>
-
-          <nav className="flex flex-wrap items-center gap-2">
-            {ADMIN_LINKS.map((l) => (
-              <Link
-                key={l.href}
-                href={l.href}
-                className="rounded-md border border-zinc-200 bg-white px-3 py-1.5 text-sm text-zinc-700 hover:bg-zinc-50"
-              >
-                {l.label}
-              </Link>
-            ))}
-          </nav>
+    <div className="theme-light space-y-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <Link href="/admin" className="text-sm font-semibold text-zinc-900">
+            Admin
+          </Link>
+          <span className="hidden text-xs text-zinc-500 sm:inline">Signed in as {session.user.email}</span>
         </div>
-      </header>
 
-      <main className="mx-auto max-w-6xl px-4 py-6">{children}</main>
+        <nav className="flex flex-wrap items-center gap-2">
+          {ADMIN_LINKS.map((l) => (
+            <Link
+              key={l.href}
+              href={l.href}
+              className="rounded-md border border-zinc-200 bg-white px-3 py-1.5 text-sm text-zinc-700 hover:bg-zinc-50"
+            >
+              {l.label}
+            </Link>
+          ))}
+        </nav>
+      </div>
+
+      {children}
     </div>
   );
 }
