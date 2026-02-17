@@ -10,7 +10,6 @@ type TaskLine = {
   clientId: string | null;
   clientName: string;
   bucketKey: string;
-  quotaItemId: string | null;
   hoursText: string; // kept as text so the field can be cleared
   notes: string;
 };
@@ -125,14 +124,20 @@ export function WorklogForm({
 }) {
   const today = React.useMemo(() => todayISODate(), []);
 
-  const normalizedInitial = React.useMemo(() => {
+  const normalizedInitialDate = React.useMemo(() => {
     if (!initialDate) return null;
     return /^\d{4}-\d{2}-\d{2}$/.test(initialDate) ? initialDate : null;
   }, [initialDate]);
 
-  const [workDate, setWorkDate] = React.useState(() => normalizedInitial ?? todayISODate());
+  const email = React.useMemo(() => {
+    const t = (initialEmail ?? "").trim().toLowerCase();
+    return t;
+  }, [initialEmail]);
 
-  const [email, setEmail] = React.useState<string>(initialEmail?.trim().toLowerCase() ?? "");
+  const emailOk = React.useMemo(() => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email), [email]);
+
+  const [workDate, setWorkDate] = React.useState(() => normalizedInitialDate ?? todayISODate());
+
   const [submitState, setSubmitState] = React.useState<{ ok: boolean; message: string } | null>(null);
   const [submitting, setSubmitting] = React.useState(false);
 
@@ -148,32 +153,16 @@ export function WorklogForm({
   const [resubmitReason, setResubmitReason] = React.useState("");
 
   React.useEffect(() => {
-    // Keep portal + worklog email aligned for "view as" workflows.
-    if (initialEmail && typeof initialEmail === "string") {
-      try {
-        window.localStorage.setItem("opsHubEmail", initialEmail.trim().toLowerCase());
-      } catch {
-        // ignore
-      }
-    }
-  }, [initialEmail]);
+    if (normalizedInitialDate) setWorkDate(normalizedInitialDate);
+  }, [normalizedInitialDate]);
+
+  const isFutureDate = React.useMemo(() => {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(workDate)) return false;
+    return workDate > today;
+  }, [workDate, today]);
 
   React.useEffect(() => {
-    try {
-      window.localStorage.setItem("opsHubEmail", email);
-    } catch {
-      // ignore
-    }
-  }, [email]);
-
-  React.useEffect(() => {
-    if (normalizedInitial) setWorkDate(normalizedInitial);
-  }, [normalizedInitial]);
-
-  React.useEffect(() => {
-    const trimmedEmail = email.trim().toLowerCase();
     const dateOk = /^\d{4}-\d{2}-\d{2}$/.test(workDate);
-    const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail);
 
     if (!dateOk || !emailOk) {
       setExistingWorklog(null);
@@ -189,7 +178,7 @@ export function WorklogForm({
         const res = await fetch("/api/worklog/status", {
           method: "POST",
           headers: { "content-type": "application/json" },
-          body: JSON.stringify({ email: trimmedEmail, workDate }),
+          body: JSON.stringify({ email, workDate }),
           signal: ctrl.signal,
         });
 
@@ -220,11 +209,11 @@ export function WorklogForm({
     })();
 
     return () => ctrl.abort();
-  }, [email, workDate]);
+  }, [email, emailOk, workDate]);
 
   // Totals as text so 0 is deletable (no stuck placeholder)
-  const [targetHoursText, setTargetHoursText] = React.useState<string>("0");
-  const [totalKmText, setTotalKmText] = React.useState<string>("0");
+  const [targetHoursText, setTargetHoursText] = React.useState<string>("");
+  const [totalKmText, setTotalKmText] = React.useState<string>("");
 
   const targetHours = React.useMemo(() => parseNumberText(targetHoursText), [targetHoursText]);
   const totalKm = React.useMemo(() => parseNumberText(totalKmText), [totalKmText]);
@@ -235,38 +224,10 @@ export function WorklogForm({
       clientId: null,
       clientName: "",
       bucketKey: "",
-      quotaItemId: null,
-      hoursText: "0",
+      hoursText: "",
       notes: "",
     },
   ]);
-
-  const [quotaItemsByClientId, setQuotaItemsByClientId] = React.useState<
-    Record<
-      string,
-      Array<{ id: string; name: string; usageMode: "PER_DAY" | "PER_HOUR"; limitPerCycleDays: number; limitPerCycleMinutes: number }> | undefined
-    >
-  >({});
-
-  async function ensureQuotaItemsLoaded(clientId: string) {
-    if (!clientId) return;
-    if (quotaItemsByClientId[clientId]) return;
-
-    try {
-      const res = await fetch(`/api/worklog/quota-items?clientId=${encodeURIComponent(clientId)}`);
-      const data = (await res.json()) as {
-        ok?: boolean;
-        items?: Array<{ id: string; name: string; usageMode: "PER_DAY" | "PER_HOUR"; limitPerCycleDays: number; limitPerCycleMinutes: number }>;
-      };
-      if (!res.ok || data.ok !== true || !Array.isArray(data.items)) {
-        setQuotaItemsByClientId((prev) => ({ ...prev, [clientId]: [] }));
-        return;
-      }
-      setQuotaItemsByClientId((prev) => ({ ...prev, [clientId]: data.items! }));
-    } catch {
-      setQuotaItemsByClientId((prev) => ({ ...prev, [clientId]: [] }));
-    }
-  }
 
   const [mileage, setMileage] = React.useState<MileageLine[]>(() => []);
 
@@ -338,6 +299,8 @@ export function WorklogForm({
   const targetHoursValid = Number.isFinite(targetHours) && targetHours > 0;
 
   const canSubmit =
+    emailOk &&
+    !isFutureDate &&
     targetHoursValid &&
     hoursMatch &&
     !hasTaskHoursViolations &&
@@ -352,17 +315,15 @@ export function WorklogForm({
 
   return (
     <div className="space-y-6">
-      <div className="rounded-lg border border-zinc-200 p-4">
+      <div className="sticky top-2 z-20 rounded-lg border border-zinc-200 bg-white/95 p-4 backdrop-blur">
         <div className="grid gap-3 md:grid-cols-4">
-          <label className="grid gap-1">
+          <div className="grid gap-1">
             <span className="text-sm font-medium">Email</span>
-            <input
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="you@pushysix.com"
-              className="h-10 rounded-md border border-zinc-300 bg-white px-3"
-            />
-          </label>
+            <div className="h-10 rounded-md border border-zinc-200 bg-zinc-50 px-3 flex items-center text-sm text-zinc-800">
+              {emailOk ? email : "(missing email)"}
+            </div>
+            {!emailOk ? <div className="text-xs text-red-700">Email is required (provided by portal/session).</div> : null}
+          </div>
 
           <label className="grid gap-1">
             <span className="text-sm font-medium">
@@ -372,9 +333,11 @@ export function WorklogForm({
             <input
               type="date"
               value={workDate}
+              max={today}
               onChange={(e) => setWorkDate(e.target.value)}
               className="h-10 rounded-md border border-zinc-300 bg-white px-3"
             />
+            {isFutureDate ? <div className="text-xs text-red-700">Future dates aren’t allowed.</div> : null}
           </label>
 
           <label className="grid gap-1">
@@ -390,7 +353,7 @@ export function WorklogForm({
           </label>
 
           <label className="grid gap-1">
-            <span className="text-sm font-medium">Total km (optional)</span>
+            <span className="text-sm font-medium">Total km (If applicable)</span>
             <input
               type="number"
               min={0}
@@ -414,9 +377,7 @@ export function WorklogForm({
               {allocatedHours.toFixed(2)} / {(Number.isFinite(targetHours) ? targetHours : 0).toFixed(2)}
             </span>
           </div>
-          {hasTaskHoursViolations ? (
-            <div className="text-red-700">Task hours must be 0 or 0.25–20.00 in 0.25 increments.</div>
-          ) : null}
+          {hasTaskHoursViolations ? <div className="text-red-700">Task hours must be 0 or 0.25–20.00 in 0.25 increments.</div> : null}
           {!targetHoursValid ? <div className="text-red-700">Total hours must be greater than 0.</div> : null}
           {hasClientViolations ? <div className="text-red-700">Client is required for any task with hours &gt; 0.</div> : null}
           {hasBucketViolations ? <div className="text-red-700">Task category is required for any task with hours &gt; 0.</div> : null}
@@ -446,8 +407,7 @@ export function WorklogForm({
                   clientId: null,
                   clientName: "",
                   bucketKey: "",
-                  quotaItemId: null,
-                  hoursText: "0",
+                  hoursText: "",
                   notes: "",
                 },
               ])
@@ -458,12 +418,11 @@ export function WorklogForm({
         </div>
 
         <div className="overflow-auto">
-          <table className="w-full min-w-[900px] border-separate border-spacing-0">
+          <table className="w-full min-w-[820px] border-separate border-spacing-0">
             <thead>
               <tr className="text-left text-xs text-zinc-600">
                 <th className="border-b border-zinc-200 px-3 py-2">Client</th>
                 <th className="border-b border-zinc-200 px-3 py-2">Task category</th>
-                <th className="border-b border-zinc-200 px-3 py-2">Quota item (optional)</th>
                 <th className="border-b border-zinc-200 px-3 py-2">Hours</th>
                 <th className="border-b border-zinc-200 px-3 py-2">Notes</th>
                 <th className="border-b border-zinc-200 px-3 py-2"></th>
@@ -483,12 +442,7 @@ export function WorklogForm({
                         valueName={t.clientName}
                         placeholder="Search client…"
                         onSelect={(c) => {
-                          void ensureQuotaItemsLoaded(c.id);
-                          setTasks((prev) =>
-                            prev.map((x) =>
-                              x.id === t.id ? { ...x, clientId: c.id, clientName: c.name, quotaItemId: null } : x
-                            )
-                          );
+                          setTasks((prev) => prev.map((x) => (x.id === t.id ? { ...x, clientId: c.id, clientName: c.name } : x)));
                         }}
                       />
                       {t.clientId ? null : <div className="mt-1 text-xs text-zinc-500">Choose a client</div>}
@@ -512,51 +466,18 @@ export function WorklogForm({
                     </td>
 
                     <td className="border-b border-zinc-100 px-3 py-2">
-                      <select
-                        value={t.quotaItemId ?? ""}
-                        onFocus={() => {
-                          if (t.clientId) void ensureQuotaItemsLoaded(t.clientId);
-                        }}
-                        onChange={(e) =>
-                          setTasks((prev) =>
-                            prev.map((x) =>
-                              x.id === t.id
-                                ? { ...x, quotaItemId: e.target.value ? e.target.value : null }
-                                : x
-                            )
-                          )
-                        }
-                        className="h-10 w-full rounded-md border border-zinc-300 bg-white px-3"
-                        disabled={!t.clientId}
-                        title={!t.clientId ? "Select a client first" : "Optional: count this line toward a deliverable quota"}
-                      >
-                        <option value="">(none)</option>
-                        {(t.clientId ? quotaItemsByClientId[t.clientId] : [])?.map((qi) => (
-                          <option key={qi.id} value={qi.id}>
-                            {qi.name}
-                          </option>
-                        ))}
-                      </select>
-                      {!t.clientId ? (
-                        <div className="mt-1 text-xs text-zinc-500">Select a client first</div>
-                      ) : quotaItemsByClientId[t.clientId] === undefined ? (
-                        <div className="mt-1 text-xs text-zinc-500">(focus to load)</div>
-                      ) : quotaItemsByClientId[t.clientId]?.length ? (
-                        <div className="mt-1 text-xs text-zinc-500">Counts usage based on quota rule (per-day or hours)</div>
-                      ) : (
-                        <div className="mt-1 text-xs text-zinc-500">No quota items set for this client</div>
-                      )}
-                    </td>
-
-                    <td className="border-b border-zinc-100 px-3 py-2">
                       <input
                         type="number"
                         min={0}
                         step={0.25}
                         inputMode="decimal"
                         value={t.hoursText}
-                        onChange={(e) => setTasks((prev) => prev.map((x) => (x.id === t.id ? { ...x, hoursText: e.target.value } : x)))}
-                        className={"h-10 w-32 rounded-md border bg-white px-3 " + (hoursInvalid ? "border-red-300" : "border-zinc-300")}
+                        onChange={(e) =>
+                          setTasks((prev) => prev.map((x) => (x.id === t.id ? { ...x, hoursText: e.target.value } : x)))
+                        }
+                        className={
+                          "h-10 w-32 rounded-md border bg-white px-3 " + (hoursInvalid ? "border-red-300" : "border-zinc-300")
+                        }
                       />
                       <div className="mt-1 text-xs text-zinc-500">0.25 increments (0.25–20, or 0)</div>
                     </td>
@@ -600,7 +521,7 @@ export function WorklogForm({
             <button
               type="button"
               className="h-9 rounded-md border border-zinc-300 bg-white px-3 text-sm hover:bg-zinc-50"
-              onClick={() => setMileage((prev) => [...prev, { id: uid(), clientId: null, clientName: "", kilometersText: "0" }])}
+              onClick={() => setMileage((prev) => [...prev, { id: uid(), clientId: null, clientName: "", kilometersText: "" }])}
             >
               + Add allocation
             </button>
@@ -623,7 +544,9 @@ export function WorklogForm({
                         clients={clients}
                         valueName={m.clientName}
                         placeholder="Search client…"
-                        onSelect={(c) => setMileage((prev) => prev.map((x) => (x.id === m.id ? { ...x, clientId: c.id, clientName: c.name } : x)))}
+                        onSelect={(c) =>
+                          setMileage((prev) => prev.map((x) => (x.id === m.id ? { ...x, clientId: c.id, clientName: c.name } : x)))
+                        }
                       />
                     </td>
                     <td className="border-b border-zinc-100 px-3 py-2">
@@ -632,7 +555,9 @@ export function WorklogForm({
                         min={0}
                         step={0.1}
                         value={m.kilometersText}
-                        onChange={(e) => setMileage((prev) => prev.map((x) => (x.id === m.id ? { ...x, kilometersText: e.target.value } : x)))}
+                        onChange={(e) =>
+                          setMileage((prev) => prev.map((x) => (x.id === m.id ? { ...x, kilometersText: e.target.value } : x)))
+                        }
                         className="h-10 w-40 rounded-md border border-zinc-300 bg-white px-3"
                       />
                     </td>
@@ -691,7 +616,9 @@ export function WorklogForm({
           <div
             className={
               "rounded-md px-3 py-2 text-sm " +
-              (submitState.ok ? "border border-emerald-200 bg-emerald-50 text-emerald-900" : "border border-red-200 bg-red-50 text-red-900")
+              (submitState.ok
+                ? "border border-emerald-200 bg-emerald-50 text-emerald-900"
+                : "border border-red-200 bg-red-50 text-red-900")
             }
           >
             {submitState.message}
@@ -700,40 +627,54 @@ export function WorklogForm({
 
         <button
           type="button"
-          disabled={!canSubmitWithResubmitRules || submitting || email.trim().length === 0}
+          disabled={!canSubmitWithResubmitRules || submitting}
           className={
             "h-10 rounded-md px-4 text-sm font-semibold text-white " +
-            (!canSubmitWithResubmitRules || submitting || email.trim().length === 0 ? "bg-zinc-300" : "bg-[#2EA3F2] hover:opacity-90")
+            (!canSubmitWithResubmitRules || submitting ? "bg-zinc-300" : "bg-[#2EA3F2] hover:opacity-90")
           }
           title={
-            email.trim().length === 0
-              ? "Email is required"
-              : !resubmitReasonOk
-                ? "Resubmission reason is required"
-                : canSubmit
-                  ? isResubmission
-                    ? "Ready to resubmit (admin approval required)"
-                    : "Ready to submit"
-                  : "Hours must match target exactly; task hour values must be valid; client + notes required for non-zero hours; and mileage must be allocated if entered"
+            !emailOk
+              ? "Email is missing"
+              : isFutureDate
+                ? "Future dates aren’t allowed"
+                : !resubmitReasonOk
+                  ? "Resubmission reason is required"
+                  : canSubmit
+                    ? isResubmission
+                      ? "Ready to resubmit (admin approval required)"
+                      : "Ready to submit"
+                    : "Hours must match target exactly; task hour values must be valid; client + notes required for non-zero hours; and mileage must be allocated if entered"
           }
           onClick={async () => {
             setSubmitting(true);
             setSubmitState(null);
 
-            const trimmedEmail = email.trim().toLowerCase();
+            if (!emailOk) {
+              setSubmitState({ ok: false, message: "Missing email (must be provided by portal/session)." });
+              setSubmitting(false);
+              return;
+            }
+
+            if (isFutureDate) {
+              setSubmitState({ ok: false, message: "Future dates aren’t allowed." });
+              setSubmitting(false);
+              return;
+            }
+
+            const safeTargetHours = Number.isFinite(targetHours) ? targetHours : 0;
+            const safeTotalKm = Number.isFinite(totalKm) ? totalKm : 0;
 
             const basePayload = {
-              email: trimmedEmail,
+              email,
               workDate,
-              targetHours,
-              totalKm,
+              targetHours: safeTargetHours,
+              totalKm: safeTotalKm,
               tasks: tasks.map((t) => {
                 const bucket = BUCKETS.find((b) => b.key === t.bucketKey);
                 return {
                   clientId: t.clientId,
                   bucketKey: t.bucketKey,
                   bucketName: bucket?.name ?? t.bucketKey,
-                  quotaItemId: t.quotaItemId,
                   hours: parseNumberText(t.hoursText),
                   notes: t.notes,
                 };
@@ -754,7 +695,7 @@ export function WorklogForm({
                 const res = await fetch("/api/worklog/status", {
                   method: "POST",
                   headers: { "content-type": "application/json" },
-                  body: JSON.stringify({ email: trimmedEmail, workDate }),
+                  body: JSON.stringify({ email, workDate }),
                 });
                 const data = (await res.json()) as { ok?: boolean; exists?: boolean };
                 if (res.ok && data?.ok === true && data.exists === true) shouldResubmit = true;
@@ -783,9 +724,22 @@ export function WorklogForm({
                 headers: { "content-type": "application/json" },
                 body: JSON.stringify(payload),
               });
-              const data = (await res.json()) as { ok: boolean; message?: string };
-              if (!res.ok || !data.ok) {
-                setSubmitState({ ok: false, message: data.message ?? "Submit failed." });
+              const data = (await res.json()) as { ok?: boolean; message?: string; details?: unknown };
+
+              if (!res.ok || data.ok !== true) {
+                const detailsError =
+                  data.details && typeof data.details === "object" && data.details !== null && "error" in data.details
+                    ? String((data.details as any).error)
+                    : null;
+
+                const msg =
+                  data.message && typeof data.message === "string"
+                    ? data.message
+                    : detailsError
+                      ? detailsError
+                      : "Submit failed.";
+
+                setSubmitState({ ok: false, message: msg });
               } else {
                 setSubmitState({ ok: true, message: data.message ?? "Submitted." });
               }

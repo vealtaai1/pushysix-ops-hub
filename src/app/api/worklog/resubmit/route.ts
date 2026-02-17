@@ -40,6 +40,17 @@ function asEmail(s: unknown): string | null {
   return t;
 }
 
+function calgaryTodayISO(): string {
+  const now = new Date();
+  // en-CA gives YYYY-MM-DD
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Edmonton",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(now);
+}
+
 export async function POST(req: Request) {
   let body: ResubmitWorklogBody;
   try {

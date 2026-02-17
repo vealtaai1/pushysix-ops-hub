@@ -6,7 +6,7 @@ This file is the single source of truth for the revision batches Paul requested.
 I will ~~strike through~~ items as they are completed, and add notes for anything blocked.
 
 ## Login / Auth
-- [ ] Remove placeholder on login page (`you@pushysix.com`)
+- [x] ~~Remove placeholder on login page (`you@pushysix.com`)~~
 - [ ] Shared login for admins + users (no separate flows)
 - [ ] Session persistence broken (sign in → navigate → asked to sign in again) — fix
 - [ ] Admin access blocked after login (paul@pushysix.com can’t access admin pages) — fix
@@ -14,9 +14,9 @@ I will ~~strike through~~ items as they are completed, and add notes for anythin
 
 ## Navigation / Pages / IA
 - [x] ~~Rename “Portal” to **Schedule** (calendar page)~~
-- [ ] Create **Dashboard** (default landing after sign-in): icons/tiles linking to tools
-- [ ] Create **Admin Dashboard** (admins only): icons/tiles linking to admin tools
-- [ ] Clean up header: no giant list of links; show Back button only when not on Dashboard
+- [x] ~~Create **Dashboard** (default landing after sign-in): icons/tiles linking to tools~~
+- [x] ~~Create **Admin Dashboard** (admins only): icons/tiles linking to admin tools~~
+- [x] ~~Clean up header: no giant list of links; show Back button only when not on Dashboard~~
 
 ## Daily Worklog / Shift Log Page
 - [ ] Remove redundant **Email** field on daily worklog form

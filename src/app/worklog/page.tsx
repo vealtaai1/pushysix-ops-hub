@@ -1,4 +1,5 @@
 import { DbUnavailableCallout } from "@/app/_components/DbUnavailableCallout";
+import { auth } from "@/auth";
 import { WorklogForm } from "./WorklogForm";
 
 export const dynamic = "force-dynamic";
@@ -28,6 +29,10 @@ export default async function WorklogPage({
 
   const emailParamRaw = sp.email;
   const emailParam = typeof emailParamRaw === "string" ? emailParamRaw : null;
+
+  const session = await auth();
+  const sessionEmail = typeof session?.user?.email === "string" ? session.user.email : null;
+  const effectiveEmail = emailParam ?? sessionEmail;
 
   let clients: Array<{ id: string; name: string }> = [];
   let dbWarning: string | null = null;
@@ -69,7 +74,7 @@ export default async function WorklogPage({
         <div className="rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">{dbWarning}</div>
       ) : null}
 
-      <WorklogForm clients={clients} initialDate={dateParam} initialEmail={emailParam} />
+      <WorklogForm clients={clients} initialDate={dateParam} initialEmail={effectiveEmail} />
     </div>
   );
 }

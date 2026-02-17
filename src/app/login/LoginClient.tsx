@@ -13,7 +13,7 @@ export function LoginClient() {
   const callbackUrl = useMemo(() => {
     const cb = sp.get("callbackUrl");
     if (cb && cb.startsWith("/")) return cb;
-    return "/worklog";
+    return "/dashboard";
   }, [sp]);
 
   const [password, setPassword] = useState("");
@@ -52,7 +52,7 @@ export function LoginClient() {
             onChange={(e) => setEmail(e.target.value)}
             inputMode="email"
             autoComplete="email"
-            placeholder="you@pushysix.com"
+            placeholder=""
             required
             style={{ padding: "10px 12px", borderRadius: 10, border: "1px solid #ccc" }}
           />

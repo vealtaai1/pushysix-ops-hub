@@ -41,6 +41,17 @@ function asEmail(s: unknown): string | null {
   return t;
 }
 
+function calgaryTodayISO(): string {
+  const now = new Date();
+  // en-CA gives YYYY-MM-DD
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Edmonton",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(now);
+}
+
 export async function POST(req: Request) {
   let body: SubmitWorklogBody;
   try {
@@ -54,6 +65,11 @@ export async function POST(req: Request) {
 
   const parsed = parseISODateOnly(body.workDate);
   if (!parsed) return badRequest("workDate must be YYYY-MM-DD.");
+
+  const todayISO = calgaryTodayISO();
+  if (body.workDate > todayISO) {
+    return badRequest("You can’t submit a worklog for a future date.", { workDate: body.workDate, today: todayISO });
+  }
 
   const targetHours = Number(body.targetHours);
   if (!Number.isFinite(targetHours) || targetHours <= 0) return badRequest("targetHours must be a number > 0.");
@@ -212,7 +228,8 @@ export async function POST(req: Request) {
       await prisma.mileageEntry.createMany({ data: mileageCreates });
     }
   } catch (e) {
-    return badRequest("Invalid worklog payload.", { error: String(e) });
+    const error = String(e);
+    return badRequest(`Invalid worklog payload: ${error}`, { error });
   }
 
   // Create a pending approval request if needed

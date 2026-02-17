@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Open_Sans } from "next/font/google";
 import "./globals.css";
 import { AuthButtons } from "@/app/_components/AuthButtons";
+import { BackToDashboard } from "@/app/_components/BackToDashboard";
 
 const openSans = Open_Sans({
   subsets: ["latin"],
@@ -43,6 +44,7 @@ export default function RootLayout({
               </div>
 
               <nav className="flex items-center gap-4 text-sm">
+                <BackToDashboard />
                 <a className="text-zinc-700 hover:text-zinc-900" href="/schedule">
                   Schedule
                 </a>
