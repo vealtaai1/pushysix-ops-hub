@@ -371,24 +371,13 @@ export function WorklogForm({
         </div>
 
         <div className="mt-4 flex flex-wrap items-center gap-3 text-sm">
-          <div>
-            <span className="text-zinc-600">Allocated hours:</span>{" "}
-            <span className={hoursMatch ? "font-semibold text-emerald-700" : "font-semibold text-red-700"}>
-              {allocatedHours.toFixed(2)} / {(Number.isFinite(targetHours) ? targetHours : 0).toFixed(2)}
-            </span>
-          </div>
-          {hasTaskHoursViolations ? <div className="text-red-700">Task hours must be 0 or 0.25–20.00 in 0.25 increments.</div> : null}
           {!targetHoursValid ? <div className="text-red-700">Total hours must be greater than 0.</div> : null}
+          {hasTaskHoursViolations ? <div className="text-red-700">Task hours must be 0 or 0.25–20.00 in 0.25 increments.</div> : null}
           {hasClientViolations ? <div className="text-red-700">Client is required for any task with hours &gt; 0.</div> : null}
           {hasBucketViolations ? <div className="text-red-700">Task category is required for any task with hours &gt; 0.</div> : null}
           {hasNotesViolations ? <div className="text-red-700">Notes are required for any task with hours &gt; 0.</div> : null}
-          {mileageRequired ? (
-            <div>
-              <span className="text-zinc-600">Mileage allocated:</span>{" "}
-              <span className={mileageComplete ? "font-semibold text-emerald-700" : "font-semibold text-red-700"}>
-                {allocatedKm.toFixed(1)} / {(Number.isFinite(totalKm) ? totalKm : 0).toFixed(1)} km
-              </span>
-            </div>
+          {mileageRequired && !mileageComplete ? (
+            <div className="text-red-700">Mileage must be allocated to match Total km.</div>
           ) : null}
         </div>
       </div>
@@ -511,6 +500,19 @@ export function WorklogForm({
               })}
             </tbody>
           </table>
+        </div>
+      </div>
+
+      {/* Sticky hour counter under Tasks (big + obvious) */}
+      <div className="sticky top-2 z-10 rounded-lg border border-zinc-200 bg-white/95 p-4 backdrop-blur">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="text-sm font-semibold text-zinc-900">Allocated hours</div>
+          <div className={"text-2xl font-bold " + (hoursMatch ? "text-emerald-700" : "text-red-700")}>
+            {allocatedHours.toFixed(2)} <span className="text-zinc-400">/</span> {(Number.isFinite(targetHours) ? targetHours : 0).toFixed(2)}
+          </div>
+        </div>
+        <div className="mt-2 text-xs text-zinc-600">
+          Tip: totals must match exactly before submit unlocks.
         </div>
       </div>
 
