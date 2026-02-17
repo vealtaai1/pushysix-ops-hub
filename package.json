@@ -10,7 +10,7 @@
     "lint": "eslint",
     "format": "prettier --write .",
     "prisma:generate": "npx prisma generate",
-    "prisma:migrate:deploy": "node -e \"if(process.env.PRISMA_MIGRATE_DEPLOY==='true'){require('child_process').execSync('npx prisma migrate deploy',{stdio:'inherit'})}else{console.log('Skipping prisma migrate deploy (set PRISMA_MIGRATE_DEPLOY=true to enable)')}\"",
+    "prisma:migrate:deploy": "node scripts/prismaMigrateDeploy.js", 
     "assert:retainers": "node scripts/retainers.assert.mjs",
     "prisma:seed": "npx prisma db seed"
   },
