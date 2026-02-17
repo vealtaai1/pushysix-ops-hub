@@ -86,10 +86,21 @@ export const {
     }),
   ],
   callbacks: {
-    async session({ session, user }) {
+    async jwt({ token, user }) {
+      // With `session.strategy = "jwt"`, the `user` object is only available
+      // on the initial sign-in. Persist what we need onto the token.
+      if (user) {
+        token.id = user.id;
+        token.role = (user as typeof user & { role?: "ADMIN" | "EMPLOYEE" }).role ?? "EMPLOYEE";
+      }
+      return token;
+    },
+
+    async session({ session, token }) {
       if (session.user) {
-        session.user.id = user.id;
-        session.user.role = (user as typeof user & { role?: "ADMIN" | "EMPLOYEE" }).role ?? "EMPLOYEE";
+        // Populate custom fields from the JWT token for subsequent requests.
+        session.user.id = (token.id as string) ?? "";
+        session.user.role = (token.role as "ADMIN" | "EMPLOYEE") ?? "EMPLOYEE";
       }
       return session;
     },
