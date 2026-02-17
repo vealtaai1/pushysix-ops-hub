@@ -29,4 +29,4 @@ I will ~~strike through~~ items as they are completed, and add notes for anythin
 
 ## Schedule (Calendar)
 - [x] ~~Fix month display: shows **January** but should be **February 2026**~~
-- [ ] Audit every calendar implemented for month correctness
+- [x] ~~Audit every calendar implemented for month correctness~~ (only calendar UI in repo is `src/app/schedule/*`; no other month-title/date-grid components found outside Schedule)
