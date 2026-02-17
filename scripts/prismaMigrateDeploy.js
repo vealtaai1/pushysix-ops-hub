@@ -7,7 +7,7 @@
   self-heal without manual redeploy spam.
 */
 
-const { execSync } = require("child_process");
+const { spawnSync } = require("child_process");
 
 const enabled = process.env.PRISMA_MIGRATE_DEPLOY === "true";
 
@@ -16,34 +16,49 @@ if (!enabled) {
   process.exit(0);
 }
 
-const MAX_ATTEMPTS = Number(process.env.PRISMA_MIGRATE_DEPLOY_RETRIES ?? "5");
-const SLEEP_MS = Number(process.env.PRISMA_MIGRATE_DEPLOY_RETRY_DELAY_MS ?? "5000");
+const MAX_ATTEMPTS = Number(process.env.PRISMA_MIGRATE_DEPLOY_RETRIES ?? "12");
+const SLEEP_MS = Number(process.env.PRISMA_MIGRATE_DEPLOY_RETRY_DELAY_MS ?? "10000");
 
 function sleep(ms) {
   return new Promise((r) => setTimeout(r, ms));
 }
 
-function isAdvisoryLockTimeout(err) {
-  const msg = (err && (err.message || String(err))) || "";
+function isAdvisoryLockTimeout(text) {
+  const msg = String(text || "");
   return msg.includes("Timed out trying to acquire a postgres advisory lock") || msg.includes("pg_advisory_lock");
+}
+
+function runMigrateDeploy() {
+  const res = spawnSync("npx", ["prisma", "migrate", "deploy"], {
+    env: process.env,
+    encoding: "utf8",
+    shell: false,
+  });
+
+  const out = `${res.stdout || ""}${res.stderr || ""}`;
+
+  // Preserve Prisma output in Vercel logs.
+  if (res.stdout) process.stdout.write(res.stdout);
+  if (res.stderr) process.stderr.write(res.stderr);
+
+  return { code: res.status ?? 1, output: out };
 }
 
 (async () => {
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
-    try {
-      execSync("npx prisma migrate deploy", { stdio: "inherit" });
-      process.exit(0);
-    } catch (err) {
-      if (isAdvisoryLockTimeout(err) && attempt < MAX_ATTEMPTS) {
-        console.log(
-          `Prisma migrate advisory lock is busy; retrying in ${Math.round(SLEEP_MS / 1000)}s (attempt ${attempt}/${MAX_ATTEMPTS})...`
-        );
-        await sleep(SLEEP_MS);
-        continue;
-      }
+    const { code, output } = runMigrateDeploy();
 
-      // Re-throw non-retryable errors or final attempt
-      throw err;
+    if (code === 0) process.exit(0);
+
+    if (isAdvisoryLockTimeout(output) && attempt < MAX_ATTEMPTS) {
+      console.log(
+        `Prisma migrate advisory lock is busy; retrying in ${Math.round(SLEEP_MS / 1000)}s (attempt ${attempt}/${MAX_ATTEMPTS})...`
+      );
+      await sleep(SLEEP_MS);
+      continue;
     }
+
+    // Non-retryable error or final attempt: exit with failure.
+    process.exit(code || 1);
   }
 })();
