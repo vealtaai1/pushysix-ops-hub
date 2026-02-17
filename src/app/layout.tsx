@@ -43,8 +43,8 @@ export default function RootLayout({
               </div>
 
               <nav className="flex items-center gap-4 text-sm">
-                <a className="text-zinc-700 hover:text-zinc-900" href="/portal">
-                  Portal
+                <a className="text-zinc-700 hover:text-zinc-900" href="/schedule">
+                  Schedule
                 </a>
                 <AuthButtons />
               </nav>
