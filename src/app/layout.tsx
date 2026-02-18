@@ -45,9 +45,6 @@ export default function RootLayout({
 
               <nav className="flex items-center gap-4 text-sm">
                 <BackToDashboard />
-                <a className="text-zinc-700 hover:text-zinc-900" href="/schedule">
-                  Schedule
-                </a>
                 <AuthButtons />
               </nav>
             </div>
