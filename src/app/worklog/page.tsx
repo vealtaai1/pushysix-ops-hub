@@ -7,9 +7,10 @@ export const dynamic = "force-dynamic";
 async function getClients() {
   const url = process.env.DATABASE_URL;
 
-  // Vercel prod can’t use the repo’s local SQLite file.
-  // If DATABASE_URL points at a file-based sqlite db, skip DB access.
-  if (!url || url.startsWith("file:")) return [] as Array<{ id: string; name: string }>;
+  // Vercel deployments can’t use the repo’s local SQLite file.
+  // If DATABASE_URL points at a file-based sqlite db *on Vercel*, skip DB access.
+  // (Local dev commonly uses `file:` sqlite and should still load clients.)
+  if (!url || (url.startsWith("file:") && process.env.VERCEL)) return [] as Array<{ id: string; name: string }>;
 
   const { prisma } = await import("@/lib/db");
   return prisma.client.findMany({

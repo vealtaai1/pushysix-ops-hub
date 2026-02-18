@@ -84,7 +84,6 @@ function Dialog(props: { open: boolean; title: string; children: React.ReactNode
 export function ScheduleCalendar({ months }: { months: ScheduleMonth[] }) {
   const router = useRouter();
 
-  const [email, setEmail] = React.useState("");
   const [selectedIso, setSelectedIso] = React.useState<string | null>(null);
   const [submitting, setSubmitting] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
@@ -164,6 +163,8 @@ export function ScheduleCalendar({ months }: { months: ScheduleMonth[] }) {
     return format(d, "EEE, MMM d, yyyy");
   }, [selectedIso]);
 
+  const selectedIsFuture = Boolean(selectedIso && selectedIso > currentLogIso);
+
   async function submitDayOff(isoDate: string) {
     setSubmitting(true);
     setError(null);
@@ -222,31 +223,10 @@ export function ScheduleCalendar({ months }: { months: ScheduleMonth[] }) {
 
   return (
     <div className="space-y-5">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="space-y-2">
-          <div className="rounded-md border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm text-zinc-800">
-            All logging times are based on Calgary ({CALGARY_TZ}) time — this does not change with your device timezone.
-          </div>
-
-          <div className="flex items-center gap-2">
-            <label className="text-xs font-semibold text-zinc-700" htmlFor="portal-email">
-              Email
-            </label>
-            <input
-              id="portal-email"
-              className="h-9 w-64 max-w-full rounded-md border border-zinc-300 bg-white px-3 text-sm"
-              placeholder="you@company.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              autoComplete="email"
-              inputMode="email"
-            />
-          </div>
-        </div>
-
+      <div className="flex justify-center">
         <button
           type="button"
-          className="h-10 rounded-md bg-[#2EA3F2] px-4 text-sm font-semibold text-white hover:opacity-90"
+          className="h-10 rounded-md bg-[#2EA3F2] px-6 text-sm font-semibold text-white hover:opacity-90"
           onClick={() => router.push(`/worklog?date=${currentLogIso}`)}
         >
           Log Current Day
@@ -320,27 +300,40 @@ export function ScheduleCalendar({ months }: { months: ScheduleMonth[] }) {
                 </div>
               ))}
 
-              {activeMonth.days.map((d) => (
-                <button
-                  key={d.isoDate}
-                  type="button"
-                  className={
-                    "relative min-h-14 bg-white p-2 text-left text-sm outline-none focus:ring-2 focus:ring-[#2EA3F2] " +
-                    (d.inMonth ? "" : "opacity-50 ")
-                  }
-                  onClick={() => setSelectedIso(d.isoDate)}
-                >
-                  <div className={"inline-flex items-center gap-2 rounded-md border px-2 py-1 " + classForState(d.state)}>
-                    <span className="text-xs font-semibold">{d.dayNumber}</span>
-                    {d.state.label ? <span className="text-[11px] text-zinc-700">{d.state.label}</span> : null}
-                  </div>
-                </button>
-              ))}
+              {activeMonth.days.map((d) => {
+                const isFuture = d.isoDate > currentLogIso;
+
+                return (
+                  <button
+                    key={d.isoDate}
+                    type="button"
+                    disabled={isFuture}
+                    className={
+                      "relative min-h-14 bg-white p-2 text-left text-sm outline-none focus:ring-2 focus:ring-[#2EA3F2] disabled:cursor-not-allowed disabled:opacity-40 " +
+                      (d.inMonth ? "" : "opacity-50 ")
+                    }
+                    onClick={() => {
+                      if (isFuture) return;
+                      setSelectedIso(d.isoDate);
+                    }}
+                    title={isFuture ? "Future dates can’t be logged yet." : undefined}
+                  >
+                    <div className={"inline-flex items-center gap-2 rounded-md border px-2 py-1 " + classForState(d.state)}>
+                      <span className="text-xs font-semibold">{d.dayNumber}</span>
+                      {d.state.label ? <span className="text-[11px] text-zinc-700">{d.state.label}</span> : null}
+                    </div>
+                  </button>
+                );
+              })}
             </div>
           </section>
         ) : null}
 
         <div className="text-xs text-zinc-500">Showing a 13-month window (6 months back/forward). Use arrows to navigate.</div>
+
+        <div className="rounded-md border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm text-zinc-800">
+          All logging times are based on Calgary ({CALGARY_TZ}) time — this does not change with your device timezone.
+        </div>
       </div>
 
       <Dialog
@@ -370,13 +363,11 @@ export function ScheduleCalendar({ months }: { months: ScheduleMonth[] }) {
           <button
             type="button"
             className="h-10 rounded-md bg-zinc-900 px-4 text-sm font-semibold text-white hover:opacity-90 disabled:bg-zinc-300"
-            disabled={!selectedIso || submitting || email.trim().length === 0 || (selectedIso ? isWeekend(selectedIso) : false)}
+            disabled={!selectedIso || submitting || (selectedIso ? isWeekend(selectedIso) : false)}
             title={
-              email.trim().length === 0
-                ? "Email is required"
-                : selectedIso && isWeekend(selectedIso)
-                  ? "Weekends are not eligible for day-off requests"
-                  : "Submit a day-off request"
+              selectedIso && isWeekend(selectedIso)
+                ? "Weekends are not eligible for day-off requests"
+                : "Submit a day-off request"
             }
             onClick={async () => {
               if (!selectedIso) return;

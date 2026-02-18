@@ -16,7 +16,24 @@ export function getAuthSecret(): string {
   if (s) return s;
 
   if (process.env.NODE_ENV === "production") {
-    throw new Error("AUTH_SECRET (or NEXTAUTH_SECRET) is required");
+    // During `next build`, Next.js may evaluate route modules to collect metadata.
+    // If we throw here, the entire build fails even though the runtime env (where
+    // the app actually runs) will have the secret.
+    const phase = (process.env.NEXT_PHASE ?? "").toLowerCase();
+    const isBuildPhase = phase.includes("build") || phase.includes("export");
+
+    if (!isBuildPhase) {
+      throw new Error("AUTH_SECRET (or NEXTAUTH_SECRET) is required");
+    }
+
+    // Build fallback: allow the build to complete, but make the problem loud.
+    // This secret is ONLY for build-time evaluation and must not be relied on at runtime.
+    // (At runtime, NEXT_PHASE is not set and we'll throw above.)
+    // eslint-disable-next-line no-console
+    console.warn(
+      "[auth] AUTH_SECRET missing during Next.js build. Using an ephemeral build secret. " +
+        "Set AUTH_SECRET (or NEXTAUTH_SECRET) in the runtime environment."
+    );
   }
 
   // Dev fallback: stable for the process lifetime.
