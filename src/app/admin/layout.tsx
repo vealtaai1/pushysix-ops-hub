@@ -43,6 +43,7 @@ export default async function AdminLayout({ children }: { children: ReactNode })
     <div className="theme-light space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3">
+          <span className="rounded-md bg-zinc-900 px-2 py-1 text-xs font-semibold tracking-wide text-white">ADMIN MODE</span>
           <Link href="/admin" className="text-sm font-semibold text-zinc-900">
             Admin
           </Link>

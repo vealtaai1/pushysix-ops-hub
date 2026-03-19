@@ -140,6 +140,7 @@ export function WorklogForm({
 
   const [submitState, setSubmitState] = React.useState<{ ok: boolean; message: string } | null>(null);
   const [submitting, setSubmitting] = React.useState(false);
+  const [showValidation, setShowValidation] = React.useState(false);
 
   const [existingWorklog, setExistingWorklog] = React.useState<
     | null
@@ -253,6 +254,14 @@ export function WorklogForm({
   }, [tasks]);
 
   const hoursMatch = React.useMemo(() => nearlyEqual(allocatedHours, targetHours), [allocatedHours, targetHours]);
+
+  const hoursCounterClass = React.useMemo(() => {
+    // Don't flash red by default; only show red once the user attempts to submit.
+    const targetValid = Number.isFinite(targetHours) && targetHours > 0;
+    if (!targetValid) return "text-zinc-900";
+    if (hoursMatch) return "text-emerald-700";
+    return showValidation ? "text-red-700" : "text-zinc-900";
+  }, [hoursMatch, showValidation, targetHours]);
 
   const hasNotesViolations = React.useMemo(() => {
     return tasks.some((t) => {
@@ -371,12 +380,18 @@ export function WorklogForm({
         </div>
 
         <div className="mt-4 flex flex-wrap items-center gap-3 text-sm">
-          {!targetHoursValid ? <div className="text-red-700">Total hours must be greater than 0.</div> : null}
-          {hasTaskHoursViolations ? <div className="text-red-700">Task hours must be 0 or 0.25–20.00 in 0.25 increments.</div> : null}
-          {hasClientViolations ? <div className="text-red-700">Client is required for any task with hours &gt; 0.</div> : null}
-          {hasBucketViolations ? <div className="text-red-700">Task category is required for any task with hours &gt; 0.</div> : null}
-          {hasNotesViolations ? <div className="text-red-700">Notes are required for any task with hours &gt; 0.</div> : null}
-          {mileageRequired && !mileageComplete ? (
+          {showValidation && !targetHoursValid ? <div className="text-red-700">Total hours must be greater than 0.</div> : null}
+          {showValidation && hasTaskHoursViolations ? (
+            <div className="text-red-700">Task hours must be 0 or 0.25–20.00 in 0.25 increments.</div>
+          ) : null}
+          {showValidation && hasClientViolations ? (
+            <div className="text-red-700">Client is required for any task with hours &gt; 0.</div>
+          ) : null}
+          {showValidation && hasBucketViolations ? (
+            <div className="text-red-700">Task category is required for any task with hours &gt; 0.</div>
+          ) : null}
+          {showValidation && hasNotesViolations ? <div className="text-red-700">Notes are required for any task with hours &gt; 0.</div> : null}
+          {showValidation && mileageRequired && !mileageComplete ? (
             <div className="text-red-700">Mileage must be allocated to match Total km.</div>
           ) : null}
         </div>
@@ -507,7 +522,7 @@ export function WorklogForm({
       <div className="sticky top-2 z-10 rounded-lg border border-zinc-200 bg-white/95 p-4 backdrop-blur">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="text-sm font-semibold text-zinc-900">Allocated hours</div>
-          <div className={"text-2xl font-bold " + (hoursMatch ? "text-emerald-700" : "text-red-700")}>
+          <div className={"text-2xl font-bold " + hoursCounterClass}>
             {allocatedHours.toFixed(2)} <span className="text-zinc-400">/</span> {(Number.isFinite(targetHours) ? targetHours : 0).toFixed(2)}
           </div>
         </div>
@@ -648,6 +663,7 @@ export function WorklogForm({
                     : "Hours must match target exactly; task hour values must be valid; client + notes required for non-zero hours; and mileage must be allocated if entered"
           }
           onClick={async () => {
+            setShowValidation(true);
             setSubmitting(true);
             setSubmitState(null);
 

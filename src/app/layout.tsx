@@ -3,6 +3,7 @@ import { Open_Sans } from "next/font/google";
 import "./globals.css";
 import { AuthButtons } from "@/app/_components/AuthButtons";
 import { BackToDashboard } from "@/app/_components/BackToDashboard";
+import { AdminSwitchServer } from "@/app/_components/AdminSwitchServer";
 
 const openSans = Open_Sans({
   subsets: ["latin"],
@@ -43,8 +44,9 @@ export default function RootLayout({
                 </div>
               </div>
 
-              <nav className="flex items-center gap-4 text-sm">
+              <nav className="flex items-center gap-3 text-sm">
                 <BackToDashboard />
+                <AdminSwitchServer />
                 <AuthButtons />
               </nav>
             </div>
