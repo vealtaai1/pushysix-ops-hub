@@ -149,8 +149,7 @@ model ClientQuotaItem {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  client         Client         @relation(fields: [clientId], references: [id], onDelete: Cascade)
-  worklogEntries WorklogEntry[]
+  client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
 
   @@unique([clientId, name])
   @@index([clientId])
@@ -241,8 +240,6 @@ model WorklogEntry {
   bucketKey  String
   bucketName String
 
-  // Optional quota / deliverable marker (counts toward quotas when set)
-  quotaItemId String?
 
   minutes Int
   notes   String?
@@ -255,11 +252,9 @@ model WorklogEntry {
 
   worklog   Worklog          @relation(fields: [worklogId], references: [id], onDelete: Cascade)
   client    Client           @relation(fields: [clientId], references: [id], onDelete: Restrict)
-  quotaItem ClientQuotaItem? @relation(fields: [quotaItemId], references: [id], onDelete: SetNull)
 
   @@index([clientId])
   @@index([bucketKey])
-  @@index([quotaItemId])
 }
 
 model MileageEntry {
