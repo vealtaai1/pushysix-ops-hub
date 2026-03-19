@@ -350,7 +350,7 @@ export function WorklogForm({
           </label>
 
           <label className="grid gap-1">
-            <span className="text-sm font-medium">Total hours (target)</span>
+            <span className="text-sm font-medium">Total hours</span>
             <input
               type="number"
               min={0}
@@ -421,7 +421,7 @@ export function WorklogForm({
           </button>
         </div>
 
-        <div className="overflow-auto">
+        <div className="overflow-x-auto overflow-y-visible">
           <table className="w-full min-w-[820px] border-separate border-spacing-0">
             <thead>
               <tr className="text-left text-xs text-zinc-600">
@@ -544,7 +544,7 @@ export function WorklogForm({
             </button>
           </div>
 
-          <div className="overflow-auto">
+          <div className="overflow-x-auto overflow-y-visible">
             <table className="w-full min-w-[700px] border-separate border-spacing-0">
               <thead>
                 <tr className="text-left text-xs text-zinc-600">

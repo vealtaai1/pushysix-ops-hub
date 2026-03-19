@@ -3,7 +3,7 @@ import { createHash, randomBytes } from "crypto";
 
 import { prisma } from "@/lib/db";
 import { requireAdminOrThrow } from "@/lib/adminAuth";
-import { sendPostmarkEmail } from "@/lib/email/postmark";
+import { isPostmarkConfigured, sendPostmarkEmail } from "@/lib/email/postmark";
 import { getAuthSecret } from "@/lib/authSecret";
 
 function normalizeEmail(raw: unknown): string | null {
@@ -31,6 +31,17 @@ export async function POST(req: Request) {
   });
 
   const origin = new URL(req.url).origin;
+
+  if (!isPostmarkConfigured()) {
+    return NextResponse.json(
+      {
+        ok: false,
+        message:
+          "Invites are not configured yet. Missing POSTMARK_SERVER_TOKEN (Vercel env var). Set it, then try again.",
+      },
+      { status: 500 }
+    );
+  }
 
   // Create one-time set-password token (hashed in DB).
   const rawToken = randomBytes(32).toString("hex");

@@ -159,7 +159,7 @@ export default async function AdminPayrollPage({
         <section className="space-y-3">
           <h2 className="text-sm font-semibold">Summary</h2>
           <div className="overflow-auto rounded-lg border border-zinc-200">
-            <table className="w-full min-w-[920px] border-separate border-spacing-0">
+            <table className="w-full table-fixed border-separate border-spacing-0">
               <thead>
                 <tr className="text-left text-xs text-zinc-600">
                   <th className="border-b border-zinc-200 px-3 py-2">Pay Period</th>
@@ -189,7 +189,7 @@ export default async function AdminPayrollPage({
 
           <h2 className="pt-2 text-sm font-semibold">Employees</h2>
           <div className="overflow-auto rounded-lg border border-zinc-200">
-            <table className="w-full min-w-[980px] border-separate border-spacing-0">
+            <table className="w-full table-fixed border-separate border-spacing-0">
               <thead>
                 <tr className="text-left text-xs text-zinc-600">
                   <th className="border-b border-zinc-200 px-3 py-2">Employee</th>
