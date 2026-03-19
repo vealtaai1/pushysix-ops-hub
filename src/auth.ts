@@ -1,7 +1,5 @@
 import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
-import { PrismaAdapter } from "@auth/prisma-adapter";
-
 import { prisma } from "@/lib/db";
 import { getAuthSecret } from "@/lib/authSecret";
 import { hashPassword, validatePassword, verifyPassword } from "@/lib/password";
@@ -57,7 +55,6 @@ export const {
   // aren't set (common in local dev).
   // In production, getAuthSecret() will still hard-require AUTH_SECRET.
   secret: getAuthSecret(),
-  adapter: PrismaAdapter(prisma),
   session: { strategy: "jwt" },
   pages: {
     signIn: "/login",
