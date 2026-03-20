@@ -96,9 +96,6 @@ export function LoginClient() {
 
         {error ? <p style={{ color: "#b91c1c", fontSize: 13 }}>{error}</p> : null}
 
-        <p style={{ color: "#666", fontSize: 13, margin: 0 }}>
-          New here? Ask an admin to invite you (they&apos;ll send you a set-password link).
-        </p>
       </form>
 
       <p style={{ marginTop: 20, color: "#666", fontSize: 13 }}>
