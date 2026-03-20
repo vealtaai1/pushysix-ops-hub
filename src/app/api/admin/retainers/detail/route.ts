@@ -38,6 +38,7 @@ export async function GET(req: Request) {
       monthlyRetainerHours: true,
       maxShootsPerCycle: true,
       maxCaptureHoursPerCycle: true,
+      clientBillingEmail: true,
     },
   });
 

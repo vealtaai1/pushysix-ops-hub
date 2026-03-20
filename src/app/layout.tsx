@@ -13,7 +13,7 @@ const openSans = Open_Sans({
 });
 
 export const metadata: Metadata = {
-  title: "PushySix Operations Hub",
+  title: "Pushysix Operations Hub",
   description: "Daily worklogs, retainers, and billing enforcement.",
 };
 
@@ -29,10 +29,10 @@ export default function RootLayout({
         <div className="min-h-dvh bg-zinc-50 text-zinc-950">
           <header className="border-b border-zinc-200 bg-white">
             <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3">
-              <Link href="/dashboard" className="flex items-center gap-3" aria-label="PushySix Ops Hub">
+              <Link href="/dashboard" className="flex items-center gap-3" aria-label="Pushysix Ops Hub">
                 <Image
                   src="/brand/pushysix-hex.png"
-                  alt="PushySix"
+                  alt="Pushysix"
                   width={36}
                   height={36}
                   priority

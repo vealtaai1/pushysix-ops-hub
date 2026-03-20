@@ -73,10 +73,10 @@ export async function POST(req: Request) {
   try {
     await sendPostmarkEmail({
     to: email,
-    subject: "You’ve been invited to PushySix Ops Hub",
-    textBody: `An admin added you to PushySix Ops Hub. Set your password using this link:\n\n${url}\n\nThis link expires in 24 hours.`,
+    subject: "You’ve been invited to Pushysix Ops Hub",
+    textBody: `An admin added you to Pushysix Ops Hub. Set your password using this link:\n\n${url}\n\nThis link expires in 24 hours.`,
     htmlBody: `
-      <p>An admin added you to <strong>PushySix Ops Hub</strong>.</p>
+      <p>An admin added you to <strong>Pushysix Ops Hub</strong>.</p>
       <p><a href="${url}">Set your password</a></p>
       <p style="color:#666">This link expires in 24 hours.</p>
     `.trim(),

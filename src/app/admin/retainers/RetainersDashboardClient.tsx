@@ -16,6 +16,7 @@ type ClientRow = {
     monthlyRetainerHours: number;
     maxShootsPerCycle: number | null;
     maxCaptureHoursPerCycle: number | null;
+    clientBillingEmail: string | null;
   };
   range: { startISO: string; endISO: string };
   totalUsedHours: number;
@@ -40,6 +41,7 @@ type DetailPayload = {
     monthlyRetainerHours: number;
     maxShootsPerCycle: number | null;
     maxCaptureHoursPerCycle: number | null;
+    clientBillingEmail: string | null;
   };
   range: { startISO: string; endISO: string };
   cycle: { id: string; startISO: string; endISO: string } | null;
@@ -107,10 +109,6 @@ export function RetainersDashboardClient({ initialRows }: { initialRows: ClientR
   const [loadingDetail, setLoadingDetail] = React.useState(false);
   const [detailError, setDetailError] = React.useState<string | null>(null);
 
-  const [cycleStartEdit, setCycleStartEdit] = React.useState<string>("");
-  const [cycleEndEdit, setCycleEndEdit] = React.useState<string>("");
-  const [savingCycleDates, setSavingCycleDates] = React.useState(false);
-  const [cycleSaveError, setCycleSaveError] = React.useState<string | null>(null);
 
   const [bucketEdit, setBucketEdit] = React.useState<Record<string, string>>({});
   const [savingBucket, setSavingBucket] = React.useState<string | null>(null);
@@ -167,9 +165,6 @@ export function RetainersDashboardClient({ initialRows }: { initialRows: ClientR
         return;
       }
       setDetail(data);
-      setCycleStartEdit(data.range.startISO);
-      setCycleEndEdit(data.range.endISO);
-      setCycleSaveError(null);
       setBucketError(null);
       setBucketOptionsError(null);
       setShowAddBucket(false);
@@ -504,7 +499,7 @@ export function RetainersDashboardClient({ initialRows }: { initialRows: ClientR
       {/* Modal */}
       {selected ? (
         <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/40 p-4" role="dialog" aria-modal="true">
-          <div className="w-full max-w-5xl rounded-xl bg-white shadow-xl">
+          <div className="flex w-full max-w-5xl max-h-[calc(100vh-2rem)] flex-col overflow-hidden rounded-xl bg-white shadow-xl">
             <div className="flex flex-col gap-3 border-b border-zinc-200 p-4 sm:flex-row sm:items-start sm:justify-between">
               <div className="min-w-0">
                 <div className="text-lg font-semibold text-zinc-900">
@@ -617,7 +612,7 @@ export function RetainersDashboardClient({ initialRows }: { initialRows: ClientR
               </div>
             </div>
 
-            <div className="p-4">
+            <div className="p-4 overflow-auto">
               {loadingDetail ? <div className="text-sm text-zinc-600">Loading…</div> : null}
               {detailError ? <div className="text-sm text-red-700">{detailError}</div> : null}
 
@@ -827,95 +822,6 @@ export function RetainersDashboardClient({ initialRows }: { initialRows: ClientR
                       </div>
                     </div>
 
-                    <div className="rounded-lg border border-zinc-200 p-3">
-                      <div className="text-sm font-semibold">Cycle dates (editable)</div>
-                      <div className="mt-1 text-xs text-zinc-600">
-                        Past cycles are editable. Changing dates will change which work logs are included.
-                      </div>
-
-                      <div className="mt-3 grid gap-2">
-                        <label className="grid gap-1">
-                          <span className="text-xs font-semibold text-zinc-600">Start (YYYY-MM-DD)</span>
-                          <input
-                            value={cycleStartEdit}
-                            onChange={(e) => setCycleStartEdit(e.target.value)}
-                            disabled={savingCycleDates || loadingDetail}
-                            className="h-10 rounded-md border border-zinc-300 bg-white px-3 disabled:opacity-50"
-                          />
-                        </label>
-                        <label className="grid gap-1">
-                          <span className="text-xs font-semibold text-zinc-600">End (YYYY-MM-DD)</span>
-                          <input
-                            value={cycleEndEdit}
-                            onChange={(e) => setCycleEndEdit(e.target.value)}
-                            disabled={savingCycleDates || loadingDetail}
-                            className="h-10 rounded-md border border-zinc-300 bg-white px-3 disabled:opacity-50"
-                          />
-                        </label>
-
-                        {cycleSaveError ? <div className="text-sm text-red-700">{cycleSaveError}</div> : null}
-
-                        <button
-                          type="button"
-                          disabled={!selected.cycleId || savingCycleDates}
-                          className={
-                            "h-10 rounded-md px-3 text-sm font-semibold text-white " +
-                            (!selected.cycleId || savingCycleDates ? "bg-zinc-300" : "bg-zinc-900 hover:opacity-90")
-                          }
-                          title={!selected.cycleId ? "No saved cycle record selected" : "Save cycle date changes"}
-                          onClick={async () => {
-                            if (!selected.cycleId) {
-                              setCycleSaveError("This cycle isn’t saved yet. Click ‘Refresh cycles’ first.");
-                              return;
-                            }
-
-                            const nextStart = cycleStartEdit.trim();
-                            const nextEnd = cycleEndEdit.trim();
-                            if (detail && (nextStart !== detail.range.startISO || nextEnd !== detail.range.endISO)) {
-                              if (!confirm("Save cycle date changes? This will change which work logs are included in the cycle.")) return;
-                            }
-
-                            setSavingCycleDates(true);
-                            setCycleSaveError(null);
-                            try {
-                              const res = await fetch("/api/admin/retainers/cycles", {
-                                method: "PATCH",
-                                headers: { "content-type": "application/json" },
-                                body: JSON.stringify({ id: selected.cycleId, startISO: nextStart, endISO: nextEnd }),
-                              });
-                              const data = (await res.json()) as { ok?: boolean; message?: string };
-                              if (!res.ok || data.ok !== true) {
-                                setCycleSaveError(data.message ?? "Failed to save cycle.");
-                                return;
-                              }
-                              // Update local cycles list so the dropdown reflects the new range.
-                              setCycles((prev) =>
-                                prev
-                                  ? prev.map((c) =>
-                                      c.id === selected.cycleId
-                                        ? { ...c, startISO: nextStart, endISO: nextEnd }
-                                        : c
-                                    )
-                                  : prev
-                              );
-
-                              void loadDetail({
-                                clientId: selected.clientId,
-                                cycleId: selected.cycleId,
-                                startISO: nextStart,
-                                endISO: nextEnd,
-                              });
-                            } catch {
-                              setCycleSaveError("Network error saving cycle.");
-                            } finally {
-                              setSavingCycleDates(false);
-                            }
-                          }}
-                        >
-                          {savingCycleDates ? "Saving…" : "Save cycle dates"}
-                        </button>
-                      </div>
-                    </div>
 
                     <div className="rounded-lg border border-zinc-200 p-3">
                       <div className="text-sm font-semibold">Retainer settings</div>
@@ -948,6 +854,41 @@ export function RetainersDashboardClient({ initialRows }: { initialRows: ClientR
                             className="h-10 rounded-md border border-zinc-300 bg-white px-3"
                           />
                         </label>
+
+                        <label className="grid gap-1">
+                          <span className="text-xs font-semibold text-zinc-600">Billing cycle start day</span>
+                          <select
+                            name="billingCycleStartDay"
+                            defaultValue={detail.client.billingCycleStartDay}
+                            className="h-10 rounded-md border border-zinc-300 bg-white px-3"
+                          >
+                            <option value="FIRST">1st</option>
+                            <option value="FIFTEENTH">15th</option>
+                          </select>
+                        </label>
+
+                        <label className="grid gap-1">
+                          <span className="text-xs font-semibold text-zinc-600">Client status</span>
+                          <select
+                            name="status"
+                            defaultValue={detail.client.status}
+                            className="h-10 rounded-md border border-zinc-300 bg-white px-3"
+                          >
+                            <option value="ACTIVE">Active</option>
+                            <option value="ON_HOLD">On hold</option>
+                          </select>
+                        </label>
+
+                        <label className="grid gap-1">
+                          <span className="text-xs font-semibold text-zinc-600">Billing email</span>
+                          <input
+                            name="clientBillingEmail"
+                            defaultValue={detail.client.clientBillingEmail ?? ""}
+                            className="h-10 rounded-md border border-zinc-300 bg-white px-3"
+                            placeholder="billing@client.com"
+                          />
+                        </label>
+
                         <button
                           type="submit"
                           className="h-10 rounded-md bg-zinc-900 px-3 text-sm font-semibold text-white hover:opacity-90"

@@ -22,7 +22,7 @@ export function LoginClient() {
   return (
     <main style={{ maxWidth: 560, margin: "40px auto", padding: 16 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-        <Image src="/brand/pushysix-hex.png" alt="PushySix" width={44} height={44} priority />
+        <Image src="/brand/pushysix-hex.png" alt="Pushysix" width={44} height={44} priority />
         <div>
           <div style={{ fontSize: 12, letterSpacing: 1, fontWeight: 800 }}>PUSHYSIX</div>
           <div style={{ fontSize: 12, color: "#666" }}>Operations Hub</div>
@@ -30,7 +30,7 @@ export function LoginClient() {
       </div>
 
       <h1 style={{ fontSize: 28, fontWeight: 700, marginTop: 18 }}>Sign in</h1>
-      <p style={{ marginTop: 8, color: "#444" }}>Use your email + password to access PushySix Ops Hub.</p>
+      <p style={{ marginTop: 8, color: "#444" }}>Use your email + password to access Pushysix Ops Hub.</p>
 
       <form
         onSubmit={async (e) => {
@@ -98,9 +98,6 @@ export function LoginClient() {
 
       </form>
 
-      <p style={{ marginTop: 20, color: "#666", fontSize: 13 }}>
-        If you believe you should have access but cannot, contact an admin.
-      </p>
     </main>
   );
 }
