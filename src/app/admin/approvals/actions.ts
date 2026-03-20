@@ -2,8 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db";
-import { requireAdminOrThrow } from "@/lib/adminAuth";
-import { requireAdminReviewerUserId } from "@/lib/actor";
+import { requireAdminOrThrow, requireAdminUserIdOrThrow } from "@/lib/adminAuth";
 import { ApprovalStatus } from "@prisma/client";
 
 function asString(v: FormDataEntryValue | null) {
@@ -16,7 +15,7 @@ export async function approveRequest(formData: FormData) {
   const note = asString(formData.get("note")).trim();
   if (!id) return;
 
-  const reviewerId = await requireAdminReviewerUserId();
+  const reviewerId = await requireAdminUserIdOrThrow();
   const now = new Date();
 
   const req = await prisma.approvalRequest.update({
@@ -63,7 +62,7 @@ export async function rejectRequest(formData: FormData) {
   const note = asString(formData.get("note")).trim();
   if (!id) return;
 
-  const reviewerId = await requireAdminReviewerUserId();
+  const reviewerId = await requireAdminUserIdOrThrow();
   const now = new Date();
 
   const req = await prisma.approvalRequest.update({
