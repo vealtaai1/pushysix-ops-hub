@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { createPortal } from "react-dom";
 import { BUCKETS } from "@/lib/buckets";
 
 type Client = { id: string; name: string };
@@ -58,8 +59,10 @@ function ClientTypeahead(props: {
 }) {
   const { clients, valueName, onSelect, placeholder } = props;
 
+  const inputRef = React.useRef<HTMLInputElement | null>(null);
   const [open, setOpen] = React.useState(false);
   const [query, setQuery] = React.useState(valueName);
+  const [menuBox, setMenuBox] = React.useState<null | { left: number; top: number; width: number }>(null);
 
   React.useEffect(() => {
     setQuery(valueName);
@@ -71,44 +74,76 @@ function ClientTypeahead(props: {
     return clients.filter((c) => c.name.toLowerCase().includes(q)).slice(0, 10);
   }, [clients, query]);
 
+  const updateMenuBox = React.useCallback(() => {
+    const el = inputRef.current;
+    if (!el) return;
+    const r = el.getBoundingClientRect();
+    setMenuBox({ left: r.left, top: r.bottom, width: r.width });
+  }, []);
+
+  React.useEffect(() => {
+    if (!open) return;
+    updateMenuBox();
+
+    const onScroll = () => updateMenuBox();
+    const onResize = () => updateMenuBox();
+    window.addEventListener("scroll", onScroll, true);
+    window.addEventListener("resize", onResize);
+    return () => {
+      window.removeEventListener("scroll", onScroll, true);
+      window.removeEventListener("resize", onResize);
+    };
+  }, [open, updateMenuBox]);
+
   return (
     <div className="relative">
       <input
+        ref={inputRef}
         value={query}
         onChange={(e) => {
           setQuery(e.target.value);
           setOpen(true);
         }}
-        onFocus={() => setOpen(true)}
+        onFocus={() => {
+          setOpen(true);
+          // Next tick so layout is stable
+          window.setTimeout(() => updateMenuBox(), 0);
+        }}
         onBlur={() => {
-          window.setTimeout(() => setOpen(false), 100);
+          window.setTimeout(() => setOpen(false), 120);
         }}
         placeholder={placeholder ?? "Search client…"}
         className="h-10 w-full rounded-md border border-zinc-300 bg-white px-3"
       />
 
-      {open ? (
-        <div className="absolute z-10 mt-1 max-h-64 w-full overflow-auto rounded-md border border-zinc-200 bg-white shadow">
-          {matches.length === 0 ? (
-            <div className="px-3 py-2 text-sm text-zinc-500">No matches</div>
-          ) : (
-            matches.map((c) => (
-              <button
-                key={c.id}
-                type="button"
-                className="block w-full px-3 py-2 text-left text-sm hover:bg-zinc-50"
-                onMouseDown={(e) => e.preventDefault()}
-                onClick={() => {
-                  onSelect(c);
-                  setOpen(false);
-                }}
-              >
-                {c.name}
-              </button>
-            ))
-          )}
-        </div>
-      ) : null}
+      {open && menuBox
+        ? createPortal(
+            <div
+              style={{ left: menuBox.left, top: menuBox.top + 4, width: menuBox.width, position: "fixed", zIndex: 1000 }}
+              className="max-h-64 overflow-auto rounded-md border border-zinc-200 bg-white shadow"
+            >
+              {matches.length === 0 ? (
+                <div className="px-3 py-2 text-sm text-zinc-500">No matches</div>
+              ) : (
+                matches.map((c) => (
+                  <button
+                    key={c.id}
+                    type="button"
+                    className="block w-full px-3 py-2 text-left text-sm hover:bg-zinc-50"
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => {
+                      onSelect(c);
+                      setOpen(false);
+                    }}
+                  >
+                    {c.name}
+                  </button>
+                ))
+              )}
+            </div>,
+            document.body,
+          )
+        : null}
     </div>
   );
 }
