@@ -99,7 +99,15 @@ async function main() {
   await page.goto(`${BASE}/admin/users`, { waitUntil: "domcontentloaded" });
   await snap(page, "admin_users_loaded");
 
-  await page.fill('input[placeholder="employee@pushysix.com"], input[inputmode="email"]', INVITE_EMAIL);
+  const inviteInput = page.locator('input[placeholder="employee@pushysix.com"], input[inputmode="email"]').first();
+  await inviteInput.click({ clickCount: 3 });
+  await page.keyboard.type(INVITE_EMAIL, { delay: 15 });
+
+  // Sanity check the value actually stuck (React onChange sometimes misses .fill())
+  const typed = await inviteInput.inputValue();
+  if (!typed || !typed.includes("@")) {
+    consoleLines.push(`[error] Invite email did not stick in input (value="${typed}")`);
+  }
 
   const inviteRespPromise = page
     .waitForResponse((r) => r.url().includes("/api/admin/users/invite"), { timeout: 30_000 })

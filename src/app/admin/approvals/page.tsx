@@ -75,6 +75,7 @@ export default async function ApprovalsQueuePage() {
                             {p.worklog ? (
                               <div>
                                 <span className="font-semibold">Worklog:</span> {p.worklog.id} ({fmtDateTime(p.worklog.workDate).slice(0, 10)}) — {p.worklog.status}
+                                {p.worklog.submittedAt ? <> — submitted {fmtDateTime(p.worklog.submittedAt)}</> : null}
                                 {p.worklog.approvalReason ? (
                                   <>
                                     {" "}
@@ -86,6 +87,7 @@ export default async function ApprovalsQueuePage() {
                             {p.dayOff ? (
                               <div>
                                 <span className="font-semibold">Day off:</span> {p.dayOff.id} ({fmtDateTime(p.dayOff.dayDate).slice(0, 10)}) — {p.dayOff.status}
+                                {p.dayOff.submittedAt ? <> — submitted {fmtDateTime(p.dayOff.submittedAt)}</> : null}
                                 {p.dayOff.approvalReason ? (
                                   <>
                                     {" "}
@@ -97,9 +99,12 @@ export default async function ApprovalsQueuePage() {
                           </div>
 
                           {p.payload ? (
-                            <pre className="max-h-60 overflow-auto whitespace-pre-wrap rounded border border-zinc-200 bg-white p-2">
-                              {JSON.stringify(p.payload, null, 2)}
-                            </pre>
+                            <details>
+                              <summary className="cursor-pointer text-xs font-medium text-zinc-700 hover:underline">Raw payload</summary>
+                              <pre className="mt-2 max-h-60 overflow-auto whitespace-pre-wrap rounded border border-zinc-200 bg-white p-2">
+                                {JSON.stringify(p.payload, null, 2)}
+                              </pre>
+                            </details>
                           ) : null}
                         </div>
                       </details>

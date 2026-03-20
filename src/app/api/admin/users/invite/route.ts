@@ -48,17 +48,30 @@ export async function POST(req: Request) {
   const tokenHash = createHash("sha256").update(`${rawToken}${getAuthSecret()}`).digest("hex");
   const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
 
-  await prisma.passwordResetToken.create({
-    data: {
-      userId: user.id,
-      tokenHash,
-      expiresAt,
-    },
-  });
+  try {
+    await prisma.passwordResetToken.create({
+      data: {
+        userId: user.id,
+        tokenHash,
+        expiresAt,
+      },
+    });
+  } catch (err) {
+    console.error("Invite failed creating PasswordResetToken", err);
+    return NextResponse.json(
+      {
+        ok: false,
+        message:
+          "Invite failed while creating the set-password token in the database. (This usually means the PasswordResetToken table is missing in production.)",
+      },
+      { status: 500 }
+    );
+  }
 
   const url = `${origin}/set-password?${new URLSearchParams({ token: rawToken }).toString()}`;
 
-  await sendPostmarkEmail({
+  try {
+    await sendPostmarkEmail({
     to: email,
     subject: "You’ve been invited to PushySix Ops Hub",
     textBody: `An admin added you to PushySix Ops Hub. Set your password using this link:\n\n${url}\n\nThis link expires in 24 hours.`,
@@ -69,6 +82,17 @@ export async function POST(req: Request) {
     `.trim(),
     tag: "user-invite",
   });
+  } catch (err) {
+    console.error("Invite failed sending Postmark email", err);
+    return NextResponse.json(
+      {
+        ok: false,
+        message:
+          "Invite failed while sending the email. Postmark may be misconfigured or rejecting the sender/domain. Check Vercel logs for the Postmark error.",
+      },
+      { status: 500 }
+    );
+  }
 
   return NextResponse.json({ ok: true });
 }
