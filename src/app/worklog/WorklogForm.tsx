@@ -434,7 +434,21 @@ export function WorklogForm({
 
       <div className="rounded-lg border border-zinc-200 p-4">
         <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-sm font-semibold">Tasks</h2>
+          <div className="flex items-center gap-3">
+            <h2 className="text-sm font-semibold">Tasks</h2>
+            <span
+              className={
+                "text-xs font-semibold " +
+                (!targetHoursValid
+                  ? "text-zinc-500"
+                  : hoursMatch
+                    ? "text-emerald-700"
+                    : "text-red-700")
+              }
+            >
+              Allocated {allocatedHours.toFixed(2)} / {Number.isFinite(targetHours) ? targetHours.toFixed(2) : "—"} hrs
+            </span>
+          </div>
           <button
             type="button"
             className="h-9 rounded-md border border-zinc-300 bg-white px-3 text-sm hover:bg-zinc-50"
@@ -679,28 +693,43 @@ export function WorklogForm({
 
         <button
           type="button"
-          disabled={!canSubmitWithResubmitRules || submitting}
+          disabled={submitting}
           className={
             "h-10 rounded-md px-4 text-sm font-semibold text-white " +
-            (!canSubmitWithResubmitRules || submitting ? "bg-zinc-300" : "bg-[#2EA3F2] hover:opacity-90")
+            (submitting ? "bg-zinc-300" : "bg-[#2EA3F2] hover:opacity-90")
           }
           title={
-            !emailOk
-              ? "Email is missing"
-              : isFutureDate
-                ? "Future dates aren’t allowed"
-                : !resubmitReasonOk
-                  ? "Resubmission reason is required"
-                  : canSubmit
-                    ? isResubmission
-                      ? "Ready to resubmit (admin approval required)"
-                      : "Ready to submit"
-                    : "Hours must match target exactly; task hour values must be valid; client + notes required for non-zero hours; and mileage must be allocated if entered"
+            canSubmitWithResubmitRules
+              ? isResubmission
+                ? "Ready to resubmit (admin approval required)"
+                : "Ready to submit"
+              : "Click to see what needs fixing"
           }
           onClick={async () => {
             setShowValidation(true);
-            setSubmitting(true);
             setSubmitState(null);
+
+            if (!canSubmitWithResubmitRules) {
+              // Keep button clickable; block submit and show validation + a single summary message.
+              const msg =
+                !emailOk
+                  ? "Missing email (must be provided by portal/session)."
+                  : isFutureDate
+                    ? "Future dates aren’t allowed."
+                    : !targetHoursValid
+                      ? "Total hours must be greater than 0."
+                      : !hoursMatch
+                        ? "Allocated task hours must add up to Total hours."
+                        : mileageRequired && !mileageComplete
+                          ? "Mileage must be allocated to match Total km."
+                          : !resubmitReasonOk
+                            ? "Resubmission requires a reason."
+                            : "Please fix the highlighted items before submitting.";
+              setSubmitState({ ok: false, message: msg });
+              return;
+            }
+
+            setSubmitting(true);
 
             if (!emailOk) {
               setSubmitState({ ok: false, message: "Missing email (must be provided by portal/session)." });
