@@ -72,37 +72,34 @@ export async function POST(req: Request) {
 
   try {
     await sendPostmarkEmail({
-    to: email,
-    subject: "You’ve been invited to Pushysix Ops Hub",
-    textBody: `An admin added you to Pushysix Ops Hub. Set your password using this link:\n\n${url}\n\nThis link expires in 24 hours.`,
-    htmlBody: `
-      <p>An admin added you to <strong>Pushysix Ops Hub</strong>.</p>
-      <p><a href="${url}">Set your password</a></p>
-      <p style="color:#666">This link expires in 24 hours.</p>
-    `.trim(),
-    tag: "user-invite",
-  });
+      to: email,
+      subject: "You’ve been invited to Pushysix Ops Hub",
+      textBody: `An admin added you to Pushysix Ops Hub. Set your password using this link:\n\n${url}\n\nThis link expires in 24 hours.`,
+      htmlBody: `
+        <p>An admin added you to <strong>Pushysix Ops Hub</strong>.</p>
+        <p><a href="${url}">Set your password</a></p>
+        <p style="color:#666">This link expires in 24 hours.</p>
+      `.trim(),
+      tag: "user-invite",
+    });
   } catch (err) {
     const msg = typeof (err as any)?.message === "string" ? (err as any).message : String(err);
     const code = (err as any)?.code;
     const statusCode = (err as any)?.statusCode;
 
-    console.error("Invite failed sending Postmark email", { msg, code, statusCode, err });
+    console.error("Invite email blocked (Postmark)", { msg, code, statusCode });
 
-    return NextResponse.json(
-      {
-        ok: false,
-        message:
-          "Invite failed while sending the email. Postmark may be misconfigured or rejecting the sender/domain.",
-        details: {
-          message: msg,
-          code,
-          statusCode,
-        },
-      },
-      { status: 500 }
-    );
+    // Important: token was created successfully. If Postmark is restricted (e.g., pending approval),
+    // return the set-password URL so the admin can manually send it.
+    return NextResponse.json({
+      ok: true,
+      emailSent: false,
+      setPasswordUrl: url,
+      message:
+        "Invite link created, but email could not be sent (Postmark restriction/config). Copy the link below and send it to the user.",
+      details: { message: msg, code, statusCode },
+    });
   }
 
-  return NextResponse.json({ ok: true });
+  return NextResponse.json({ ok: true, emailSent: true });
 }

@@ -123,7 +123,13 @@ export function UsersClient() {
                 throw new Error(detailsMsg ? `${json?.message ?? "Invite failed"} (${detailsMsg})` : json?.message ?? `Invite failed (${res.status})`);
               }
               setEmail("");
-              setStatus("Invite sent.");
+
+              if (json?.emailSent === false && typeof json?.setPasswordUrl === "string") {
+                setStatus(`${json?.message ?? "Invite link created"}\n\nSet-password link: ${json.setPasswordUrl}`);
+              } else {
+                setStatus("Invite sent.");
+              }
+
               await refreshUsers();
             } catch (err) {
               setStatus(err instanceof Error ? err.message : "Invite failed");
@@ -153,7 +159,7 @@ export function UsersClient() {
             {loading ? "Sending…" : "Send invite"}
           </button>
 
-          {status ? <p className="text-sm text-zinc-700">{status}</p> : null}
+          {status ? <p className="text-sm text-zinc-700 whitespace-pre-wrap">{status}</p> : null}
         </form>
       </div>
 
