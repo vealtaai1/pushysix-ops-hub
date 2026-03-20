@@ -170,12 +170,6 @@ export function ApprovalsClient({ initialPending }: { initialPending: PendingRow
                             ) : null}
                           </div>
 
-                          {p.payload ? (
-                            <details>
-                              <summary className="cursor-pointer text-xs font-medium text-zinc-700 hover:underline">Raw payload</summary>
-                              <pre className="mt-2 max-h-60 overflow-auto whitespace-pre-wrap rounded border border-zinc-200 bg-white p-2">{JSON.stringify(p.payload, null, 2)}</pre>
-                            </details>
-                          ) : null}
                         </div>
                       </details>
                     </td>
