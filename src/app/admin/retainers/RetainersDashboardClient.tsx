@@ -345,7 +345,7 @@ export function RetainersDashboardClient({ initialRows }: { initialRows: ClientR
     const burnRateHoursPerDay = totalAllDetailHours / daysElapsed;
     const projectedHours = burnRateHoursPerDay * cycleDays;
 
-    // Semi-monthly cycle gets half of the monthly retainer hours.
+    // Full-month cycles use the full monthly retainer hours.
     const limitHours = (detail.client.monthlyRetainerHours ?? 0) / 2;
     const projectedOverByHours = projectedHours - limitHours;
     const projectedPercentUsed = limitHours > 0 ? (projectedHours / limitHours) * 100 : null;

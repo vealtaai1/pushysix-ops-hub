@@ -366,7 +366,7 @@ export function WorklogForm({
             <div className="h-10 rounded-md border border-zinc-200 bg-zinc-50 px-3 flex items-center text-sm text-zinc-800">
               {emailOk ? email : "(missing email)"}
             </div>
-            {!emailOk ? <div className="text-xs text-red-700">Email is required (provided by portal/session).</div> : null}
+            {showValidation && !emailOk ? <div className="text-xs text-red-700">Email is required (provided by portal/session).</div> : null}
           </div>
 
           <label className="grid gap-1">
@@ -439,9 +439,9 @@ export function WorklogForm({
             <span
               className={
                 "text-xs font-semibold " +
-                (!targetHoursValid
+                (allocatedHours === 0 && targetHours === 0
                   ? "text-zinc-500"
-                  : hoursMatch
+                  : targetHours > 0 && hoursMatch
                     ? "text-emerald-700"
                     : "text-red-700")
               }

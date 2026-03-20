@@ -84,8 +84,8 @@ function parseISO(iso: string): { year: number; month1: number; day: number } {
 }
 
 /**
- * Semi-monthly cycles:
- * - FIRST: 1st–14th, 15th–end of month
+ * Full-month cycles:
+ * - FIRST: 1st–end of month
  * - FIFTEENTH: 15th–14th (spans months)
  */
 export function getRetainerCycleRange(
@@ -97,11 +97,8 @@ export function getRetainerCycleRange(
   const { year, month1, day } = parseISO(refISO);
 
   if (billingCycleStartDay === BillingCycleStartDay.FIRST) {
-    if (day <= 14) {
-      return { startISO: toISODateUTC(year, month1, 1), endISO: toISODateUTC(year, month1, 14) };
-    }
     return {
-      startISO: toISODateUTC(year, month1, 15),
+      startISO: toISODateUTC(year, month1, 1),
       endISO: toISODateUTC(year, month1, lastDayOfMonth(year, month1)),
     };
   }
@@ -141,8 +138,8 @@ export function computeCycleRetainerMinutesLimit(monthlyRetainerHours: number): 
   if (!Number.isFinite(monthlyRetainerHours) || monthlyRetainerHours < 0) {
     throw new Error(`Invalid monthlyRetainerHours: ${monthlyRetainerHours}`);
   }
-  // Semi-monthly cycle = half of the monthly amount.
-  return (monthlyRetainerHours * 60) / 2;
+  // Full-month cycle uses the full monthly retainer hours.
+  return monthlyRetainerHours * 60;
 }
 
 export function computeCapCheck(used: number, limit: number | null): CapCheck {
