@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+import Link from "next/link";
+import Image from "next/image";
 import { Open_Sans } from "next/font/google";
 import "./globals.css";
 import { AuthButtons } from "@/app/_components/AuthButtons";
@@ -27,22 +29,21 @@ export default function RootLayout({
         <div className="min-h-dvh bg-zinc-50 text-zinc-950">
           <header className="border-b border-zinc-200 bg-white">
             <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3">
-              <div className="flex items-center gap-3">
-                {/* Placeholder emblem */}
-                <div
-                  className="h-9 w-9 rounded-md"
-                  style={{
-                    background: "radial-gradient(60% 60% at 50% 40%, var(--brand-gold-2), var(--brand-gold))",
-                    boxShadow: "0 0 0 1px rgba(244,179,26,0.25), 0 10px 30px rgba(0,0,0,0.35)",
-                  }}
-                  title="PushySix"
+              <Link href="/dashboard" className="flex items-center gap-3" aria-label="PushySix Ops Hub">
+                <Image
+                  src="/brand/pushysix-hex.png"
+                  alt="PushySix"
+                  width={36}
+                  height={36}
+                  priority
+                  className="h-9 w-9"
                 />
 
                 <div className="leading-tight">
                   <div className="text-sm font-semibold tracking-wide">PUSHYSIX</div>
                   <div className="text-xs ui-muted">Operations Hub</div>
                 </div>
-              </div>
+              </Link>
 
               <nav className="flex items-center gap-3 text-sm">
                 <BackToDashboard />
