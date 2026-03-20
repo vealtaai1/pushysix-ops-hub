@@ -27,6 +27,7 @@ export default async function AdminRetainersPage() {
       monthlyRetainerHours: true,
       maxShootsPerCycle: true,
       maxCaptureHoursPerCycle: true,
+      clientBillingEmail: true,
     },
   });
 
