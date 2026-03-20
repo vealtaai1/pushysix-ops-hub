@@ -68,6 +68,40 @@ export function UsersClient() {
     }
   }
 
+  async function deleteUser(userId: string) {
+    if (!users) return;
+
+    const target = users.find((u) => u.id === userId);
+    if (!target) return;
+
+    // Guard: don't allow deleting the last admin
+    if (target.role === "ADMIN" && adminsCount <= 1) {
+      setStatus("Can’t delete the last admin.");
+      return;
+    }
+
+    const ok = window.confirm(`Delete user ${target.email}? This will permanently remove the account and related records.`);
+    if (!ok) return;
+
+    const prev = users;
+    setUsers(prev.filter((u) => u.id !== userId));
+
+    try {
+      const res = await fetch("/api/admin/users/delete", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ userId }),
+      });
+      const json = (await res.json().catch(() => null)) as any;
+      if (!res.ok || !json?.ok) throw new Error(json?.message ?? `Delete failed (${res.status})`);
+      setStatus("User deleted.");
+      await refreshUsers();
+    } catch (e) {
+      setUsers(prev);
+      setStatus(e instanceof Error ? e.message : "Delete failed");
+    }
+  }
+
   return (
     <div className="space-y-6">
       <div className="max-w-xl rounded-lg border border-zinc-200 bg-white p-4">
@@ -85,7 +119,8 @@ export function UsersClient() {
               });
               const json = (await res.json().catch(() => null)) as any;
               if (!res.ok || !json?.ok) {
-                throw new Error(json?.message ?? `Invite failed (${res.status})`);
+                const detailsMsg = typeof json?.details?.message === "string" ? json.details.message : null;
+                throw new Error(detailsMsg ? `${json?.message ?? "Invite failed"} (${detailsMsg})` : json?.message ?? `Invite failed (${res.status})`);
               }
               setEmail("");
               setStatus("Invite sent.");
@@ -187,6 +222,15 @@ export function UsersClient() {
                             Make employee
                           </button>
                         )}
+
+                        <button
+                          type="button"
+                          onClick={() => deleteUser(u.id)}
+                          disabled={u.role === "ADMIN" && adminsCount <= 1}
+                          className="h-8 rounded-md border border-red-200 bg-white px-2.5 text-xs font-semibold text-red-700 hover:bg-red-50 disabled:opacity-50"
+                        >
+                          Delete
+                        </button>
                       </div>
                     </td>
                   </tr>

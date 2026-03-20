@@ -83,12 +83,22 @@ export async function POST(req: Request) {
     tag: "user-invite",
   });
   } catch (err) {
-    console.error("Invite failed sending Postmark email", err);
+    const msg = typeof (err as any)?.message === "string" ? (err as any).message : String(err);
+    const code = (err as any)?.code;
+    const statusCode = (err as any)?.statusCode;
+
+    console.error("Invite failed sending Postmark email", { msg, code, statusCode, err });
+
     return NextResponse.json(
       {
         ok: false,
         message:
-          "Invite failed while sending the email. Postmark may be misconfigured or rejecting the sender/domain. Check Vercel logs for the Postmark error.",
+          "Invite failed while sending the email. Postmark may be misconfigured or rejecting the sender/domain.",
+        details: {
+          message: msg,
+          code,
+          statusCode,
+        },
       },
       { status: 500 }
     );
