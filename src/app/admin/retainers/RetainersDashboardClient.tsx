@@ -83,6 +83,14 @@ function badgeClass(kind: "ok" | "warn" | "bad") {
   return "border-zinc-200 bg-white text-zinc-700";
 }
 
+function summaryTileClass(kind: "blue" | "orange" | "red" | "yellow" | "green") {
+  if (kind === "red") return "border-red-200 bg-red-50 text-red-900";
+  if (kind === "orange") return "border-orange-200 bg-orange-50 text-orange-900";
+  if (kind === "yellow") return "border-yellow-200 bg-yellow-50 text-yellow-950";
+  if (kind === "green") return "border-emerald-200 bg-emerald-50 text-emerald-950";
+  return "border-sky-200 bg-sky-50 text-sky-950";
+}
+
 const PIE_COLORS = [
   "#10b981",
   "#3b82f6",
@@ -599,65 +607,92 @@ export function RetainersDashboardClient({ initialRows }: { initialRows: ClientR
                 <div className="space-y-4">
                   {/* High-level cycle summary */}
                   {cycleSummary ? (
-                    <div className="rounded-lg border border-zinc-200 bg-white p-3">
+                    <div className="rounded-lg border border-zinc-200 bg-zinc-50 p-3">
                       <div className="text-sm font-semibold text-zinc-900">Cycle summary</div>
+                      <div className="mt-0.5 text-xs text-zinc-600">
+                        Cycle beginning {new Intl.DateTimeFormat("en-US", { month: "long", day: "numeric", year: "numeric", timeZone: CALGARY_TZ }).format(parseISODateAsUTC(detail.range.startISO))}.
+                      </div>
                       <div className="mt-2 grid gap-2 sm:grid-cols-3">
                         {(() => {
-                          const kind: "ok" | "warn" | "bad" = cycleSummary.total.isOver
-                            ? "bad"
-                            : cycleSummary.total.percentUsed != null && cycleSummary.total.percentUsed >= 90
-                              ? "warn"
-                              : "ok";
+                          let kind: "blue" | "orange" | "red" | "yellow" | "green" = "blue";
+
+                          if (cycleSummary.total.isOver) {
+                            kind = "red";
+                          } else if (burnProjection && burnProjection.projectedOverByHours > 0) {
+                            kind = "orange";
+                          } else if (burnProjection) {
+                            const expected = burnProjection.limitHours * (burnProjection.daysElapsed / burnProjection.cycleDays);
+                            const low = expected * 0.8;
+                            const high = expected * 1.2;
+                            kind = cycleSummary.total.usedHours < low ? "yellow" : cycleSummary.total.usedHours > high ? "orange" : "green";
+                          } else {
+                            kind = "blue";
+                          }
+
                           return (
-                            <div className={"rounded-md border px-3 py-2 " + badgeClass(kind)}>
+                            <div className={"rounded-md border px-3 py-2 " + summaryTileClass(kind)}>
                               <div className="text-xs font-semibold">Total hours</div>
                               <div className="mt-0.5 text-sm font-semibold">
                                 {fmtHours(cycleSummary.total.usedHours)}h / {fmtHours(cycleSummary.total.limitHours)}h
                               </div>
                               {cycleSummary.total.percentUsed != null ? (
-                                <div className="text-xs text-zinc-600">{Math.round(cycleSummary.total.percentUsed)}% used</div>
+                                <div className="text-xs opacity-80">{Math.round(cycleSummary.total.percentUsed)}% used</div>
                               ) : null}
                             </div>
                           );
                         })()}
 
                         {(() => {
-                          const kind: "ok" | "warn" | "bad" = cycleSummary.capture.isOver
-                            ? "bad"
-                            : cycleSummary.capture.percentUsed != null && cycleSummary.capture.percentUsed >= 90
-                              ? "warn"
-                              : "ok";
+                          let kind: "blue" | "orange" | "red" | "yellow" | "green" = "blue";
+
+                          if (cycleSummary.capture.limitHours == null) {
+                            kind = "blue";
+                          } else if (cycleSummary.capture.isOver) {
+                            kind = "red";
+                          } else if (cycleSummary.capture.percentUsed != null && cycleSummary.capture.percentUsed >= 90) {
+                            kind = "orange";
+                          } else {
+                            kind = "green";
+                          }
+
                           return (
-                            <div className={"rounded-md border px-3 py-2 " + badgeClass(kind)}>
+                            <div className={"rounded-md border px-3 py-2 " + summaryTileClass(kind)}>
                               <div className="text-xs font-semibold">Capture hours</div>
                               <div className="mt-0.5 text-sm font-semibold">
                                 {fmtHours(cycleSummary.capture.usedHours)}h / {cycleSummary.capture.limitHours == null ? "—" : `${fmtHours(cycleSummary.capture.limitHours)}h`}
                               </div>
                               {cycleSummary.capture.percentUsed != null ? (
-                                <div className="text-xs text-zinc-600">{Math.round(cycleSummary.capture.percentUsed)}% used</div>
+                                <div className="text-xs opacity-80">{Math.round(cycleSummary.capture.percentUsed)}% used</div>
                               ) : (
-                                <div className="text-xs text-zinc-600">No cap</div>
+                                <div className="text-xs opacity-80">No cap</div>
                               )}
                             </div>
                           );
                         })()}
 
                         {(() => {
-                          const kind: "ok" | "warn" | "bad" = cycleSummary.shoots.isOver
-                            ? "bad"
-                            : cycleSummary.shoots.percentUsed != null && cycleSummary.shoots.percentUsed >= 90
-                              ? "warn"
-                              : "ok";
+                          let kind: "blue" | "orange" | "red" | "yellow" | "green" = "blue";
+
+                          if (cycleSummary.shoots.limit == null) {
+                            kind = "blue";
+                          } else if (cycleSummary.shoots.isOver) {
+                            kind = "red";
+                          } else if (cycleSummary.shoots.percentUsed != null && cycleSummary.shoots.percentUsed >= 90) {
+                            kind = "orange";
+                          } else {
+                            kind = "green";
+                          }
+
                           return (
-                            <div className={"rounded-md border px-3 py-2 " + badgeClass(kind)}>
+                            <div className={"rounded-md border px-3 py-2 " + summaryTileClass(kind)}>
                               <div className="text-xs font-semibold">Shoots</div>
                               <div className="mt-0.5 text-sm font-semibold">
                                 {cycleSummary.shoots.used} / {cycleSummary.shoots.limit == null ? "—" : cycleSummary.shoots.limit}
                               </div>
                               {cycleSummary.shoots.percentUsed != null ? (
-                                <div className="text-xs text-zinc-600">{Math.round(cycleSummary.shoots.percentUsed)}% used</div>
+                                <div className="text-xs opacity-80">{Math.round(cycleSummary.shoots.percentUsed)}% used</div>
                               ) : (
-                                <div className="text-xs text-zinc-600">No cap</div>
+                                <div className="text-xs opacity-80">No cap</div>
                               )}
                             </div>
                           );

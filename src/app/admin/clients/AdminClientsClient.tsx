@@ -187,7 +187,7 @@ export function AdminClientsClient({ initialClients }: { initialClients: AdminCl
                   <button
                     type="button"
                     onClick={() => setShowDelete((v) => !v)}
-                    className="h-9 rounded-md border border-red-300 bg-white px-3 text-sm font-semibold text-red-800 hover:bg-red-100"
+                    className="h-9 rounded-md border border-red-300 bg-white px-3 text-sm font-semibold text-red-800 hover:bg-red-100 whitespace-nowrap"
                   >
                     {showDelete ? "Cancel" : "Delete client"}
                   </button>
