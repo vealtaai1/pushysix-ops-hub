@@ -291,9 +291,9 @@ export function ScheduleCalendar({ months }: { months: ScheduleMonth[] }) {
         {activeMonth ? (
           <section
             key={`${activeMonth.yyyy}-${activeMonth.monthIndex0}`}
-            className="overflow-hidden rounded-lg border border-zinc-200"
+            className="overflow-x-auto rounded-lg border border-zinc-200"
           >
-            <div className="grid grid-cols-7 gap-px bg-zinc-200">
+            <div className="grid min-w-[420px] grid-cols-7 gap-px bg-zinc-200 sm:min-w-0">
               {weekdayLabels.map((w) => (
                 <div key={w} className="bg-white px-2 py-2 text-center text-xs font-semibold text-zinc-600">
                   {w}
@@ -309,7 +309,7 @@ export function ScheduleCalendar({ months }: { months: ScheduleMonth[] }) {
                     type="button"
                     disabled={isFuture}
                     className={
-                      "relative min-h-14 bg-white p-2 text-left text-sm outline-none focus:ring-2 focus:ring-[#2EA3F2] disabled:cursor-not-allowed disabled:opacity-40 " +
+                      "relative min-h-12 bg-white p-1 text-left text-sm outline-none focus:ring-2 focus:ring-[#2EA3F2] disabled:cursor-not-allowed disabled:opacity-40 sm:min-h-14 sm:p-2 " +
                       (d.inMonth ? "" : "opacity-50 ")
                     }
                     onClick={() => {
@@ -318,9 +318,11 @@ export function ScheduleCalendar({ months }: { months: ScheduleMonth[] }) {
                     }}
                     title={isFuture ? "Future dates can’t be logged yet." : undefined}
                   >
-                    <div className={"inline-flex items-center gap-2 rounded-md border px-2 py-1 " + classForState(d.state)}>
-                      <span className="text-xs font-semibold">{d.dayNumber}</span>
-                      {d.state.label ? <span className="text-[11px] text-zinc-700">{d.state.label}</span> : null}
+                    <div className={"flex min-w-0 items-center gap-2 rounded-md border px-1 py-1 sm:px-2 " + classForState(d.state)}>
+                      <span className="shrink-0 text-xs font-semibold">{d.dayNumber}</span>
+                      {d.state.label ? (
+                        <span className="hidden truncate text-[11px] text-zinc-700 sm:inline">{d.state.label}</span>
+                      ) : null}
                     </div>
                   </button>
                 );

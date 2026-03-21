@@ -118,3 +118,61 @@ export async function createClient(
 
   return { ok: true, message: "Client created." };
 }
+
+export type DeleteClientState = {
+  ok: boolean;
+  message?: string;
+};
+
+export async function deleteClient(
+  _prevState: DeleteClientState,
+  formData: FormData
+): Promise<DeleteClientState> {
+  try {
+    await requireAdminOrThrow({ message: "Unauthorized: admin access required to delete a client." });
+  } catch (e) {
+    return {
+      ok: false,
+      message:
+        e instanceof Error ? e.message : "Unauthorized: admin access required to delete a client.",
+    };
+  }
+
+  const clientId = asString(formData.get("clientId")).trim();
+  const confirmWord = asString(formData.get("confirmWord")).trim();
+  const confirmName = asString(formData.get("confirmName")).trim();
+
+  if (!clientId) return { ok: false, message: "clientId is required" };
+
+  if (confirmWord !== "DELETE") {
+    return { ok: false, message: "Confirmation required: type DELETE." };
+  }
+
+  const client = await prisma.client.findUnique({ where: { id: clientId }, select: { id: true, name: true } });
+  if (!client) return { ok: false, message: "Client not found." };
+
+  if (confirmName !== client.name) {
+    return { ok: false, message: `Confirmation required: type the exact client name (${client.name}).` };
+  }
+
+  // Safety: don't allow hard-deleting clients that have logged time/mileage against them.
+  const [worklogEntryCount, mileageEntryCount] = await Promise.all([
+    prisma.worklogEntry.count({ where: { clientId } }),
+    prisma.mileageEntry.count({ where: { clientId } }),
+  ]);
+
+  if (worklogEntryCount > 0 || mileageEntryCount > 0) {
+    return {
+      ok: false,
+      message:
+        "Cannot delete: this client has worklog/mileage history. Put the client ON_HOLD instead (or migrate history first).",
+    };
+  }
+
+  await prisma.client.delete({ where: { id: clientId } });
+
+  revalidatePath("/admin/clients");
+  revalidatePath("/admin/retainers");
+
+  return { ok: true, message: "Client deleted." };
+}

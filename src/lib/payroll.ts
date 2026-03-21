@@ -47,7 +47,10 @@ export function parseISODateOnlyToUTCNoon(iso: string): Date | null {
  * - We align to the Monday of the week containing 2025-01-06.
  *   If payroll alignment ever changes, update this constant.
  */
-const BIWEEKLY_ANCHOR_MON = new Date(Date.UTC(2025, 0, 6, 12, 0, 0, 0));
+// NOTE: This anchor determines the entire 14-day cadence.
+// It must line up so that paydays fall on the expected Fridays.
+// Verified: with an anchor of 2025-01-13 (Mon), payday for the period ending 2026-03-22 is 2026-03-27.
+const BIWEEKLY_ANCHOR_MON = new Date(Date.UTC(2025, 0, 13, 12, 0, 0, 0));
 
 export function getBiweeklyPayPeriods(params: { count: number; includeCurrent?: boolean; now?: Date }): PayPeriod[] {
   const now = params.now ?? new Date();

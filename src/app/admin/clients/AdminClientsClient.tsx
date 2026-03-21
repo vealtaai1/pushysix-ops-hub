@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { updateClientRetainerBasics } from "@/app/admin/retainers/actions";
+import { deleteClient, type DeleteClientState } from "./actions";
 
 export type AdminClientRow = {
   id: string;
@@ -16,6 +17,29 @@ export type AdminClientRow = {
 
 export function AdminClientsClient({ initialClients }: { initialClients: AdminClientRow[] }) {
   const [selected, setSelected] = React.useState<AdminClientRow | null>(null);
+
+  const deleteInit: DeleteClientState = { ok: false };
+  const [deleteState, deleteAction, deletePending] = React.useActionState(deleteClient, deleteInit);
+
+  const [showDelete, setShowDelete] = React.useState(false);
+  const [confirmWord, setConfirmWord] = React.useState("");
+  const [confirmName, setConfirmName] = React.useState("");
+
+  React.useEffect(() => {
+    if (!selected) {
+      setShowDelete(false);
+      setConfirmWord("");
+      setConfirmName("");
+    }
+  }, [selected]);
+
+  React.useEffect(() => {
+    if (deleteState.ok) {
+      setSelected(null);
+      // Force refresh so the list reflects deletion.
+      window.location.reload();
+    }
+  }, [deleteState.ok]);
 
   return (
     <>
@@ -151,6 +175,83 @@ export function AdminClientsClient({ initialClients }: { initialClients: AdminCl
                   Note: after saving, refresh the Clients page to see the updated values.
                 </div>
               </form>
+
+              <div className="mt-6 rounded-lg border border-red-200 bg-red-50 p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <div className="text-sm font-semibold text-red-900">Danger zone</div>
+                    <div className="mt-0.5 text-xs text-red-800">
+                      Deleting a client is permanent. This is blocked if any worklogs/mileage exist.
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowDelete((v) => !v)}
+                    className="h-9 rounded-md border border-red-300 bg-white px-3 text-sm font-semibold text-red-800 hover:bg-red-100"
+                  >
+                    {showDelete ? "Cancel" : "Delete client"}
+                  </button>
+                </div>
+
+                {showDelete ? (
+                  <form action={deleteAction} className="mt-4 grid gap-3">
+                    <input type="hidden" name="clientId" value={selected.id} />
+
+                    <label className="grid gap-1">
+                      <span className="text-xs font-semibold text-red-900">Type DELETE to confirm</span>
+                      <input
+                        name="confirmWord"
+                        value={confirmWord}
+                        onChange={(e) => setConfirmWord(e.target.value)}
+                        className="h-10 rounded-md border border-red-300 bg-white px-3"
+                        placeholder="DELETE"
+                        autoComplete="off"
+                      />
+                    </label>
+
+                    <label className="grid gap-1">
+                      <span className="text-xs font-semibold text-red-900">Type the client name to confirm</span>
+                      <input
+                        name="confirmName"
+                        value={confirmName}
+                        onChange={(e) => setConfirmName(e.target.value)}
+                        className="h-10 rounded-md border border-red-300 bg-white px-3"
+                        placeholder={selected.name}
+                        autoComplete="off"
+                      />
+                    </label>
+
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="text-xs">
+                        {deleteState.message ? (
+                          <span className={deleteState.ok ? "text-emerald-700" : "text-red-800"}>
+                            {deleteState.message}
+                          </span>
+                        ) : (
+                          <span className="text-red-800/70">&nbsp;</span>
+                        )}
+                      </div>
+
+                      <button
+                        type="submit"
+                        disabled={
+                          deletePending || confirmWord !== "DELETE" || confirmName !== selected.name
+                        }
+                        className={
+                          "h-10 rounded-md px-4 text-sm font-semibold text-white " +
+                          (deletePending
+                            ? "bg-red-300"
+                            : confirmWord === "DELETE" && confirmName === selected.name
+                              ? "bg-red-700 hover:opacity-90"
+                              : "bg-red-300")
+                        }
+                      >
+                        {deletePending ? "Deleting…" : "Permanently delete"}
+                      </button>
+                    </div>
+                  </form>
+                ) : null}
+              </div>
             </div>
           </div>
         </div>

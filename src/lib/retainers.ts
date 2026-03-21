@@ -16,7 +16,7 @@ export type WorklogEntryLike = {
 };
 
 export type RetainerCaps = {
-  /** Monthly retainer hours from the contract. Each semi-monthly cycle uses half. */
+  /** Monthly retainer hours from the contract. Applied per billing cycle (full-month cycle). */
   monthlyRetainerHours: number;
   /** Optional caps per cycle */
   maxShootsPerCycle?: number | null;
