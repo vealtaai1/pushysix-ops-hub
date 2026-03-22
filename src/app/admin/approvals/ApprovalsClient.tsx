@@ -183,7 +183,7 @@ export function ApprovalsClient({ initialPending }: { initialPending: PendingRow
                             <tr className="text-left text-xs text-zinc-600">
                               <th className="border-b border-zinc-200 px-2 py-1.5">Client</th>
                               <th className="border-b border-zinc-200 px-2 py-1.5">Category</th>
-                              <th className="border-b border-zinc-200 px-2 py-1.5">Minutes</th>
+                              <th className="border-b border-zinc-200 px-2 py-1.5">Hours</th>
                               <th className="border-b border-zinc-200 px-2 py-1.5">Notes</th>
                             </tr>
                           </thead>
@@ -192,7 +192,7 @@ export function ApprovalsClient({ initialPending }: { initialPending: PendingRow
                               <tr key={e.id} className="text-sm align-top">
                                 <td className="border-b border-zinc-100 px-2 py-1.5">{e.client?.name ?? "—"}</td>
                                 <td className="border-b border-zinc-100 px-2 py-1.5">{e.bucketName ?? e.bucketKey ?? "—"}</td>
-                                <td className="border-b border-zinc-100 px-2 py-1.5">{e.minutes}</td>
+                                <td className="border-b border-zinc-100 px-2 py-1.5">{(Number(e.minutes ?? 0) / 60).toFixed(2)}h</td>
                                 <td className="border-b border-zinc-100 px-2 py-1.5 text-zinc-700">{e.notes ?? "—"}</td>
                               </tr>
                             ))}
