@@ -181,7 +181,7 @@ export function AdminClientsClient({ initialClients }: { initialClients: AdminCl
                   <div>
                     <div className="text-sm font-semibold text-red-900">Danger zone</div>
                     <div className="mt-0.5 text-xs text-red-800">
-                      Deleting a client is permanent. This is blocked if any worklogs/mileage exist.
+                      Deleting a client is permanent. This will also delete any worklog entries and mileage entries tied to this client.
                     </div>
                   </div>
                   <button

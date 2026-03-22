@@ -155,21 +155,36 @@ export async function deleteClient(
     return { ok: false, message: `Confirmation required: type the exact client name (${client.name}).` };
   }
 
-  // Safety: don't allow hard-deleting clients that have logged time/mileage against them.
-  const [worklogEntryCount, mileageEntryCount] = await Promise.all([
-    prisma.worklogEntry.count({ where: { clientId } }),
-    prisma.mileageEntry.count({ where: { clientId } }),
-  ]);
+  // Hard-delete is allowed even when history exists; we remove client-linked history first.
+  await prisma.$transaction(async (tx) => {
+    const [entryLinks, mileageLinks] = await Promise.all([
+      tx.worklogEntry.findMany({ where: { clientId }, select: { worklogId: true } }),
+      tx.mileageEntry.findMany({ where: { clientId }, select: { worklogId: true } }),
+    ]);
 
-  if (worklogEntryCount > 0 || mileageEntryCount > 0) {
-    return {
-      ok: false,
-      message:
-        "Cannot delete: this client has worklog/mileage history. Put the client ON_HOLD instead (or migrate history first).",
-    };
-  }
+    const touchedWorklogIds = Array.from(
+      new Set<string>([...entryLinks.map((r) => r.worklogId), ...mileageLinks.map((r) => r.worklogId)])
+    );
 
-  await prisma.client.delete({ where: { id: clientId } });
+    await Promise.all([
+      tx.worklogEntry.deleteMany({ where: { clientId } }),
+      tx.mileageEntry.deleteMany({ where: { clientId } }),
+    ]);
+
+    // Cleanup: if any worklogs are now empty (no entries + no mileage), delete them.
+    if (touchedWorklogIds.length > 0) {
+      const worklogs = await tx.worklog.findMany({
+        where: { id: { in: touchedWorklogIds } },
+        select: { id: true, _count: { select: { entries: true, mileage: true } } },
+      });
+      const emptyIds = worklogs.filter((w) => w._count.entries === 0 && w._count.mileage === 0).map((w) => w.id);
+      if (emptyIds.length > 0) {
+        await tx.worklog.deleteMany({ where: { id: { in: emptyIds } } });
+      }
+    }
+
+    await tx.client.delete({ where: { id: clientId } });
+  });
 
   revalidatePath("/admin/clients");
   revalidatePath("/admin/retainers");
