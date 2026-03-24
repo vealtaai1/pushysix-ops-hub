@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 
+import { Prisma } from "@prisma/client";
+
 import { requireAdminOrAccountManagerOrThrow } from "@/lib/adminAuth";
 import { parseISODateOnly } from "@/lib/calgaryTime";
 import { prisma } from "@/lib/db";
@@ -32,6 +34,12 @@ function isoToUTCDate(iso: string): Date {
   const p = parseISODateOnly(iso);
   if (!p) throw new Error("Invalid ISO date");
   return new Date(Date.UTC(p.year, p.month - 1, p.day, 0, 0, 0, 0));
+}
+
+function toNum(v: unknown): number {
+  if (typeof v === "bigint") return Number(v);
+  if (v == null) return 0;
+  return Number(v);
 }
 
 export async function GET(req: Request) {
@@ -67,95 +75,114 @@ export async function GET(req: Request) {
   const toDateExclusive = new Date(toDateInclusive);
   toDateExclusive.setUTCDate(toDateExclusive.getUTCDate() + 1);
 
-  const whereEntries: any = {
-    worklog: {
-      workDate: {
-        gte: fromDate,
-        lt: toDateExclusive,
-      },
-    },
+  const whereSql = Prisma.sql`
+    w."workDate" >= ${fromDate} AND w."workDate" < ${toDateExclusive}
+    ${clientId ? Prisma.sql`AND e."clientId" = ${clientId}` : Prisma.empty}
+    ${bucketKey ? Prisma.sql`AND e."bucketKey" = ${bucketKey}` : Prisma.empty}
+    ${userId ? Prisma.sql`AND w."userId" = ${userId}` : Prisma.empty}
+  `;
+
+  const fromJoin = Prisma.sql`
+    FROM "WorklogEntry" e
+    JOIN "Worklog" w ON w.id = e."worklogId"
+    JOIN "Client" c ON c.id = e."clientId"
+    JOIN "User" u ON u.id = w."userId"
+    WHERE ${whereSql}
+  `;
+
+  const [totalsRow, byDayRows, byClientRows, byBucketRows, byUserRows, byProjectRows] = await Promise.all([
+    prisma
+      .$queryRaw<
+        Array<{
+          totalMinutes: bigint | number | null;
+          entryCount: bigint | number;
+          distinctClients: bigint | number;
+          distinctUsers: bigint | number;
+        }>
+      >(Prisma.sql`
+        SELECT
+          COALESCE(SUM(e.minutes), 0) AS "totalMinutes",
+          COUNT(*) AS "entryCount",
+          COUNT(DISTINCT e."clientId") AS "distinctClients",
+          COUNT(DISTINCT w."userId") AS "distinctUsers"
+        ${fromJoin}
+      `)
+      .then((r) => r[0]!),
+
+    prisma.$queryRaw<Array<{ date: string; minutes: bigint | number | null }>>(Prisma.sql`
+      SELECT
+        TO_CHAR(w."workDate" AT TIME ZONE 'UTC', 'YYYY-MM-DD') AS date,
+        COALESCE(SUM(e.minutes), 0) AS minutes
+      ${fromJoin}
+      GROUP BY 1
+      ORDER BY 1 ASC
+    `),
+
+    prisma.$queryRaw<Array<{ clientId: string; clientName: string; minutes: bigint | number | null }>>(Prisma.sql`
+      SELECT
+        e."clientId" AS "clientId",
+        c.name AS "clientName",
+        COALESCE(SUM(e.minutes), 0) AS minutes
+      ${fromJoin}
+      GROUP BY e."clientId", c.name
+      ORDER BY minutes DESC
+    `),
+
+    prisma.$queryRaw<Array<{ bucketKey: string; bucketName: string | null; minutes: bigint | number | null }>>(Prisma.sql`
+      SELECT
+        e."bucketKey" AS "bucketKey",
+        MAX(e."bucketName") AS "bucketName",
+        COALESCE(SUM(e.minutes), 0) AS minutes
+      ${fromJoin}
+      GROUP BY e."bucketKey"
+      ORDER BY minutes DESC
+    `),
+
+    prisma.$queryRaw<
+      Array<{ userId: string; userName: string | null; userEmail: string | null; minutes: bigint | number | null }>
+    >(Prisma.sql`
+      SELECT
+        w."userId" AS "userId",
+        u.name AS "userName",
+        u.email AS "userEmail",
+        COALESCE(SUM(e.minutes), 0) AS minutes
+      ${fromJoin}
+      GROUP BY w."userId", u.name, u.email
+      ORDER BY minutes DESC
+    `),
+
+    prisma.$queryRaw<
+      Array<{
+        projectKey: string;
+        clientId: string;
+        clientName: string;
+        bucketKey: string;
+        bucketName: string | null;
+        minutes: bigint | number | null;
+      }>
+    >(Prisma.sql`
+      SELECT
+        (e."clientId" || '::' || e."bucketKey") AS "projectKey",
+        e."clientId" AS "clientId",
+        c.name AS "clientName",
+        e."bucketKey" AS "bucketKey",
+        MAX(e."bucketName") AS "bucketName",
+        COALESCE(SUM(e.minutes), 0) AS minutes
+      ${fromJoin}
+      GROUP BY e."clientId", c.name, e."bucketKey"
+      ORDER BY minutes DESC
+    `),
+  ]);
+
+  const totals = {
+    totalMinutes: toNum(totalsRow.totalMinutes),
+    entryCount: toNum(totalsRow.entryCount),
+    distinctClients: toNum(totalsRow.distinctClients),
+    distinctUsers: toNum(totalsRow.distinctUsers),
   };
 
-  if (clientId) whereEntries.clientId = clientId;
-  if (bucketKey) whereEntries.bucketKey = bucketKey;
-  if (userId) whereEntries.worklog.userId = userId;
-
-  const entries = await prisma.worklogEntry.findMany({
-    where: whereEntries,
-    select: {
-      minutes: true,
-      bucketKey: true,
-      bucketName: true,
-      clientId: true,
-      client: { select: { name: true } },
-      worklog: {
-        select: {
-          workDate: true,
-          userId: true,
-          user: { select: { name: true, email: true } },
-        },
-      },
-    },
-  });
-
-  // Aggregate in-memory (fine for initial skeleton). If this grows, convert to SQL aggregates.
-  const totalMinutes = entries.reduce((sum, e) => sum + (e.minutes ?? 0), 0);
-
   const dayMap = new Map<string, number>();
-  const clientMap = new Map<string, { clientId: string; clientName: string; minutes: number }>();
-  const bucketMap = new Map<string, { bucketKey: string; bucketName: string; minutes: number }>();
-  const users = new Set<string>();
-  const userMap = new Map<string, { userId: string; userName: string | null; userEmail: string | null; minutes: number }>();
-  const projectMap = new Map<
-    string,
-    {
-      projectKey: string;
-      clientId: string;
-      clientName: string;
-      bucketKey: string;
-      bucketName: string;
-      minutes: number;
-    }
-  >();
-
-  for (const e of entries) {
-    const d = e.worklog.workDate;
-    const date = d.toISOString().slice(0, 10);
-    dayMap.set(date, (dayMap.get(date) ?? 0) + e.minutes);
-
-    const cId = e.clientId;
-    const cName = e.client?.name ?? cId;
-    const c = clientMap.get(cId) ?? { clientId: cId, clientName: cName, minutes: 0 };
-    c.minutes += e.minutes;
-    clientMap.set(cId, c);
-
-    const bKey = e.bucketKey;
-    const bName = e.bucketName ?? bKey;
-    const b = bucketMap.get(bKey) ?? { bucketKey: bKey, bucketName: bName, minutes: 0 };
-    b.minutes += e.minutes;
-    bucketMap.set(bKey, b);
-
-    const uId = e.worklog.userId;
-    const uName = e.worklog.user?.name ?? null;
-    const uEmail = e.worklog.user?.email ?? null;
-    const u = userMap.get(uId) ?? { userId: uId, userName: uName, userEmail: uEmail, minutes: 0 };
-    u.minutes += e.minutes;
-    userMap.set(uId, u);
-
-    const projectKey = `${cId}::${bKey}`;
-    const p = projectMap.get(projectKey) ?? {
-      projectKey,
-      clientId: cId,
-      clientName: cName,
-      bucketKey: bKey,
-      bucketName: bName,
-      minutes: 0,
-    };
-    p.minutes += e.minutes;
-    projectMap.set(projectKey, p);
-
-    users.add(uId);
-  }
+  for (const r of byDayRows) dayMap.set(r.date, toNum(r.minutes));
 
   // Ensure empty days show as 0 for the selected range.
   const minutesByDay: Array<{ date: string; minutes: number }> = [];
@@ -171,21 +198,39 @@ export async function GET(req: Request) {
     }
   }
 
-  const minutesByClient = Array.from(clientMap.values()).sort((a, b) => b.minutes - a.minutes);
-  const minutesByBucket = Array.from(bucketMap.values()).sort((a, b) => b.minutes - a.minutes);
-  const minutesByUser = Array.from(userMap.values()).sort((a, b) => b.minutes - a.minutes);
-  const minutesByProject = Array.from(projectMap.values()).sort((a, b) => b.minutes - a.minutes);
+  const minutesByClient = byClientRows.map((r) => ({
+    clientId: r.clientId,
+    clientName: r.clientName ?? r.clientId,
+    minutes: toNum(r.minutes),
+  }));
+
+  const minutesByBucket = byBucketRows.map((r) => ({
+    bucketKey: r.bucketKey,
+    bucketName: r.bucketName ?? r.bucketKey,
+    minutes: toNum(r.minutes),
+  }));
+
+  const minutesByUser = byUserRows.map((r) => ({
+    userId: r.userId,
+    userName: r.userName ?? null,
+    userEmail: r.userEmail ?? null,
+    minutes: toNum(r.minutes),
+  }));
+
+  const minutesByProject = byProjectRows.map((r) => ({
+    projectKey: r.projectKey,
+    clientId: r.clientId,
+    clientName: r.clientName ?? r.clientId,
+    bucketKey: r.bucketKey,
+    bucketName: r.bucketName ?? r.bucketKey,
+    minutes: toNum(r.minutes),
+  }));
 
   return NextResponse.json(
     {
       ok: true,
       range: { from: fromISO, to: toISO },
-      totals: {
-        totalMinutes,
-        entryCount: entries.length,
-        distinctClients: clientMap.size,
-        distinctUsers: users.size,
-      },
+      totals,
       appliedFilters: {
         clientId,
         bucketKey,
