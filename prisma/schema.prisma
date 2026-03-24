@@ -179,6 +179,9 @@ model Project {
   // Expenses
   expenseEntries ExpenseEntry[]
 
+  // Emails
+  projectCloseBillingEmails ProjectCloseBillingEmail[]
+
   @@unique([clientId, code])
   @@index([clientId])
   @@index([status])
