@@ -13,6 +13,7 @@ datasource db {
 
 enum UserRole {
   EMPLOYEE
+  ACCOUNT_MANAGER
   ADMIN
 }
 
@@ -49,6 +50,27 @@ enum ApprovalStatus {
   PENDING
   APPROVED
   REJECTED
+}
+
+enum EmailSendStatus {
+  PENDING
+  SENT
+  FAILED
+}
+
+enum ExpenseEntryStatus {
+  DRAFT
+  SUBMITTED
+  APPROVED
+  REJECTED
+  PAID
+  POSTED
+}
+
+enum ExpenseEntryKind {
+  MANUAL
+  EMPLOYEE_SUBMISSION
+  RETAINER_RECURRING
 }
 
 model User {
@@ -91,6 +113,10 @@ model User {
 
   // Equipment sign-out
   equipmentLoans EquipmentLoan[]
+
+  // Expenses
+  expenseEntriesSubmitted   ExpenseEntry[] @relation("ExpenseEntriesSubmittedBy")
+  expenseEntriesForEmployee ExpenseEntry[] @relation("ExpenseEntriesForEmployee")
 }
 
 model Client {
@@ -117,11 +143,120 @@ model Client {
   updatedAt DateTime @updatedAt
 
   retainerCycles RetainerCycle[]
+  projects       Project[]
+  adSpendItems   RetainerAdSpendItem[]
   quotaItems     ClientQuotaItem[]
   worklogEntries WorklogEntry[]
   mileageEntries MileageEntry[]
 
+  // Expenses
+  expenseEntries ExpenseEntry[]
+
   @@index([status])
+}
+
+enum ProjectStatus {
+  OPEN
+  CLOSED
+}
+
+model Project {
+  id       String @id @default(cuid())
+  clientId String
+
+  name      String
+  code      String
+  shortCode String @unique
+
+  status   ProjectStatus @default(OPEN)
+  closedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  // Expenses
+  expenseEntries ExpenseEntry[]
+
+  @@unique([clientId, code])
+  @@index([clientId])
+  @@index([status])
+}
+
+model ProjectCloseBillingEmail {
+  id             String   @id @default(cuid())
+  projectId       String
+  projectClosedAt DateTime?
+
+  // `${projectId}:${projectClosedAt.toISOString()}`
+  dedupeKey String @unique
+
+  toEmail  String
+  ccEmail  String?
+  subject  String?
+  status   EmailSendStatus @default(PENDING)
+
+  provider          String?
+  providerMessageId String?
+
+  errorMessage String?
+  sentAt       DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, projectClosedAt])
+  @@index([projectId])
+  @@index([sentAt])
+}
+
+model ExpenseEntry {
+  id       String @id @default(cuid())
+  clientId String
+
+  projectId String?
+
+  submittedByUserId String?
+  employeeId        String?
+
+  kind   ExpenseEntryKind
+  status ExpenseEntryStatus @default(DRAFT)
+
+  // stored as a date (normalized to midnight UTC in app code)
+  expenseDate DateTime
+
+  vendor      String?
+  description String
+  notes       String?
+
+  // CAD only (per product decision)
+  amountCents Int
+  currency    String @default("CAD")
+
+  reimburseToEmployee Boolean @default(false)
+
+  receiptUrl              String?
+  receiptOriginalFilename String?
+  receiptMimeType         String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  project Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
+
+  submittedByUser User? @relation("ExpenseEntriesSubmittedBy", fields: [submittedByUserId], references: [id], onDelete: SetNull)
+  employee        User? @relation("ExpenseEntriesForEmployee", fields: [employeeId], references: [id], onDelete: SetNull)
+
+  @@index([clientId, expenseDate])
+  @@index([projectId])
+  @@index([submittedByUserId, expenseDate])
+  @@index([employeeId, expenseDate])
+  @@index([status])
+  @@index([kind])
 }
 
 enum QuotaUsageMode {
@@ -166,6 +301,7 @@ model RetainerCycle {
 
   client       Client        @relation(fields: [clientId], references: [id], onDelete: Cascade)
   bucketLimits BucketLimit[]
+  adSpendItems RetainerAdSpendItem[]
 
   @@index([clientId, startDate])
 }
@@ -183,6 +319,30 @@ model BucketLimit {
   retainerCycle RetainerCycle @relation(fields: [retainerCycleId], references: [id], onDelete: Cascade)
 
   @@unique([retainerCycleId, bucketKey])
+}
+
+model RetainerAdSpendItem {
+  id              String @id @default(cuid())
+  clientId        String
+  retainerCycleId String
+
+  // Stable key for platform rows (e.g. meta, google)
+  platformKey  String
+  platformName String
+
+  // Amounts for the cycle
+  quotaCents  Int @default(0)
+  actualCents Int @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  client       Client       @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  retainerCycle RetainerCycle @relation(fields: [retainerCycleId], references: [id], onDelete: Cascade)
+
+  @@unique([retainerCycleId, platformKey])
+  @@index([clientId])
+  @@index([retainerCycleId])
 }
 
 model Worklog {

@@ -6,6 +6,7 @@ import "./globals.css";
 import { AuthButtons } from "@/app/_components/AuthButtons";
 import { BackToDashboard } from "@/app/_components/BackToDashboard";
 import { AdminSwitchServer } from "@/app/_components/AdminSwitchServer";
+import { OpsNavLink } from "@/app/_components/OpsNavLink";
 
 const openSans = Open_Sans({
   subsets: ["latin"],
@@ -46,6 +47,7 @@ export default function RootLayout({
               </Link>
 
               <nav className="flex items-center gap-3 text-sm">
+                <OpsNavLink />
                 <BackToDashboard />
                 <AdminSwitchServer />
                 <AuthButtons />

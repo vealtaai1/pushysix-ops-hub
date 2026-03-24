@@ -2,13 +2,19 @@
 
 import { useEffect, useMemo, useState } from "react";
 
+import type { UserRole } from "@prisma/client";
+
 type UserRow = {
   id: string;
   email: string;
   name: string | null;
-  role: "ADMIN" | "EMPLOYEE";
+  role: UserRole;
   createdAt: string;
 };
+
+const ROLE_ADMIN = "ADMIN" as unknown as UserRole;
+const ROLE_EMPLOYEE = "EMPLOYEE" as unknown as UserRole;
+const ROLE_ACCOUNT_MANAGER = "ACCOUNT_MANAGER" as unknown as UserRole;
 
 export function UsersClient() {
   const [email, setEmail] = useState("");
@@ -18,7 +24,7 @@ export function UsersClient() {
   const [users, setUsers] = useState<UserRow[] | null>(null);
   const [usersLoading, setUsersLoading] = useState(false);
 
-  const adminsCount = useMemo(() => (users ? users.filter((u) => u.role === "ADMIN").length : 0), [users]);
+  const adminsCount = useMemo(() => (users ? users.filter((u) => u.role === ROLE_ADMIN).length : 0), [users]);
 
   async function refreshUsers() {
     setUsersLoading(true);
@@ -39,12 +45,12 @@ export function UsersClient() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  async function setRole(userId: string, role: "ADMIN" | "EMPLOYEE") {
+  async function setRole(userId: string, role: UserRole) {
     if (!users) return;
 
     // Guard: don't allow removing the last admin
     const current = users.find((u) => u.id === userId);
-    if (current?.role === "ADMIN" && role === "EMPLOYEE" && adminsCount <= 1) {
+    if (current?.role === ROLE_ADMIN && role !== ROLE_ADMIN && adminsCount <= 1) {
       setStatus("Can’t remove the last admin.");
       return;
     }
@@ -75,7 +81,7 @@ export function UsersClient() {
     if (!target) return;
 
     // Guard: don't allow deleting the last admin
-    if (target.role === "ADMIN" && adminsCount <= 1) {
+    if (target.role === ROLE_ADMIN && adminsCount <= 1) {
       setStatus("Can’t delete the last admin.");
       return;
     }
@@ -203,7 +209,11 @@ export function UsersClient() {
                       <span
                         className={
                           "inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold " +
-                          (u.role === "ADMIN" ? "bg-blue-50 text-blue-700" : "bg-zinc-50 text-zinc-700")
+                          (u.role === ROLE_ADMIN
+                            ? "bg-blue-50 text-blue-700"
+                            : u.role === ROLE_ACCOUNT_MANAGER
+                              ? "bg-emerald-50 text-emerald-700"
+                              : "bg-zinc-50 text-zinc-700")
                         }
                       >
                         {u.role}
@@ -211,28 +221,40 @@ export function UsersClient() {
                     </td>
                     <td className="border-b border-zinc-100 px-3 py-2">
                       <div className="flex items-center gap-2">
-                        {u.role !== "ADMIN" ? (
+                        {u.role !== ROLE_ADMIN ? (
                           <button
                             type="button"
-                            onClick={() => setRole(u.id, "ADMIN")}
+                            onClick={() => setRole(u.id, ROLE_ADMIN)}
                             className="h-8 rounded-md bg-zinc-900 px-2.5 text-xs font-semibold text-white"
                           >
                             Make admin
                           </button>
-                        ) : (
+                        ) : null}
+
+                        {u.role !== ROLE_ACCOUNT_MANAGER ? (
                           <button
                             type="button"
-                            onClick={() => setRole(u.id, "EMPLOYEE")}
+                            onClick={() => setRole(u.id, ROLE_ACCOUNT_MANAGER)}
+                            className="h-8 rounded-md border border-emerald-200 bg-white px-2.5 text-xs font-semibold text-emerald-800 hover:bg-emerald-50"
+                          >
+                            Make account manager
+                          </button>
+                        ) : null}
+
+                        {u.role !== ROLE_EMPLOYEE ? (
+                          <button
+                            type="button"
+                            onClick={() => setRole(u.id, ROLE_EMPLOYEE)}
                             className="h-8 rounded-md border border-zinc-300 bg-white px-2.5 text-xs font-semibold text-zinc-800 hover:bg-zinc-50"
                           >
                             Make employee
                           </button>
-                        )}
+                        ) : null}
 
                         <button
                           type="button"
                           onClick={() => deleteUser(u.id)}
-                          disabled={u.role === "ADMIN" && adminsCount <= 1}
+                          disabled={u.role === ROLE_ADMIN && adminsCount <= 1}
                           className="h-8 rounded-md border border-red-200 bg-white px-2.5 text-xs font-semibold text-red-700 hover:bg-red-50 disabled:opacity-50"
                         >
                           Delete

@@ -10,7 +10,8 @@
     "lint": "eslint",
     "format": "prettier --write .",
     "prisma:generate": "npx prisma generate",
-    "prisma:migrate:deploy": "node scripts/prismaMigrateDeploy.js", 
+    "prisma:migrate:deploy": "node scripts/prismaMigrateDeploy.js",
+    "prisma:snapshot-to-migrations": "node scripts/prismaSnapshotToMigrations.js",
     "assert:retainers": "node scripts/retainers.assert.mjs",
     "prisma:seed": "npx prisma db seed"
   },
@@ -30,7 +31,8 @@
     "react-dom": "19.2.3",
     "recharts": "^3.7.0",
     "resend": "^6.9.1",
-    "bcryptjs": "^2.4.3"
+    "bcryptjs": "^2.4.3",
+    "@vercel/blob": "^0.27.0"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.3.3",

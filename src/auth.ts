@@ -1,5 +1,6 @@
 import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
+import type { UserRole } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { getAuthSecret } from "@/lib/authSecret";
 import { hashPassword, validatePassword, verifyPassword } from "@/lib/password";
@@ -93,17 +94,35 @@ export const {
       // on the initial sign-in. Persist what we need onto the token.
       if (user) {
         token.id = user.id;
-        token.role = (user as typeof user & { role?: "ADMIN" | "EMPLOYEE" }).role ?? "EMPLOYEE";
+        token.role = ((user as { role?: UserRole }).role ?? "EMPLOYEE") as UserRole;
+        return token;
       }
+
+      // If a token exists from a previous session but is missing role (common
+      // after adding new roles like ACCOUNT_MANAGER), backfill it once.
+      if (token.id && !token.role) {
+        const dbUser = await prisma.user.findUnique({
+          where: { id: token.id as string },
+          select: { role: true },
+        });
+        token.role = (dbUser?.role ?? "EMPLOYEE") as UserRole;
+      }
+
       return token;
     },
 
     async session({ session, token }) {
-      if (session.user) {
-        // Populate custom fields from the JWT token for subsequent requests.
-        session.user.id = (token.id as string) ?? "";
-        session.user.role = (token.role as "ADMIN" | "EMPLOYEE") ?? "EMPLOYEE";
-      }
+      // Populate custom fields from the JWT token for subsequent requests.
+      // Ensure `session.user` always exists to match our module augmentation.
+      const id = (token.id ?? token.sub) as string | undefined;
+      const role = ((token.role as UserRole) ?? "EMPLOYEE") as UserRole;
+
+      session.user = {
+        ...(session.user ?? {}),
+        id: id ?? "",
+        role,
+      };
+
       return session;
     },
   },
