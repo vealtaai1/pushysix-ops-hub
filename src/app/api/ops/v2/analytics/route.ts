@@ -1,8 +1,5 @@
 import { NextResponse } from "next/server";
 
-const OPS_V2_ANALYTICS_ENABLED =
-  process.env.OPS_V2_ANALYTICS_ENABLED === "true" || process.env.OPS_V2_ANALYTICS_ENABLED === "1";
-
 import { requireAdminOrAccountManagerOrThrow } from "@/lib/adminAuth";
 import { parseISODateOnly } from "@/lib/calgaryTime";
 import { prisma } from "@/lib/db";
