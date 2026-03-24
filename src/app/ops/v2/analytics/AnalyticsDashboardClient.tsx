@@ -227,8 +227,26 @@ export function AnalyticsDashboardClient({ clients }: { clients: ClientOption[] 
             </select>
           </div>
 
-          <div className="ml-auto text-xs text-zinc-500">
+          <div className="ml-auto flex items-center gap-2 text-xs text-zinc-500">
             {loading ? "Loading…" : data ? `Range: ${data.range.from} → ${data.range.to}` : null}
+            <button
+              type="button"
+              onClick={() => {
+                const params = new URLSearchParams();
+                params.set("from", from);
+                params.set("to", to);
+                if (clientId) params.set("clientId", clientId);
+                if (bucketKey) params.set("bucketKey", bucketKey);
+                if (userId) params.set("userId", userId);
+                params.set("view", "project");
+
+                // This triggers a file download (server returns Content-Disposition: attachment)
+                window.location.assign(`/api/ops/v2/analytics.csv?${params.toString()}`);
+              }}
+              className="rounded-md border border-zinc-200 bg-white px-2 py-1 text-xs font-medium text-zinc-700 hover:bg-zinc-50"
+            >
+              Export CSV
+            </button>
           </div>
         </div>
 
