@@ -27,9 +27,19 @@ type AnalyticsResponse = {
     distinctClients: number;
     distinctUsers: number;
   };
+  appliedFilters?: { clientId: string | null; bucketKey: string | null; userId: string | null };
   minutesByDay: Array<{ date: string; minutes: number }>;
   minutesByClient: Array<{ clientId: string; clientName: string; minutes: number }>;
   minutesByBucket: Array<{ bucketKey: string; bucketName: string; minutes: number }>;
+  minutesByUser: Array<{ userId: string; userName: string | null; userEmail: string | null; minutes: number }>;
+  minutesByProject: Array<{
+    projectKey: string;
+    clientId: string;
+    clientName: string;
+    bucketKey: string;
+    bucketName: string;
+    minutes: number;
+  }>;
 };
 
 function isoToday(): string {
@@ -111,6 +121,8 @@ export function AnalyticsDashboardClient({ clients }: { clients: ClientOption[] 
   const [from, setFrom] = useState(() => isoDaysAgo(30));
   const [to, setTo] = useState(() => isoToday());
   const [clientId, setClientId] = useState<string>("");
+  const [bucketKey, setBucketKey] = useState<string>("");
+  const [userId, setUserId] = useState<string>("");
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -126,6 +138,8 @@ export function AnalyticsDashboardClient({ clients }: { clients: ClientOption[] 
         params.set("from", from);
         params.set("to", to);
         if (clientId) params.set("clientId", clientId);
+        if (bucketKey) params.set("bucketKey", bucketKey);
+        if (userId) params.set("userId", userId);
 
         const res = await fetch(`/api/ops/v2/analytics?${params.toString()}`, { cache: "no-store" });
         const json = (await res.json()) as any;
@@ -148,7 +162,7 @@ export function AnalyticsDashboardClient({ clients }: { clients: ClientOption[] 
     return () => {
       alive = false;
     };
-  }, [from, to, clientId]);
+  }, [from, to, clientId, bucketKey, userId]);
 
   const minutesByClientPie = useMemo(
     () =>
@@ -217,6 +231,51 @@ export function AnalyticsDashboardClient({ clients }: { clients: ClientOption[] 
             {loading ? "Loading…" : data ? `Range: ${data.range.from} → ${data.range.to}` : null}
           </div>
         </div>
+
+        {(clientId || bucketKey || userId) ? (
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <div className="text-xs font-medium text-zinc-600">Filters:</div>
+            {clientId ? (
+              <button
+                type="button"
+                onClick={() => setClientId("")}
+                className="rounded-full border border-zinc-200 bg-white px-2 py-1 text-xs text-zinc-700 hover:bg-zinc-50"
+              >
+                Client: {clientOptions.find((c) => c.id === clientId)?.name ?? clientId} ×
+              </button>
+            ) : null}
+            {bucketKey ? (
+              <button
+                type="button"
+                onClick={() => setBucketKey("")}
+                className="rounded-full border border-zinc-200 bg-white px-2 py-1 text-xs text-zinc-700 hover:bg-zinc-50"
+              >
+                Bucket: {bucketKey} ×
+              </button>
+            ) : null}
+            {userId ? (
+              <button
+                type="button"
+                onClick={() => setUserId("")}
+                className="rounded-full border border-zinc-200 bg-white px-2 py-1 text-xs text-zinc-700 hover:bg-zinc-50"
+              >
+                User: {userId} ×
+              </button>
+            ) : null}
+
+            <button
+              type="button"
+              onClick={() => {
+                setClientId("");
+                setBucketKey("");
+                setUserId("");
+              }}
+              className="ml-auto rounded-md border border-zinc-200 bg-white px-2 py-1 text-xs text-zinc-700 hover:bg-zinc-50"
+            >
+              Clear
+            </button>
+          </div>
+        ) : null}
 
         {error ? <p className="mt-3 text-sm text-red-600">{error}</p> : null}
 
@@ -307,6 +366,79 @@ export function AnalyticsDashboardClient({ clients }: { clients: ClientOption[] 
           </div>
 
           <div className="mt-2 text-xs text-zinc-500">Showing top 10 buckets, remainder grouped as “Other buckets”.</div>
+        </ChartCard>
+      </section>
+
+      <section className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        <ChartCard title="Top users">
+          <div className="overflow-hidden rounded-md border border-zinc-200">
+            <table className="w-full text-left text-sm">
+              <thead className="bg-zinc-50 text-xs text-zinc-600">
+                <tr>
+                  <th className="px-3 py-2">User</th>
+                  <th className="px-3 py-2">Hours</th>
+                  <th className="px-3 py-2">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {(data?.minutesByUser ?? []).slice(0, 10).map((u) => (
+                  <tr key={u.userId} className="border-t border-zinc-100">
+                    <td className="px-3 py-2">
+                      <div className="font-medium text-zinc-900">{u.userName ?? u.userEmail ?? u.userId}</div>
+                      {u.userEmail ? <div className="text-xs text-zinc-500">{u.userEmail}</div> : null}
+                    </td>
+                    <td className="px-3 py-2 font-medium">{fmtHours(u.minutes)}</td>
+                    <td className="px-3 py-2">
+                      <button
+                        type="button"
+                        onClick={() => setUserId(u.userId)}
+                        className="rounded-md border border-zinc-200 bg-white px-2 py-1 text-xs text-zinc-700 hover:bg-zinc-50"
+                      >
+                        Filter
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </ChartCard>
+
+        <ChartCard title="Top projects (client × bucket)">
+          <div className="overflow-hidden rounded-md border border-zinc-200">
+            <table className="w-full text-left text-sm">
+              <thead className="bg-zinc-50 text-xs text-zinc-600">
+                <tr>
+                  <th className="px-3 py-2">Project</th>
+                  <th className="px-3 py-2">Hours</th>
+                  <th className="px-3 py-2">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {(data?.minutesByProject ?? []).slice(0, 10).map((p) => (
+                  <tr key={p.projectKey} className="border-t border-zinc-100">
+                    <td className="px-3 py-2">
+                      <div className="font-medium text-zinc-900">{p.clientName} — {p.bucketName}</div>
+                      <div className="text-xs text-zinc-500">{p.clientId} • {p.bucketKey}</div>
+                    </td>
+                    <td className="px-3 py-2 font-medium">{fmtHours(p.minutes)}</td>
+                    <td className="px-3 py-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setClientId(p.clientId);
+                          setBucketKey(p.bucketKey);
+                        }}
+                        className="rounded-md border border-zinc-200 bg-white px-2 py-1 text-xs text-zinc-700 hover:bg-zinc-50"
+                      >
+                        Filter
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </ChartCard>
       </section>
     </div>

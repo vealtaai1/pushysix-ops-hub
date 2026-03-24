@@ -58,6 +58,8 @@ export async function GET(req: Request) {
   }
 
   const clientId = (url.searchParams.get("clientId") ?? "").trim() || null;
+  const bucketKey = (url.searchParams.get("bucketKey") ?? "").trim() || null;
+  const userId = (url.searchParams.get("userId") ?? "").trim() || null;
 
   // Worklog workDate is stored at UTC midnight for the local date.
   const fromDate = isoToUTCDate(fromISO);
@@ -75,6 +77,8 @@ export async function GET(req: Request) {
   };
 
   if (clientId) whereEntries.clientId = clientId;
+  if (bucketKey) whereEntries.bucketKey = bucketKey;
+  if (userId) whereEntries.worklog.userId = userId;
 
   const entries = await prisma.worklogEntry.findMany({
     where: whereEntries,
@@ -88,6 +92,7 @@ export async function GET(req: Request) {
         select: {
           workDate: true,
           userId: true,
+          user: { select: { name: true, email: true } },
         },
       },
     },
@@ -100,6 +105,18 @@ export async function GET(req: Request) {
   const clientMap = new Map<string, { clientId: string; clientName: string; minutes: number }>();
   const bucketMap = new Map<string, { bucketKey: string; bucketName: string; minutes: number }>();
   const users = new Set<string>();
+  const userMap = new Map<string, { userId: string; userName: string | null; userEmail: string | null; minutes: number }>();
+  const projectMap = new Map<
+    string,
+    {
+      projectKey: string;
+      clientId: string;
+      clientName: string;
+      bucketKey: string;
+      bucketName: string;
+      minutes: number;
+    }
+  >();
 
   for (const e of entries) {
     const d = e.worklog.workDate;
@@ -118,7 +135,26 @@ export async function GET(req: Request) {
     b.minutes += e.minutes;
     bucketMap.set(bKey, b);
 
-    users.add(e.worklog.userId);
+    const uId = e.worklog.userId;
+    const uName = e.worklog.user?.name ?? null;
+    const uEmail = e.worklog.user?.email ?? null;
+    const u = userMap.get(uId) ?? { userId: uId, userName: uName, userEmail: uEmail, minutes: 0 };
+    u.minutes += e.minutes;
+    userMap.set(uId, u);
+
+    const projectKey = `${cId}::${bKey}`;
+    const p = projectMap.get(projectKey) ?? {
+      projectKey,
+      clientId: cId,
+      clientName: cName,
+      bucketKey: bKey,
+      bucketName: bName,
+      minutes: 0,
+    };
+    p.minutes += e.minutes;
+    projectMap.set(projectKey, p);
+
+    users.add(uId);
   }
 
   // Ensure empty days show as 0 for the selected range.
@@ -137,6 +173,8 @@ export async function GET(req: Request) {
 
   const minutesByClient = Array.from(clientMap.values()).sort((a, b) => b.minutes - a.minutes);
   const minutesByBucket = Array.from(bucketMap.values()).sort((a, b) => b.minutes - a.minutes);
+  const minutesByUser = Array.from(userMap.values()).sort((a, b) => b.minutes - a.minutes);
+  const minutesByProject = Array.from(projectMap.values()).sort((a, b) => b.minutes - a.minutes);
 
   return NextResponse.json(
     {
@@ -148,9 +186,16 @@ export async function GET(req: Request) {
         distinctClients: clientMap.size,
         distinctUsers: users.size,
       },
+      appliedFilters: {
+        clientId,
+        bucketKey,
+        userId,
+      },
       minutesByDay,
       minutesByClient,
       minutesByBucket,
+      minutesByUser,
+      minutesByProject,
     },
     { status: 200 },
   );
