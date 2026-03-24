@@ -416,6 +416,7 @@ model WorklogEntry {
   worklog   Worklog          @relation(fields: [worklogId], references: [id], onDelete: Cascade)
   client    Client           @relation(fields: [clientId], references: [id], onDelete: Restrict)
 
+  @@index([worklogId])
   @@index([clientId])
   @@index([bucketKey])
 }
@@ -436,6 +437,7 @@ model MileageEntry {
   worklog Worklog @relation(fields: [worklogId], references: [id], onDelete: Cascade)
   client  Client? @relation(fields: [clientId], references: [id], onDelete: SetNull)
 
+  @@index([worklogId])
   @@index([clientId])
 }
 
