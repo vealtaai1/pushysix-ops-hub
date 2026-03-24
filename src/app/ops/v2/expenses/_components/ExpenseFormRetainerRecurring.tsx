@@ -41,7 +41,12 @@ export function ExpenseFormRetainerRecurring({
         <div className="mt-4 space-y-3">
           <FieldRow>
             <Field label="Client">
-              <Select value={clientId} onChange={(e) => setClientId(e.target.value)} required>
+              <Select
+                data-testid="expense-retainer-client"
+                value={clientId}
+                onChange={(e) => setClientId(e.target.value)}
+                required
+              >
                 {clients.map((c) => (
                   <option key={c.id} value={c.id}>
                     {c.name}
@@ -51,7 +56,11 @@ export function ExpenseFormRetainerRecurring({
             </Field>
 
             <Field label="Frequency">
-              <Select value={frequency} onChange={(e) => setFrequency(e.target.value as any)}>
+              <Select
+                data-testid="expense-retainer-frequency"
+                value={frequency}
+                onChange={(e) => setFrequency(e.target.value as any)}
+              >
                 <option value="MONTHLY">Monthly</option>
                 <option value="QUARTERLY">Quarterly</option>
               </Select>
@@ -60,28 +69,50 @@ export function ExpenseFormRetainerRecurring({
 
           <FieldRow>
             <Field label="Start date" hint="First occurrence / anchor date">
-              <TextInput type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} required />
+              <TextInput
+                data-testid="expense-retainer-start-date"
+                type="date"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+                required
+              />
             </Field>
             <Field label="End date (optional)" hint="Leave blank for ongoing">
-              <TextInput type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
+              <TextInput
+                data-testid="expense-retainer-end-date"
+                type="date"
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+              />
             </Field>
           </FieldRow>
 
           <FieldRow>
             <Field label="Vendor (optional)">
-              <TextInput value={vendor} onChange={(e) => setVendor(e.target.value)} placeholder="Adobe, AWS…" />
+              <TextInput
+                data-testid="expense-retainer-vendor"
+                value={vendor}
+                onChange={(e) => setVendor(e.target.value)}
+                placeholder="Adobe, AWS…"
+              />
             </Field>
 
             <Field label="Amount (per occurrence)">
               <div className="flex gap-2">
                 <TextInput
+                  data-testid="expense-retainer-amount"
                   inputMode="decimal"
                   value={amount}
                   onChange={(e) => setAmount(e.target.value)}
                   placeholder="123.45"
                   required
                 />
-                <Select value={currency} onChange={(e) => setCurrency(e.target.value as any)} className="w-28">
+                <Select
+                  data-testid="expense-retainer-currency"
+                  value={currency}
+                  onChange={(e) => setCurrency(e.target.value as any)}
+                  className="w-28"
+                >
                   <option value="CAD">CAD</option>
                   <option value="USD">USD</option>
                 </Select>
@@ -90,20 +121,25 @@ export function ExpenseFormRetainerRecurring({
           </FieldRow>
 
           <Field label="Description">
-            <TextInput value={description} onChange={(e) => setDescription(e.target.value)} required />
+            <TextInput
+              data-testid="expense-retainer-description"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              required
+            />
           </Field>
 
           <Field label="Notes (optional)">
-            <TextArea value={notes} onChange={(e) => setNotes(e.target.value)} rows={3} />
+            <TextArea data-testid="expense-retainer-notes" value={notes} onChange={(e) => setNotes(e.target.value)} rows={3} />
           </Field>
         </div>
       </div>
 
       <div className="flex gap-2">
-        <PrimaryButton type="submit" disabled={saving}>
+        <PrimaryButton data-testid="expense-retainer-submit" type="submit" disabled={saving}>
           {saving ? "Saving…" : "Save recurring retainer expense"}
         </PrimaryButton>
-        <SecondaryButton type="button" onClick={() => history.back()}>
+        <SecondaryButton data-testid="expense-retainer-cancel" type="button" onClick={() => history.back()}>
           Cancel
         </SecondaryButton>
       </div>

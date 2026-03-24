@@ -61,7 +61,12 @@ export function ExpenseFormManual({
         <div className="mt-4 space-y-3">
           <FieldRow>
             <Field label="Client">
-              <Select value={clientId} onChange={(e) => setClientId(e.target.value)} required>
+              <Select
+                data-testid="expense-manual-client"
+                value={clientId}
+                onChange={(e) => setClientId(e.target.value)}
+                required
+              >
                 {clients.map((c) => (
                   <option key={c.id} value={c.id}>
                     {c.name}
@@ -71,25 +76,42 @@ export function ExpenseFormManual({
             </Field>
 
             <Field label="Expense date">
-              <TextInput type="date" value={expenseDate} onChange={(e) => setExpenseDate(e.target.value)} required />
+              <TextInput
+                data-testid="expense-manual-expense-date"
+                type="date"
+                value={expenseDate}
+                onChange={(e) => setExpenseDate(e.target.value)}
+                required
+              />
             </Field>
           </FieldRow>
 
           <FieldRow>
             <Field label="Vendor">
-              <TextInput value={vendor} onChange={(e) => setVendor(e.target.value)} placeholder="Amazon, Home Depot…" />
+              <TextInput
+                data-testid="expense-manual-vendor"
+                value={vendor}
+                onChange={(e) => setVendor(e.target.value)}
+                placeholder="Amazon, Home Depot…"
+              />
             </Field>
 
             <Field label="Amount">
               <div className="flex gap-2">
                 <TextInput
+                  data-testid="expense-manual-amount"
                   inputMode="decimal"
                   value={amount}
                   onChange={(e) => setAmount(e.target.value)}
                   placeholder="123.45"
                   required
                 />
-                <Select value={currency} onChange={(e) => setCurrency(e.target.value as any)} className="w-28">
+                <Select
+                  data-testid="expense-manual-currency"
+                  value={currency}
+                  onChange={(e) => setCurrency(e.target.value as any)}
+                  className="w-28"
+                >
                   <option value="CAD">CAD</option>
                   <option value="USD">USD</option>
                 </Select>
@@ -98,11 +120,16 @@ export function ExpenseFormManual({
           </FieldRow>
 
           <Field label="Description">
-            <TextInput value={description} onChange={(e) => setDescription(e.target.value)} required />
+            <TextInput
+              data-testid="expense-manual-description"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              required
+            />
           </Field>
 
           <Field label="Notes (optional)">
-            <TextArea value={notes} onChange={(e) => setNotes(e.target.value)} rows={3} />
+            <TextArea data-testid="expense-manual-notes" value={notes} onChange={(e) => setNotes(e.target.value)} rows={3} />
           </Field>
         </div>
       </div>
@@ -113,9 +140,17 @@ export function ExpenseFormManual({
             <div className="text-sm font-semibold text-zinc-900">Receipt</div>
             <div className="mt-1 text-xs text-zinc-500">Upload first, then persist receiptUrl on save.</div>
           </div>
-          {receiptUrl ? <a className="text-xs text-blue-600 hover:underline" href={receiptUrl} target="_blank" rel="noreferrer">
-            View uploaded
-          </a> : null}
+          {receiptUrl ? (
+            <a
+              data-testid="expense-manual-receipt-view"
+              className="text-xs text-blue-600 hover:underline"
+              href={receiptUrl}
+              target="_blank"
+              rel="noreferrer"
+            >
+              View uploaded
+            </a>
+          ) : null}
         </div>
 
         <div className="mt-3">
@@ -132,10 +167,10 @@ export function ExpenseFormManual({
       </div>
 
       <div className="flex gap-2">
-        <PrimaryButton type="submit" disabled={saving || !receiptUrl}>
+        <PrimaryButton data-testid="expense-manual-submit" type="submit" disabled={saving || !receiptUrl}>
           {saving ? "Saving…" : "Save manual expense"}
         </PrimaryButton>
-        <SecondaryButton type="button" onClick={() => history.back()}>
+        <SecondaryButton data-testid="expense-manual-cancel" type="button" onClick={() => history.back()}>
           Cancel
         </SecondaryButton>
         {!receiptUrl ? <div className="self-center text-xs text-zinc-500">Receipt required.</div> : null}

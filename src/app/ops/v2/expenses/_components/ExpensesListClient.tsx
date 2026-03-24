@@ -35,18 +35,21 @@ export function ExpensesListClient({
           </div>
           <div className="flex flex-wrap gap-2">
             <Link
+              data-testid="expenses-new-manual"
               href="/ops/v2/expenses/new/manual"
               className="rounded-md bg-zinc-900 px-3 py-2 text-xs font-semibold text-white hover:bg-zinc-800"
             >
               New manual
             </Link>
             <Link
+              data-testid="expenses-new-employee"
               href="/ops/v2/expenses/new/employee"
               className="rounded-md border border-zinc-200 bg-white px-3 py-2 text-xs font-semibold text-zinc-700 hover:bg-zinc-50"
             >
               New employee
             </Link>
             <Link
+              data-testid="expenses-new-retainer-recurring"
               href="/ops/v2/expenses/new/retainer"
               className="rounded-md border border-zinc-200 bg-white px-3 py-2 text-xs font-semibold text-zinc-700 hover:bg-zinc-50"
             >

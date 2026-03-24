@@ -66,7 +66,12 @@ export function ExpenseFormEmployee({
         <div className="mt-4 space-y-3">
           <FieldRow>
             <Field label="Employee">
-              <Select value={employeeId} onChange={(e) => setEmployeeId(e.target.value)} required>
+              <Select
+                data-testid="expense-employee-employee"
+                value={employeeId}
+                onChange={(e) => setEmployeeId(e.target.value)}
+                required
+              >
                 {employees.map((u) => (
                   <option key={u.id} value={u.id}>
                     {u.name}
@@ -76,7 +81,12 @@ export function ExpenseFormEmployee({
             </Field>
 
             <Field label="Client">
-              <Select value={clientId} onChange={(e) => setClientId(e.target.value)} required>
+              <Select
+                data-testid="expense-employee-client"
+                value={clientId}
+                onChange={(e) => setClientId(e.target.value)}
+                required
+              >
                 {clients.map((c) => (
                   <option key={c.id} value={c.id}>
                     {c.name}
@@ -88,11 +98,21 @@ export function ExpenseFormEmployee({
 
           <FieldRow>
             <Field label="Expense date">
-              <TextInput type="date" value={expenseDate} onChange={(e) => setExpenseDate(e.target.value)} required />
+              <TextInput
+                data-testid="expense-employee-expense-date"
+                type="date"
+                value={expenseDate}
+                onChange={(e) => setExpenseDate(e.target.value)}
+                required
+              />
             </Field>
 
             <Field label="Reimbursement">
-              <Select value={reimburseToEmployee ? "YES" : "NO"} onChange={(e) => setReimburseToEmployee(e.target.value === "YES")}>
+              <Select
+                data-testid="expense-employee-reimbursement"
+                value={reimburseToEmployee ? "YES" : "NO"}
+                onChange={(e) => setReimburseToEmployee(e.target.value === "YES")}
+              >
                 <option value="YES">Reimburse employee</option>
                 <option value="NO">Company card / no reimbursement</option>
               </Select>
@@ -101,19 +121,30 @@ export function ExpenseFormEmployee({
 
           <FieldRow>
             <Field label="Vendor">
-              <TextInput value={vendor} onChange={(e) => setVendor(e.target.value)} placeholder="Uber, Staples…" />
+              <TextInput
+                data-testid="expense-employee-vendor"
+                value={vendor}
+                onChange={(e) => setVendor(e.target.value)}
+                placeholder="Uber, Staples…"
+              />
             </Field>
 
             <Field label="Amount">
               <div className="flex gap-2">
                 <TextInput
+                  data-testid="expense-employee-amount"
                   inputMode="decimal"
                   value={amount}
                   onChange={(e) => setAmount(e.target.value)}
                   placeholder="123.45"
                   required
                 />
-                <Select value={currency} onChange={(e) => setCurrency(e.target.value as any)} className="w-28">
+                <Select
+                  data-testid="expense-employee-currency"
+                  value={currency}
+                  onChange={(e) => setCurrency(e.target.value as any)}
+                  className="w-28"
+                >
                   <option value="CAD">CAD</option>
                   <option value="USD">USD</option>
                 </Select>
@@ -122,11 +153,16 @@ export function ExpenseFormEmployee({
           </FieldRow>
 
           <Field label="Description">
-            <TextInput value={description} onChange={(e) => setDescription(e.target.value)} required />
+            <TextInput
+              data-testid="expense-employee-description"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              required
+            />
           </Field>
 
           <Field label="Notes (optional)">
-            <TextArea value={notes} onChange={(e) => setNotes(e.target.value)} rows={3} />
+            <TextArea data-testid="expense-employee-notes" value={notes} onChange={(e) => setNotes(e.target.value)} rows={3} />
           </Field>
         </div>
       </div>
@@ -149,10 +185,10 @@ export function ExpenseFormEmployee({
       </div>
 
       <div className="flex gap-2">
-        <PrimaryButton type="submit" disabled={saving || !receiptUrl}>
+        <PrimaryButton data-testid="expense-employee-submit" type="submit" disabled={saving || !receiptUrl}>
           {saving ? "Submitting…" : "Submit expense"}
         </PrimaryButton>
-        <SecondaryButton type="button" onClick={() => history.back()}>
+        <SecondaryButton data-testid="expense-employee-cancel" type="button" onClick={() => history.back()}>
           Cancel
         </SecondaryButton>
       </div>

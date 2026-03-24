@@ -23,7 +23,7 @@ export function ExpenseEntryTable({ items }: { items: ExpenseEntryListItem[] }) 
 
   return (
     <div className="overflow-hidden rounded-lg border border-zinc-200 bg-white">
-      <table className="w-full text-left text-sm">
+      <table data-testid="expense-table" className="w-full text-left text-sm">
         <thead className="bg-zinc-50 text-xs text-zinc-600">
           <tr>
             <th className="px-3 py-2">Date</th>
@@ -37,7 +37,7 @@ export function ExpenseEntryTable({ items }: { items: ExpenseEntryListItem[] }) 
         </thead>
         <tbody>
           {items.map((e) => (
-            <tr key={e.id} className="border-t border-zinc-100">
+            <tr key={e.id} data-testid={`expense-row-${e.id}`} className="border-t border-zinc-100">
               <td className="px-3 py-2 font-mono text-xs text-zinc-700">{e.expenseDate}</td>
               <td className="px-3 py-2">{e.clientName}</td>
               <td className="px-3 py-2">
@@ -48,7 +48,13 @@ export function ExpenseEntryTable({ items }: { items: ExpenseEntryListItem[] }) 
               <td className="px-3 py-2 font-medium">{formatMoney(e.amountCents, e.currency)}</td>
               <td className="px-3 py-2">
                 {e.receiptUrl ? (
-                  <a className="text-xs text-blue-600 hover:underline" href={e.receiptUrl} target="_blank" rel="noreferrer">
+                  <a
+                    data-testid={`expense-receipt-${e.id}`}
+                    className="text-xs text-blue-600 hover:underline"
+                    href={e.receiptUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
                     View
                   </a>
                 ) : (
@@ -58,12 +64,14 @@ export function ExpenseEntryTable({ items }: { items: ExpenseEntryListItem[] }) 
               <td className="px-3 py-2">
                 <div className="flex gap-2">
                   <Link
+                    data-testid={`expense-edit-${e.id}`}
                     className="rounded-md border border-zinc-200 bg-white px-2 py-1 text-xs text-zinc-700 hover:bg-zinc-50"
                     href={`/ops/v2/expenses/${e.id}`}
                   >
                     Edit
                   </Link>
                   <button
+                    data-testid={`expense-delete-${e.id}`}
                     className="rounded-md border border-zinc-200 bg-white px-2 py-1 text-xs text-red-700 hover:bg-zinc-50"
                     type="button"
                     onClick={async () => {

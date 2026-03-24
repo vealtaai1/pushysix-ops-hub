@@ -57,6 +57,7 @@ export function LoginClient() {
         <label style={{ display: "grid", gap: 6 }}>
           <span style={{ fontSize: 13, color: "#444", fontWeight: 600 }}>Email</span>
           <input
+            data-testid="login-email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             inputMode="email"
@@ -70,6 +71,7 @@ export function LoginClient() {
         <label style={{ display: "grid", gap: 6 }}>
           <span style={{ fontSize: 13, color: "#444", fontWeight: 600 }}>Password</span>
           <input
+            data-testid="login-password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             type="password"
@@ -80,6 +82,7 @@ export function LoginClient() {
         </label>
 
         <button
+          data-testid="login-submit"
           type="submit"
           disabled={loading}
           style={{
@@ -94,7 +97,11 @@ export function LoginClient() {
           {loading ? "Signing in…" : "Sign in"}
         </button>
 
-        {error ? <p style={{ color: "#b91c1c", fontSize: 13 }}>{error}</p> : null}
+        {error ? (
+          <p data-testid="login-error" style={{ color: "#b91c1c", fontSize: 13 }}>
+            {error}
+          </p>
+        ) : null}
 
       </form>
 

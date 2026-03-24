@@ -69,8 +69,12 @@ export function ReceiptUploader({
           <div className="text-xs text-zinc-500">Upload a JPG/PNG/WebP or PDF (max 15MB).</div>
         </div>
 
-        <label className="inline-flex cursor-pointer items-center gap-2 rounded-md border border-zinc-200 bg-white px-3 py-1.5 text-sm text-zinc-700 hover:bg-zinc-50">
+        <label
+          data-testid="receipt-upload-trigger"
+          className="inline-flex cursor-pointer items-center gap-2 rounded-md border border-zinc-200 bg-white px-3 py-1.5 text-sm text-zinc-700 hover:bg-zinc-50"
+        >
           <input
+            data-testid="receipt-file-input"
             type="file"
             className="hidden"
             accept="image/jpeg,image/png,image/webp,application/pdf"
@@ -90,11 +94,16 @@ export function ReceiptUploader({
         <div className="mt-3 text-xs text-zinc-600">Uploading: {progress}%</div>
       ) : null}
 
-      {error ? <div className="mt-3 text-xs text-red-600">{error}</div> : null}
+      {error ? (
+        <div data-testid="receipt-upload-error" className="mt-3 text-xs text-red-600">
+          {error}
+        </div>
+      ) : null}
 
       {url ? (
         <div className="mt-3">
           <a
+            data-testid="receipt-upload-view"
             className="text-sm text-blue-700 hover:underline"
             href={url}
             target="_blank"
