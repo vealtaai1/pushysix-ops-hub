@@ -46,7 +46,7 @@ export function ExpenseFormManual({
 
       alert("Saved.");
       // Keep it simple for now: return to expenses list.
-      window.location.href = "/ops/v2/expenses";
+      window.location.href = "/ops/expenses";
     } finally {
       setSaving(false);
     }

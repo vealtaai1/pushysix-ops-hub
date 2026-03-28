@@ -27,7 +27,7 @@ export default async function ExpenseDetailPage({
           <h1 className="text-xl font-semibold">Expense: {expenseId}</h1>
           <p className="text-sm text-zinc-600">Edit scaffold (load/update/delete TODO).</p>
         </div>
-        <Link className="text-sm text-blue-600 hover:underline" href="/ops/v2/expenses">
+        <Link className="text-sm text-blue-600 hover:underline" href="/ops/expenses">
           Back
         </Link>
       </div>

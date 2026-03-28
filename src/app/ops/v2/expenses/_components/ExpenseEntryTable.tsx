@@ -66,7 +66,7 @@ export function ExpenseEntryTable({ items }: { items: ExpenseEntryListItem[] }) 
                   <Link
                     data-testid={`expense-edit-${e.id}`}
                     className="rounded-md border border-zinc-200 bg-white px-2 py-1 text-xs text-zinc-700 hover:bg-zinc-50"
-                    href={`/ops/v2/expenses/${e.id}`}
+                    href={`/ops/expenses/${e.id}`}
                   >
                     Edit
                   </Link>

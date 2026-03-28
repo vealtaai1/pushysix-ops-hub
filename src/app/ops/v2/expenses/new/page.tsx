@@ -12,21 +12,21 @@ export default function NewExpensePage() {
 
       <div className="grid gap-3 md:grid-cols-3">
         <Link
-          href="/ops/v2/expenses/new/manual"
+          href="/ops/expenses/new/manual"
           className="rounded-lg border border-zinc-200 bg-white p-4 hover:bg-zinc-50"
         >
           <div className="text-sm font-semibold text-zinc-900">Manual (AM/Admin)</div>
           <div className="mt-1 text-xs text-zinc-500">Requires receipt upload URL.</div>
         </Link>
         <Link
-          href="/ops/v2/expenses/new/employee"
+          href="/ops/expenses/new/employee"
           className="rounded-lg border border-zinc-200 bg-white p-4 hover:bg-zinc-50"
         >
           <div className="text-sm font-semibold text-zinc-900">Employee submission</div>
           <div className="mt-1 text-xs text-zinc-500">Employee + reimbursement fields. Requires receipt.</div>
         </Link>
         <Link
-          href="/ops/v2/expenses/new/retainer"
+          href="/ops/expenses/new/retainer"
           className="rounded-lg border border-zinc-200 bg-white p-4 hover:bg-zinc-50"
         >
           <div className="text-sm font-semibold text-zinc-900">Recurring retainer</div>

@@ -51,7 +51,7 @@ export function ExpenseFormEmployee({
       }
 
       alert("Submitted.");
-      window.location.href = "/ops/v2/expenses";
+      window.location.href = "/ops/expenses";
     } finally {
       setSaving(false);
     }

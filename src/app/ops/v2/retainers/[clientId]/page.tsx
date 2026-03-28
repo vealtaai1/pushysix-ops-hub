@@ -21,15 +21,15 @@ export default async function OpsV2RetainerClientPage({ params }: { params: Prom
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="text-xs text-zinc-600">
-            <Link href="/ops/v2/clients" className="hover:underline">
-              Ops v2
+            <Link href="/ops" className="hover:underline">
+              Ops
             </Link>
             <span className="px-2 text-zinc-400">/</span>
-            <Link href="/ops/v2/clients" className="hover:underline">
+            <Link href="/ops/clients" className="hover:underline">
               Clients
             </Link>
             <span className="px-2 text-zinc-400">/</span>
-            <Link href={`/ops/v2/clients/${client.id}`} className="hover:underline">
+            <Link href={`/ops/clients/${client.id}`} className="hover:underline">
               {client.name}
             </Link>
             <span className="px-2 text-zinc-400">/</span>

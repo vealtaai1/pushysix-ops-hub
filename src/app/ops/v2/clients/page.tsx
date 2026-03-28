@@ -16,8 +16,8 @@ export default async function OpsV2ClientsPage() {
   return (
     <div className="space-y-4">
       <div>
-        <h1 className="text-xl font-semibold">Ops v2 — Clients</h1>
-        <p className="text-sm text-zinc-600">Client hub pages + project tracking.</p>
+        <h1 className="text-xl font-semibold">Ops — Clients</h1>
+        <p className="text-sm text-zinc-600">Client pages with retainers + projects.</p>
       </div>
 
       <div className="overflow-hidden rounded-lg border border-zinc-200">
@@ -36,10 +36,10 @@ export default async function OpsV2ClientsPage() {
               <div className="col-span-2 text-zinc-700">{c.status}</div>
               <div className="col-span-1 text-right">
                 <Link
-                  href={`/ops/v2/clients/${c.id}`}
+                  href={`/ops/clients/${c.id}`}
                   className="inline-flex h-8 items-center rounded-md border border-zinc-300 bg-white px-2.5 text-xs font-semibold text-zinc-800 hover:bg-zinc-50"
                 >
-                  Hub
+                  Open
                 </Link>
               </div>
             </div>
