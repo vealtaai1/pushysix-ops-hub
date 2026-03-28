@@ -1,0 +1,439 @@
+// PushySix Operations Hub
+// Prisma schema
+//
+// STEP 1 snapshot: ONLY the UserRole enum change (adds ACCOUNT_MANAGER)
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum UserRole {
+  EMPLOYEE
+  ACCOUNT_MANAGER
+  ADMIN
+}
+
+enum ClientStatus {
+  ACTIVE
+  ON_HOLD
+}
+
+enum BillingCycleStartDay {
+  FIRST
+  FIFTEENTH
+}
+
+enum AuditAction {
+  CREATE
+  UPDATE
+  DELETE
+}
+
+enum EquipmentItemStatus {
+  AVAILABLE
+  CHECKED_OUT
+  MAINTENANCE
+  RETIRED
+}
+
+enum ApprovalType {
+  WORKLOG_LATE_SUBMIT
+  WORKLOG_RESUBMIT
+  DAY_OFF
+}
+
+enum ApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  emailVerified DateTime?
+  name          String?
+  image         String?
+  role          UserRole  @default(EMPLOYEE)
+
+  passwordHash String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Auth.js / NextAuth
+  accounts Account[]
+  sessions Session[]
+
+  // Work logged *for* the user
+  worklogs Worklog[]
+
+  // Worklogs created/edited *by* an acting manager/admin on behalf of someone else
+  worklogsCreated Worklog[] @relation("WorklogsCreatedBy")
+
+  // Approvals
+  worklogsApproved          Worklog[]         @relation("WorklogsApprovedBy")
+  approvalRequestsRequested ApprovalRequest[] @relation("RequestedBy")
+  approvalRequestsReviewed  ApprovalRequest[] @relation("ReviewedBy")
+
+  // Day-off requests
+  dayOffs         DayOff[]
+  dayOffsCreated  DayOff[] @relation("DayOffsCreatedBy")
+  dayOffsApproved DayOff[] @relation("DayOffsApprovedBy")
+
+  auditLogs AuditLog[]
+
+  // Auth
+  passwordResetTokens PasswordResetToken[]
+
+  // Equipment sign-out
+  equipmentLoans EquipmentLoan[]
+}
+
+model Client {
+  id                   String               @id @default(cuid())
+  name                 String
+  status               ClientStatus         @default(ACTIVE)
+  billingCycleStartDay BillingCycleStartDay @default(FIRST)
+
+  // Contract basics
+  monthlyRetainerHours Int @default(0)
+
+  // Optional caps/guardrails (per billing cycle)
+  maxShootsPerCycle       Int?
+  maxCaptureHoursPerCycle Int?
+
+  // Manual mapping
+  clickupSpaceId String?
+  qboCustomerId  String?
+
+  // Email to notify client for billing events
+  clientBillingEmail String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  retainerCycles RetainerCycle[]
+  worklogEntries WorklogEntry[]
+  mileageEntries MileageEntry[]
+
+  @@index([status])
+}
+
+model RetainerCycle {
+  id        String   @id @default(cuid())
+  clientId  String
+  startDate DateTime
+  endDate   DateTime
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  client       Client        @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  bucketLimits BucketLimit[]
+
+  @@index([clientId, startDate])
+}
+
+model BucketLimit {
+  id              String @id @default(cuid())
+  retainerCycleId String
+
+  // Canonical bucket key (stable)
+  bucketKey  String
+  bucketName String
+
+  minutesLimit Int
+
+  retainerCycle RetainerCycle @relation(fields: [retainerCycleId], references: [id], onDelete: Cascade)
+
+  @@unique([retainerCycleId, bucketKey])
+}
+
+model Worklog {
+  id     String @id @default(cuid())
+  userId String
+
+  // The day being reported
+  workDate DateTime
+
+  // Approval flow
+  status         ApprovalStatus @default(PENDING)
+  approvalReason String?
+
+  // When the user/acting manager submitted this worklog for approval
+  submittedAt DateTime?
+
+  // When an approver approved/rejected
+  approvedAt       DateTime?
+  approvedByUserId String?
+
+  // Manager/admin acting on behalf of the user (who actually created this record)
+  createdByUserId String?
+
+  // If this record is a resubmission/replacement of a previous worklog
+  replacedWorklogId String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdByUser  User? @relation("WorklogsCreatedBy", fields: [createdByUserId], references: [id], onDelete: SetNull)
+  approvedByUser User? @relation("WorklogsApprovedBy", fields: [approvedByUserId], references: [id], onDelete: SetNull)
+
+  replacedWorklog     Worklog?  @relation("WorklogReplacement", fields: [replacedWorklogId], references: [id], onDelete: SetNull)
+  replacementWorklogs Worklog[] @relation("WorklogReplacement")
+
+  entries          WorklogEntry[]
+  mileage          MileageEntry[]
+  approvalRequests ApprovalRequest[]
+
+  @@unique([userId, workDate])
+  @@index([workDate])
+  @@index([status])
+  @@index([submittedAt])
+  @@index([approvedAt])
+  @@index([approvedByUserId])
+}
+
+model WorklogEntry {
+  id        String @id @default(cuid())
+  worklogId String
+  clientId  String
+
+  bucketKey  String
+  bucketName String
+
+  minutes Int
+  notes   String?
+
+  // optional future expansion
+  clickupTaskUrl String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  worklog Worklog @relation(fields: [worklogId], references: [id], onDelete: Cascade)
+  client  Client  @relation(fields: [clientId], references: [id], onDelete: Restrict)
+
+  @@index([clientId])
+  @@index([bucketKey])
+}
+
+model MileageEntry {
+  id        String @id @default(cuid())
+  worklogId String
+
+  kilometers Float
+  notes      String?
+
+  // optional: attach mileage to a client later
+  clientId String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  worklog Worklog @relation(fields: [worklogId], references: [id], onDelete: Cascade)
+  client  Client? @relation(fields: [clientId], references: [id], onDelete: SetNull)
+
+  @@index([clientId])
+}
+
+model DayOff {
+  id     String @id @default(cuid())
+  userId String
+
+  // Date of day-off requested/recorded (weekday-only enforced in app)
+  dayDate DateTime
+
+  status         ApprovalStatus @default(PENDING)
+  requestReason  String?
+  approvalReason String?
+
+  submittedAt DateTime?
+
+  approvedAt       DateTime?
+  approvedByUserId String?
+
+  // Manager/admin acting on behalf of the user
+  createdByUserId String?
+
+  // If this request is a resubmission/replacement of a previous request
+  replacedDayOffId String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdByUser  User? @relation("DayOffsCreatedBy", fields: [createdByUserId], references: [id], onDelete: SetNull)
+  approvedByUser User? @relation("DayOffsApprovedBy", fields: [approvedByUserId], references: [id], onDelete: SetNull)
+
+  replacedDayOff     DayOff?           @relation("DayOffReplacement", fields: [replacedDayOffId], references: [id], onDelete: SetNull)
+  replacementDayOffs DayOff[]          @relation("DayOffReplacement")
+  approvalRequests   ApprovalRequest[]
+
+  @@unique([userId, dayDate])
+  @@index([dayDate])
+  @@index([status])
+  @@index([submittedAt])
+  @@index([approvedAt])
+  @@index([approvedByUserId])
+}
+
+model ApprovalRequest {
+  id     String         @id @default(cuid())
+  type   ApprovalType
+  status ApprovalStatus @default(PENDING)
+
+  // Human-readable explanation shown in the approvals queue
+  reason String
+
+  // For convenience + filtering (the date the request is about)
+  workDate DateTime?
+
+  requestedByUserId String
+  reviewedByUserId  String?
+
+  reviewedAt DateTime?
+  reviewNote String?
+
+  // Optional linkage to the record being approved
+  worklogId String?
+  dayOffId  String?
+
+  payload Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  requestedByUser User  @relation("RequestedBy", fields: [requestedByUserId], references: [id], onDelete: Cascade)
+  reviewedByUser  User? @relation("ReviewedBy", fields: [reviewedByUserId], references: [id], onDelete: SetNull)
+
+  worklog Worklog? @relation(fields: [worklogId], references: [id], onDelete: SetNull)
+  dayOff  DayOff?  @relation(fields: [dayOffId], references: [id], onDelete: SetNull)
+
+  @@index([status, createdAt])
+  @@index([type])
+  @@index([workDate])
+  @@index([requestedByUserId])
+  @@index([reviewedByUserId])
+}
+
+model EquipmentItem {
+  id String @id @default(cuid())
+
+  name    String
+  barcode String @unique
+
+  status EquipmentItemStatus @default(AVAILABLE)
+
+  notes String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  loans EquipmentLoan[]
+
+  @@index([status])
+}
+
+model EquipmentLoan {
+  id String @id @default(cuid())
+
+  itemId String
+  userId String
+
+  checkedOutAt DateTime  @default(now())
+  checkedInAt  DateTime?
+
+  checkoutNotes String?
+  checkinNotes  String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  item EquipmentItem @relation(fields: [itemId], references: [id], onDelete: Restrict)
+  user User          @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@index([userId, checkedOutAt])
+  @@index([itemId, checkedOutAt])
+  @@index([checkedInAt])
+}
+
+model AuditLog {
+  id       String      @id @default(cuid())
+  userId   String?
+  action   AuditAction
+  entity   String
+  entityId String?
+  before   Json?
+  after    Json?
+
+  createdAt DateTime @default(now())
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([entity, entityId])
+  @@index([createdAt])
+}
+
+// Auth.js / NextAuth tables (Prisma Adapter)
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+model PasswordResetToken {
+  id        String   @id @default(cuid())
+  userId    String
+  tokenHash String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+}
