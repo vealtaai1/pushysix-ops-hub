@@ -28,26 +28,21 @@ async function generateNextProjectCode() {
   return `${prefix}${pad4(nextSeq)}`;
 }
 
-function randomShortCode(len = 12) {
-  const alphabet = "abcdefghjkmnpqrstuvwxyz23456789"; // no confusing chars
-  let out = "";
-  for (let i = 0; i < len; i++) {
-    out += alphabet[Math.floor(Math.random() * alphabet.length)];
-  }
-  return out;
-}
-
-async function generateUniqueShortCode() {
-  for (let i = 0; i < 10; i++) {
-    const sc = randomShortCode(12);
-    const exists = await prisma.project.findUnique({
-      where: { shortCode: sc },
-      select: { id: true },
-    });
-    if (!exists) return sc;
-  }
-  // Fallback: deterministic-ish
-  return `${randomShortCode(8)}${Date.now().toString(36).slice(-4)}`.slice(0, 12);
+function slugifyShortCode(input: string) {
+  // Goal: stable, human-friendly, URL-ish identifier.
+  // - lowercase
+  // - spaces/underscores to hyphens
+  // - strip disallowed chars
+  // - collapse multiple hyphens
+  // - trim hyphens
+  return input
+    .toLowerCase()
+    .trim()
+    .replace(/[_\s]+/g, "-")
+    .replace(/[^a-z0-9-]/g, "")
+    .replace(/-+/g, "-")
+    .replace(/^-+/, "")
+    .replace(/-+$/, "");
 }
 
 export type CreateProjectState = { ok: boolean; message?: string };
@@ -65,24 +60,59 @@ export async function createProject(prev: CreateProjectState, formData: FormData
 
   const clientId = String(formData.get("clientId") || "");
   const name = String(formData.get("name") || "").trim();
+  const shortName = String(formData.get("shortCode") || "").trim();
 
   if (!clientId) return { ok: false, message: "Missing clientId." };
   if (!name) return { ok: false, message: "Project name is required." };
+  if (!shortName) return { ok: false, message: "Short internal name is required." };
 
+  // Encourage 1–2 words, but keep the rule simple and explicit.
+  const words = shortName.split(/\s+/).filter(Boolean);
+  if (words.length < 1 || words.length > 2) {
+    return { ok: false, message: "Short internal name must be 1–2 words." };
+  }
+
+  const shortCode = slugifyShortCode(shortName);
+  if (!shortCode) {
+    return { ok: false, message: "Short internal name must include letters or numbers." };
+  }
+  if (shortCode.length < 2) {
+    return { ok: false, message: "Short code is too short (min 2 characters)." };
+  }
+  if (shortCode.length > 24) {
+    return { ok: false, message: "Short code is too long (max 24 characters)." };
+  }
+
+  // Project code is still generated server-side.
+  // In the unlikely event of a collision, we surface a friendly retry message.
   const code = await generateNextProjectCode();
-  const shortCode = await generateUniqueShortCode();
 
-  await prisma.project.create({
-    data: {
-      clientId,
-      name,
-      code,
-      shortCode,
-      status: "OPEN",
-    },
-  });
+  try {
+    await prisma.project.create({
+      data: {
+        clientId,
+        name,
+        code,
+        shortCode,
+        status: "OPEN",
+      },
+    });
+  } catch (err: any) {
+    // Prisma unique constraint violation
+    if (err?.code === "P2002") {
+      const target = (err?.meta?.target as string[] | undefined) ?? [];
+      if (target.includes("shortCode")) {
+        return { ok: false, message: `Short code "${shortCode}" is already taken. Try another.` };
+      }
+      if (target.includes("clientId") && target.includes("code")) {
+        return { ok: false, message: "Project code collision. Please try again." };
+      }
+      return { ok: false, message: "Duplicate value. Please try again." };
+    }
+    throw err;
+  }
 
-  revalidatePath(`/ops/v2/clients/${clientId}`);
+  revalidatePath(`/ops/clients/${clientId}`);
   return { ok: true, message: "Project created." };
 }
 
@@ -126,7 +156,7 @@ export async function closeProject(prev: CloseProjectState, formData: FormData):
     },
   });
 
-  revalidatePath(`/ops/v2/clients/${clientId}`);
+  revalidatePath(`/ops/clients/${clientId}`);
 
   // Email send is feature-flagged to avoid surprising behavior during demos.
   if (!BILLING_CLOSE_EMAIL_ENABLED) {

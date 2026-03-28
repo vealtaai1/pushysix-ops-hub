@@ -38,11 +38,15 @@ function suggestNextCode(existingCodes: string[]) {
   return `${prefix}${pad4(next)}`;
 }
 
-function randomShortCode(len = 12) {
-  const alphabet = "abcdefghjkmnpqrstuvwxyz23456789";
-  let out = "";
-  for (let i = 0; i < len; i++) out += alphabet[Math.floor(Math.random() * alphabet.length)];
-  return out;
+function slugifyShortCode(input: string) {
+  return input
+    .toLowerCase()
+    .trim()
+    .replace(/[_\s]+/g, "-")
+    .replace(/[^a-z0-9-]/g, "")
+    .replace(/-+/g, "-")
+    .replace(/^-+/, "")
+    .replace(/-+$/, "");
 }
 
 export function ClientHubClient({ client, initialProjects }: ClientHubClientProps) {
@@ -55,14 +59,14 @@ export function ClientHubClient({ client, initialProjects }: ClientHubClientProp
   const [closeState, closeAction, closePending] = React.useActionState(closeProject, closeInit);
 
   const [projectName, setProjectName] = React.useState("");
+  const [projectShortName, setProjectShortName] = React.useState("");
   const [suggestedCode, setSuggestedCode] = React.useState("");
-  const [suggestedShortCode, setSuggestedShortCode] = React.useState("");
 
   React.useEffect(() => {
     if (showAdd) {
       setSuggestedCode(suggestNextCode(initialProjects.map((p) => p.code)));
-      setSuggestedShortCode(randomShortCode(12));
       setProjectName("");
+      setProjectShortName("");
     }
   }, [showAdd, initialProjects]);
 
@@ -80,6 +84,8 @@ export function ClientHubClient({ client, initialProjects }: ClientHubClientProp
     }
   }, [closeState.ok]);
 
+  const shortCodePreview = slugifyShortCode(projectShortName);
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-3">
@@ -96,7 +102,7 @@ export function ClientHubClient({ client, initialProjects }: ClientHubClientProp
       <div className="overflow-hidden rounded-lg border border-zinc-200">
         <div className="grid grid-cols-12 gap-2 bg-zinc-50 px-4 py-2 text-xs font-semibold text-zinc-600">
           <div className="col-span-2">Code</div>
-          <div className="col-span-2">Short</div>
+          <div className="col-span-2">Short code</div>
           <div className="col-span-6">Name</div>
           <div className="col-span-1">Status</div>
           <div className="col-span-1 text-right">Action</div>
@@ -174,22 +180,19 @@ export function ClientHubClient({ client, initialProjects }: ClientHubClientProp
                 </label>
 
                 <label className="grid gap-1">
-                  <span className="text-xs font-semibold text-zinc-600">Short code (auto)</span>
-                  <div className="flex items-center gap-2">
-                    <input
-                      value={suggestedShortCode}
-                      readOnly
-                      className="h-10 flex-1 rounded-md border border-zinc-200 bg-zinc-50 px-3 font-mono text-sm text-zinc-700"
-                    />
-                    <button
-                      type="button"
-                      className="h-10 rounded-md border border-zinc-300 bg-white px-3 text-sm font-semibold hover:bg-zinc-50"
-                      onClick={() => setSuggestedShortCode(randomShortCode(12))}
-                    >
-                      Regen
-                    </button>
+                  <span className="text-xs font-semibold text-zinc-600">Short internal name (1–2 words)</span>
+                  <input
+                    name="shortCode"
+                    value={projectShortName}
+                    onChange={(e) => setProjectShortName(e.target.value)}
+                    className="h-10 rounded-md border border-zinc-300 bg-white px-3"
+                    placeholder="e.g. spring-shoot"
+                    autoComplete="off"
+                    spellCheck={false}
+                  />
+                  <div className="text-xs text-zinc-500">
+                    Saved as short code: <span className="font-mono">{shortCodePreview || "—"}</span>
                   </div>
-                  <div className="text-xs text-zinc-500">12 characters for quick references (server will finalize).</div>
                 </label>
 
                 <label className="grid gap-1">
@@ -215,12 +218,17 @@ export function ClientHubClient({ client, initialProjects }: ClientHubClientProp
 
                   <button
                     type="submit"
-                    disabled={createPending || projectName.trim().length === 0}
+                    disabled={
+                      createPending ||
+                      projectName.trim().length === 0 ||
+                      projectShortName.trim().length === 0 ||
+                      shortCodePreview.length === 0
+                    }
                     className={
                       "h-10 rounded-md px-4 text-sm font-semibold text-white " +
                       (createPending
                         ? "bg-zinc-300"
-                        : projectName.trim().length
+                        : projectName.trim().length && projectShortName.trim().length && shortCodePreview.length
                           ? "bg-zinc-900 hover:opacity-90"
                           : "bg-zinc-300")
                     }
