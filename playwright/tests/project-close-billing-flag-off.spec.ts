@@ -9,13 +9,13 @@ async function bootstrapClient(page: import('@playwright/test').Page): Promise<{
   return { id: String(json.client.id), name: String(json.client.name) };
 }
 
-test.describe('Ops v2 project close', () => {
+test.describe('Ops project close', () => {
   test('closing a project does not claim billing email was sent when flag is off', async ({ page }) => {
     await loginAsSeedAdmin(page);
 
     const client = await bootstrapClient(page);
 
-    await page.goto(`/ops/v2/clients/${client.id}`);
+    await page.goto(`/ops/clients/${client.id}`);
     await expect(page.getByRole('heading', { name: client.name })).toBeVisible();
 
     // Add a project.

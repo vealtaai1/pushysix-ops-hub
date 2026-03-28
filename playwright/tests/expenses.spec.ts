@@ -10,7 +10,7 @@ async function bootstrapClientId(page: import('@playwright/test').Page): Promise
   return String(json.client.id);
 }
 
-test.describe('Ops v2 expenses', () => {
+test.describe('Ops expenses', () => {
   test('create (via API), list in UI, then delete via UI', async ({ page }) => {
     await loginAsSeedAdmin(page);
 
@@ -38,8 +38,8 @@ test.describe('Ops v2 expenses', () => {
     const expenseId = String(createJson.item?.id ?? '');
     expect(expenseId).toBeTruthy();
 
-    await page.goto('/ops/v2/expenses');
-    await expect(page.getByRole('heading', { name: 'Ops v2 — Expenses' })).toBeVisible();
+    await page.goto('/ops/expenses');
+    await expect(page.getByRole('heading', { name: 'Ops — Expenses' })).toBeVisible();
 
     // Verify listing shows our row.
     await expect(page.getByText(`E2E Expense ${unique}`)).toBeVisible();

@@ -3,8 +3,9 @@ import type { ReactNode } from "react";
 import Link from "next/link";
 
 const OPS_LINKS: Array<{ href: string; label: string; desc: string }> = [
-  { href: "/ops/v1", label: "v1", desc: "Legacy tools" },
-  { href: "/ops/v2", label: "v2", desc: "New ops surface" },
+  { href: "/ops/clients", label: "Clients", desc: "Client hub" },
+  { href: "/ops/expenses", label: "Expenses", desc: "Expenses" },
+  { href: "/ops/analytics", label: "Analytics", desc: "Worklog analytics" },
 ];
 
 export default function OpsLayout({ children }: { children: ReactNode }) {

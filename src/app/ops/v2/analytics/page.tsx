@@ -45,7 +45,7 @@ export default async function OpsV2AnalyticsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-xl font-semibold">Ops v2 — Analytics</h1>
+        <h1 className="text-xl font-semibold">Ops — Analytics</h1>
         <p className="text-sm text-zinc-600">Worklog minutes over time. Filter by date range and client.</p>
       </div>
 

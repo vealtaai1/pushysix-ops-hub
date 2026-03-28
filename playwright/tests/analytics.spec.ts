@@ -2,23 +2,23 @@ import { test, expect } from "@playwright/test";
 import { loginAsSeedAdmin } from "./_utils/auth";
 
 /**
- * Ops v2 Analytics E2E
+ * Ops Analytics E2E
  *
  * Notes:
  * - Analytics is feature-flagged via OPS_V2_ANALYTICS_ENABLED.
  * - This test will auto-skip if the route returns 404 (flag off).
  */
 
-test.describe("Ops v2 analytics", () => {
+test.describe("Ops analytics", () => {
   test("loads dashboard, supports filters, and exports CSV", async ({ page }) => {
     await loginAsSeedAdmin(page);
 
-    const resp = await page.goto("/ops/v2/analytics");
+    const resp = await page.goto("/ops/analytics");
     if (resp && resp.status() === 404) {
       test.skip(true, "Analytics is disabled (OPS_V2_ANALYTICS_ENABLED is off)");
     }
 
-    await expect(page.getByRole("heading", { level: 1, name: "Ops v2 — Analytics" })).toBeVisible();
+    await expect(page.getByRole("heading", { level: 1, name: "Ops — Analytics" })).toBeVisible();
     await expect(page.getByText("Worklog minutes over time.")).toBeVisible();
 
     // Chart cards / sections

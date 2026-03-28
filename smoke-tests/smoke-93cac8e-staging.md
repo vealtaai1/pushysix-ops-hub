@@ -1,4 +1,4 @@
-# Staging smoke test — Ops v2 expenses + billing close email flag
+# Staging smoke test — Ops expenses + billing close email flag
 
 Target: commit `93cac8e` (and follow-up migration commit `278fa1e`).
 
@@ -31,7 +31,7 @@ Target: commit `93cac8e` (and follow-up migration commit `278fa1e`).
 
 Expected:
 - Success message.
-- You return to `/ops/v2/expenses`.
+- You return to `/ops/expenses`.
 - The new entry appears in the list.
 - Amount renders correctly.
 - Receipt “View” link opens.
@@ -63,7 +63,7 @@ Expected:
 ---
 
 ## D) Expenses — Delete
-1. On `/ops/v2/expenses`, pick a test entry.
+1. On `/ops/expenses`, pick a test entry.
 2. Click **Delete** and confirm.
 
 Expected:

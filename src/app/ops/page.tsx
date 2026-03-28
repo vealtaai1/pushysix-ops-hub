@@ -23,8 +23,9 @@ export default function OpsHomePage() {
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2">
-        <Tile href="/ops/v1" title="Ops v1" desc="Legacy ops surface (placeholder)." />
-        <Tile href="/ops/v2" title="Ops v2" desc="New ops surface (placeholder)." />
+        <Tile href="/ops/clients" title="Clients" desc="Client hub (projects, retainers, billing close)." />
+        <Tile href="/ops/expenses" title="Expenses" desc="Expense entries (create, review, receipts)." />
+        <Tile href="/ops/analytics" title="Analytics" desc="Worklog minutes over time." />
       </div>
     </div>
   );
