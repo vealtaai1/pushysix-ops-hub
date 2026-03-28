@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { requireAdminOrThrow } from "@/lib/adminAuth";
+import { requireAdminOrAccountManagerOrThrow } from "@/lib/adminAuth";
 import { CALGARY_TZ, parseISODateAsUTC } from "@/lib/time";
 import { getRetainerCycleRange } from "@/lib/retainers";
 
@@ -10,7 +10,7 @@ function addDaysUTC(d: Date, days: number): Date {
 
 export async function GET(req: Request) {
   try {
-    await requireAdminOrThrow({ message: "Unauthorized" });
+    await requireAdminOrAccountManagerOrThrow({ message: "Unauthorized" });
   } catch (e) {
     return NextResponse.json(
       { ok: false, message: e instanceof Error ? e.message : "Unauthorized" },
