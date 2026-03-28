@@ -1,4 +1,4 @@
-# Ops Hub 2.0 (Ops v2) — Scope
+# Ops Hub 2.0 (Ops) — Scope
 
 This doc captures what **Ops Hub 2.0** currently includes in the repo, what is **feature-flagged**, and what is **explicitly out of scope / not yet shipped**.
 
@@ -6,7 +6,7 @@ Source branches:
 - `feature/expenses-persistence-billing-email-flag`
 - `feature/ops-v2-analytics`
 
-> Naming note: in code, Ops Hub 2.0 is primarily the **`/ops/v2`** surface ("Ops v2").
+> Naming note: Ops Hub 2.0 now lives under the canonical **`/ops/*`** routes (with **`/ops/v2`** kept only as a compatibility redirect).
 
 ---
 
@@ -14,12 +14,12 @@ Source branches:
 
 ### Core routes (UI)
 
-- **`/ops/v2`**
+- **`/ops`**
   - Landing page linking to Clients / Expenses / Analytics.
 
 - **Clients + Project tracking**
-  - **`/ops/v2/clients`** — list clients (status + link to hub).
-  - **`/ops/v2/clients/[clientId]`** — client hub:
+  - **`/ops/clients`** — list clients (status + link to hub).
+  - **`/ops/clients/[clientId]`** — client hub:
     - view client status + billing email (read-only display)
     - list projects for the client
     - **create project** (server action)
@@ -27,17 +27,17 @@ Source branches:
     - **close project** (server action)
 
 - **Retainers / Ad spend**
-  - **`/ops/v2/retainers/[clientId]`** — client-specific retainer ad spend grid
+  - **`/ops/retainers/[clientId]`** — client-specific retainer ad spend grid
 
 - **Expenses (CRUD + receipt upload)**
-  - **`/ops/v2/expenses`** — list + filters + create links
-  - **`/ops/v2/expenses/new`** — chooser
-  - **`/ops/v2/expenses/new/manual`** — manual expense (AM/Admin)
-  - **`/ops/v2/expenses/new/employee`** — employee submission
-  - **`/ops/v2/expenses/new/retainer`** — recurring retainer expense (UI exists; backend is TODO)
-  - **`/ops/v2/expenses/[expenseId]`** — view/edit an expense entry
+  - **`/ops/expenses`** — list + filters + create links
+  - **`/ops/expenses/new`** — chooser
+  - **`/ops/expenses/new/manual`** — manual expense (AM/Admin)
+  - **`/ops/expenses/new/employee`** — employee submission
+  - **`/ops/expenses/new/retainer`** — recurring retainer expense (UI exists; backend is TODO)
+  - **`/ops/expenses/[expenseId]`** — view/edit an expense entry
 
-### Ops v2 API routes
+### API routes (server)
 
 - **Expenses API**
   - **`GET /api/ops/v2/expenses`** — list (optional `clientId`, `q`, `limit`)
@@ -57,14 +57,14 @@ Source branches:
 
 ## Feature-flagged / gated functionality
 
-### 1) Ops v2 Analytics (UI + API)
+### 1) Ops Analytics (UI + API)
 
 Branch: `feature/ops-v2-analytics`
 
 - Flag: **`OPS_V2_ANALYTICS_ENABLED`**
   - Enabled when env var is `"true"` or `"1"`.
 - Behavior when disabled:
-  - **`/ops/v2/analytics`** returns **404** via `notFound()`
+  - **`/ops/analytics`** returns **404** via `notFound()`
   - **`/api/ops/v2/analytics*`** returns **404**
 - Access control when enabled:
   - UI + API require signed-in user with role **`ADMIN`** or **`ACCOUNT_MANAGER`**
@@ -76,7 +76,7 @@ Branch: `feature/expenses-persistence-billing-email-flag` (also present on analy
 - Flag: **`BILLING_CLOSE_EMAIL_ENABLED`**
   - Enabled when env var is exactly `"true"`.
 - Trigger:
-  - Closing a project from **`/ops/v2/clients/[clientId]`** calls a server action that can send an email.
+  - Closing a project from **`/ops/clients/[clientId]`** calls a server action that can send an email.
 - Delivery:
   - Uses Postmark helper (`@/lib/email/postmark`) **only if configured**.
 - Safety/idempotency:
@@ -89,7 +89,7 @@ Branch: `feature/expenses-persistence-billing-email-flag` (also present on analy
 ### Expenses
 
 - **Recurring retainer expenses are not wired end-to-end.**
-  - UI exists at **`/ops/v2/expenses/new/retainer`**, but it currently shows a TODO and does **not** call a backend endpoint.
+  - UI exists at **`/ops/expenses/new/retainer`**, but it currently shows a TODO and does **not** call a backend endpoint.
   - Code explicitly notes: `TODO: POST /api/ops/v2/expenses (kind=RETAINER_RECURRING)`.
 
 - **Multi-currency is not supported.**
