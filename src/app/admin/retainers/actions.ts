@@ -1,7 +1,7 @@
 "use server";
 
 import { prisma } from "@/lib/db";
-import { requireAdminOrThrow } from "@/lib/adminAuth";
+import { requireAdminOrAccountManagerOrThrow, requireAdminOrThrow } from "@/lib/adminAuth";
 import { revalidatePath } from "next/cache";
 
 function asString(v: FormDataEntryValue | null) {
@@ -17,7 +17,7 @@ function parseIntStrict(raw: string): number | null {
 }
 
 export async function upsertClientQuotaItem(formData: FormData): Promise<void> {
-  await requireAdminOrThrow({ message: "Unauthorized" });
+  await requireAdminOrAccountManagerOrThrow({ message: "Unauthorized" });
 
   const id = asString(formData.get("id")).trim();
   const clientId = asString(formData.get("clientId")).trim();
@@ -62,7 +62,7 @@ export async function deleteClientQuotaItem(formData: FormData): Promise<void> {
 }
 
 export async function updateClientRetainerBasics(formData: FormData): Promise<void> {
-  await requireAdminOrThrow({ message: "Unauthorized" });
+  await requireAdminOrAccountManagerOrThrow({ message: "Unauthorized" });
 
   const clientId = asString(formData.get("clientId")).trim();
   const monthlyRetainerHours = parseIntStrict(asString(formData.get("monthlyRetainerHours")));

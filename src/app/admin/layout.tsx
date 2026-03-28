@@ -14,6 +14,11 @@ const ADMIN_LINKS: Array<{ href: string; label: string }> = [
   { href: "/admin/users", label: "Users" },
 ];
 
+const MANAGER_LINKS: Array<{ href: string; label: string }> = [
+  { href: "/admin/retainers", label: "Retainers" },
+  { href: "/admin/clients", label: "Clients" },
+];
+
 export default async function AdminLayout({ children }: { children: ReactNode }) {
   const session = await auth();
 
@@ -27,11 +32,15 @@ export default async function AdminLayout({ children }: { children: ReactNode })
     );
   }
 
-  if (session.user.role !== "ADMIN") {
+  const role = session.user.role;
+  const isAdmin = role === "ADMIN";
+  const isAccountManager = role === "ACCOUNT_MANAGER";
+
+  if (!isAdmin && !isAccountManager) {
     return (
       <main style={{ maxWidth: 720, margin: "40px auto", padding: 16 }}>
         <h1 style={{ fontSize: 22, fontWeight: 700 }}>Forbidden</h1>
-        <p style={{ marginTop: 8 }}>Admin access required.</p>
+        <p style={{ marginTop: 8 }}>Admin or account manager access required.</p>
       </main>
     );
   }
@@ -39,11 +48,20 @@ export default async function AdminLayout({ children }: { children: ReactNode })
   // Admin stays light theme regardless of global employee theme.
   // NOTE: RootLayout already renders the global app header. To avoid a duplicated header
   // on /admin routes, keep admin navigation in-page (not in a second <header>).
+  const links = isAdmin ? ADMIN_LINKS : MANAGER_LINKS;
+
   return (
     <div className="theme-light space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3">
-          <span className="rounded-md bg-zinc-900 px-2 py-1 text-xs font-semibold tracking-wide text-white">ADMIN MODE</span>
+          <span
+            className={
+              "rounded-md px-2 py-1 text-xs font-semibold tracking-wide text-white " +
+              (isAdmin ? "bg-zinc-900" : "bg-emerald-700")
+            }
+          >
+            {isAdmin ? "ADMIN MODE" : "MANAGER MODE"}
+          </span>
           <Link href="/admin" className="text-sm font-semibold text-zinc-900">
             Admin
           </Link>
@@ -51,7 +69,7 @@ export default async function AdminLayout({ children }: { children: ReactNode })
         </div>
 
         <nav className="flex flex-wrap items-center gap-2">
-          {ADMIN_LINKS.map((l) => (
+          {links.map((l) => (
             <Link
               key={l.href}
               href={l.href}
