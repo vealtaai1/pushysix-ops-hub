@@ -33,7 +33,7 @@ export default async function ExpensesPage() {
   return (
     <div className="space-y-4">
       <div>
-        <h1 className="text-xl font-semibold">Ops — Expenses</h1>
+        <h1 className="text-xl font-semibold">Management — Expenses</h1>
         <p className="text-sm text-zinc-600">Minimal CRUD UI scaffold (list + create flows).</p>
       </div>
 

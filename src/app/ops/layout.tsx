@@ -14,9 +14,11 @@ export default function OpsLayout({ children }: { children: ReactNode }) {
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3">
-          <span className="rounded-md bg-zinc-900 px-2 py-1 text-xs font-semibold tracking-wide text-white">OPS</span>
+          <span className="rounded-md bg-zinc-900 px-2 py-1 text-xs font-semibold tracking-wide text-white">
+            MANAGEMENT
+          </span>
           <Link href="/ops" className="text-sm font-semibold text-zinc-900">
-            Ops
+            Management
           </Link>
         </div>
 

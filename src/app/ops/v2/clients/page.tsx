@@ -16,7 +16,7 @@ export default async function OpsV2ClientsPage() {
   return (
     <div className="space-y-4">
       <div>
-        <h1 className="text-xl font-semibold">Ops — Clients</h1>
+        <h1 className="text-xl font-semibold">Management — Clients</h1>
         <p className="text-sm text-zinc-600">Client pages with retainers + projects.</p>
       </div>
 

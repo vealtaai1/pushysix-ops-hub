@@ -22,7 +22,7 @@ export default async function OpsV2RetainerClientPage({ params }: { params: Prom
         <div className="min-w-0">
           <div className="text-xs text-zinc-600">
             <Link href="/ops" className="hover:underline">
-              Ops
+              Management
             </Link>
             <span className="px-2 text-zinc-400">/</span>
             <Link href="/ops/clients" className="hover:underline">

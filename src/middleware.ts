@@ -60,5 +60,6 @@ export const config = {
     "/portal/:path*",
     "/equipment/:path*",
     "/ops/:path*",
+    "/management/:path*", 
   ],
 };
