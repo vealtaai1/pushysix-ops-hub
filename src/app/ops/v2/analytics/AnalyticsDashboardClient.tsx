@@ -115,18 +115,32 @@ function PieTooltip({ active, payload }: any) {
   );
 }
 
-export function AnalyticsDashboardClient({ clients }: { clients: ClientOption[] }) {
+export function AnalyticsDashboardClient({
+  clients,
+  initialClientId,
+}: {
+  clients: ClientOption[];
+  initialClientId?: string;
+}) {
   const clientOptions = useMemo(() => [{ id: "", name: "All clients", status: "" }, ...clients], [clients]);
 
   const [from, setFrom] = useState(() => isoDaysAgo(30));
   const [to, setTo] = useState(() => isoToday());
-  const [clientId, setClientId] = useState<string>("");
+  const [clientId, setClientId] = useState<string>(() => initialClientId ?? "");
   const [bucketKey, setBucketKey] = useState<string>("");
   const [userId, setUserId] = useState<string>("");
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [data, setData] = useState<AnalyticsResponse | null>(null);
+
+  useEffect(() => {
+    // Keep the selected client in sync if this dashboard is mounted with a fixed/initial client id.
+    if (initialClientId && initialClientId !== clientId) {
+      setClientId(initialClientId);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialClientId]);
 
   useEffect(() => {
     let alive = true;

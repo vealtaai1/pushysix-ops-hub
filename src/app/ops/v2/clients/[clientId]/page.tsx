@@ -6,6 +6,9 @@ import { RetainersSection } from "./RetainersSection";
 
 export const dynamic = "force-dynamic";
 
+const OPS_V2_ANALYTICS_ENABLED =
+  process.env.OPS_V2_ANALYTICS_ENABLED === "true" || process.env.OPS_V2_ANALYTICS_ENABLED === "1";
+
 export default async function OpsV2ClientHubPage({ params }: { params: Promise<{ clientId: string }> }) {
   const { clientId } = await params;
 
@@ -78,6 +81,15 @@ export default async function OpsV2ClientHubPage({ params }: { params: Promise<{
         </div>
 
         <div className="flex items-center gap-2">
+          {OPS_V2_ANALYTICS_ENABLED ? (
+            <Link
+              href={`/ops/clients/${client.id}/analytics`}
+              className="inline-flex h-9 items-center rounded-md border border-zinc-300 bg-white px-3 text-sm font-semibold text-zinc-800 hover:bg-zinc-50"
+            >
+              Analytics
+            </Link>
+          ) : null}
+
           <Link
             href={`/ops/retainers/${client.id}`}
             className="inline-flex h-9 items-center rounded-md border border-zinc-300 bg-white px-3 text-sm font-semibold text-zinc-800 hover:bg-zinc-50"
