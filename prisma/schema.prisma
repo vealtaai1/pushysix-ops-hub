@@ -227,6 +227,10 @@ model ExpenseEntry {
 
   projectId String?
 
+  // Optional linkage when an expense is created "inline" on a specific worklog day.
+  // (Not all expenses are tied to worklogs.)
+  worklogId String?
+
   submittedByUserId String?
   employeeId        String?
 
@@ -255,12 +259,14 @@ model ExpenseEntry {
 
   client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
   project Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  worklog Worklog? @relation(fields: [worklogId], references: [id], onDelete: SetNull)
 
   submittedByUser User? @relation("ExpenseEntriesSubmittedBy", fields: [submittedByUserId], references: [id], onDelete: SetNull)
   employee        User? @relation("ExpenseEntriesForEmployee", fields: [employeeId], references: [id], onDelete: SetNull)
 
   @@index([clientId, expenseDate])
   @@index([projectId])
+  @@index([worklogId])
   @@index([submittedByUserId, expenseDate])
   @@index([employeeId, expenseDate])
   @@index([status])
@@ -390,6 +396,7 @@ model Worklog {
 
   entries          WorklogEntry[]
   mileage          MileageEntry[]
+  expenseEntries   ExpenseEntry[]
   approvalRequests ApprovalRequest[]
 
   @@unique([userId, workDate])
