@@ -73,6 +73,11 @@ enum ExpenseEntryKind {
   RETAINER_RECURRING
 }
 
+enum WorklogEngagementType {
+  RETAINER
+  MISC_PROJECT
+}
+
 model User {
   id            String    @id @default(cuid())
   email         String    @unique
@@ -400,9 +405,11 @@ model WorklogEntry {
   worklogId String
   clientId  String
 
+  // Whether this work is counted against the client retainer or billed as an ad-hoc/misc project.
+  engagementType WorklogEngagementType @default(RETAINER)
+
   bucketKey  String
   bucketName String
-
 
   minutes Int
   notes   String?
@@ -418,6 +425,7 @@ model WorklogEntry {
 
   @@index([worklogId])
   @@index([clientId])
+  @@index([engagementType])
   @@index([bucketKey])
 }
 

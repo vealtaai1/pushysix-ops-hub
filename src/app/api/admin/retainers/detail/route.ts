@@ -105,6 +105,7 @@ export async function GET(req: Request) {
   const entries = await prisma.worklogEntry.findMany({
     where: {
       clientId,
+      engagementType: "RETAINER",
       worklog: {
         workDate: { gte: startUTC, lt: endExclusiveUTC },
       },

@@ -10,6 +10,7 @@ type TaskLine = {
   id: string;
   clientId: string | null;
   clientName: string;
+  engagementType: "RETAINER" | "MISC_PROJECT";
   bucketKey: string;
   hoursText: string; // kept as text so the field can be cleared
   notes: string;
@@ -259,6 +260,7 @@ export function WorklogForm({
       id: uid(),
       clientId: null,
       clientName: "",
+      engagementType: "RETAINER",
       bucketKey: "",
       hoursText: "",
       notes: "",
@@ -459,6 +461,7 @@ export function WorklogForm({
                   id: uid(),
                   clientId: null,
                   clientName: "",
+                  engagementType: "RETAINER",
                   bucketKey: "",
                   hoursText: "",
                   notes: "",
@@ -475,6 +478,7 @@ export function WorklogForm({
             <thead>
               <tr className="text-left text-xs text-zinc-600">
                 <th className="border-b border-zinc-200 px-3 py-2">Client</th>
+                <th className="border-b border-zinc-200 px-3 py-2">Engagement</th>
                 <th className="border-b border-zinc-200 px-3 py-2">Task category</th>
                 <th className="border-b border-zinc-200 px-3 py-2">Hours</th>
                 <th className="border-b border-zinc-200 px-3 py-2">Notes</th>
@@ -499,6 +503,22 @@ export function WorklogForm({
                         }}
                       />
                       {t.clientId ? null : <div className="mt-1 text-xs text-zinc-500">Choose a client</div>}
+                    </td>
+
+                    <td className="border-b border-zinc-100 px-3 py-2">
+                      <select
+                        value={t.engagementType}
+                        onChange={(e) =>
+                          setTasks((prev) =>
+                            prev.map((x) => (x.id === t.id ? { ...x, engagementType: e.target.value as TaskLine["engagementType"] } : x)),
+                          )
+                        }
+                        className="h-10 w-full rounded-md border border-zinc-300 bg-white px-3"
+                      >
+                        <option value="RETAINER">Retainer</option>
+                        <option value="MISC_PROJECT">Misc project</option>
+                      </select>
+                      <div className="mt-1 text-xs text-zinc-500">Retainer time counts toward the client’s retainer cycle.</div>
                     </td>
 
                     <td className="border-b border-zinc-100 px-3 py-2">
@@ -755,6 +775,7 @@ export function WorklogForm({
                 const bucket = BUCKETS.find((b) => b.key === t.bucketKey);
                 return {
                   clientId: t.clientId,
+                  engagementType: t.engagementType,
                   bucketKey: t.bucketKey,
                   bucketName: bucket?.name ?? t.bucketKey,
                   hours: parseNumberText(t.hoursText),

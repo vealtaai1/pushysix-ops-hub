@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { calgaryLocalStamp, getWorklogWindowStamps, parseISODateOnly } from "@/lib/calgaryTime";
-import { ApprovalStatus, ApprovalType, Prisma } from "@prisma/client";
+import { ApprovalStatus, ApprovalType, Prisma, WorklogEngagementType } from "@prisma/client";
 
 type ResubmitWorklogBody = {
   email: string;
@@ -10,6 +10,7 @@ type ResubmitWorklogBody = {
   totalKm: number;
   tasks: Array<{
     clientId: string | null;
+    engagementType?: "RETAINER" | "MISC_PROJECT";
     bucketKey: string;
     bucketName?: string;
     hours: number;
@@ -161,9 +162,14 @@ export async function POST(req: Request) {
         if (!notes) throw new Error("Notes are required for task hours > 0.");
 
         const minutes = Math.round(hours * 60);
+
+        const engagementType: WorklogEngagementType =
+          t.engagementType === "MISC_PROJECT" ? WorklogEngagementType.MISC_PROJECT : WorklogEngagementType.RETAINER;
+
         return {
           worklogId: updated.id,
           clientId: t.clientId,
+          engagementType,
           bucketKey: t.bucketKey,
           bucketName: t.bucketName ?? t.bucketKey,
           minutes,
