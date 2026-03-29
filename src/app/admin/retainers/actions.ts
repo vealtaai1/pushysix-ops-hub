@@ -117,4 +117,6 @@ export async function updateClientRetainerBasics(formData: FormData): Promise<vo
 
   revalidatePath("/admin/retainers");
   revalidatePath("/admin/clients");
+  revalidatePath("/management/retainers");
+  revalidatePath("/management/clients");
 }

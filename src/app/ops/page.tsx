@@ -24,7 +24,6 @@ export default function OpsHomePage() {
 
       <div className="grid gap-4 sm:grid-cols-2">
         <Tile href="/ops/clients" title="Clients" desc="Client hub (projects, retainers, billing close)." />
-        <Tile href="/ops/expenses" title="Expenses" desc="Expense entries (create, review, receipts)." />
         <Tile href="/ops/analytics" title="Analytics" desc="Worklog minutes over time." />
       </div>
     </div>

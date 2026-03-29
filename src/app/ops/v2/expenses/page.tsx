@@ -1,43 +1,36 @@
-import { prisma } from "@/lib/db";
-import { ExpensesListClient } from "./_components/ExpensesListClient";
-import { ExpenseEntryListItem } from "./_components/types";
+import Link from "next/link";
 
 export const dynamic = "force-dynamic";
 
 export default async function ExpensesPage() {
-  const clients = await prisma.client.findMany({
-    orderBy: [{ status: "asc" }, { name: "asc" }],
-    select: { id: true, name: true },
-  });
-
-  const itemsRaw = await prisma.expenseEntry.findMany({
-    orderBy: [{ expenseDate: "desc" }, { createdAt: "desc" }],
-    take: 200,
-    include: { client: { select: { name: true } } },
-  });
-
-  const initialItems: ExpenseEntryListItem[] = itemsRaw.map((e) => ({
-    id: e.id,
-    kind: e.kind as any,
-    clientId: e.clientId,
-    clientName: e.client.name,
-    expenseDate: e.expenseDate.toISOString().slice(0, 10),
-    description: e.description,
-    vendor: e.vendor,
-    amountCents: e.amountCents,
-    currency: e.currency,
-    receiptUrl: e.receiptUrl,
-    status: e.status as any,
-  }));
-
   return (
     <div className="space-y-4">
       <div>
         <h1 className="text-xl font-semibold">Management — Expenses</h1>
-        <p className="text-sm text-zinc-600">Minimal CRUD UI scaffold (list + create flows).</p>
+        <p className="text-sm text-zinc-600">
+          This page is deprecated. Employees submit expenses via <span className="font-medium">Worklog</span>.
+        </p>
       </div>
 
-      <ExpensesListClient clients={clients} initialItems={initialItems} />
+      <section className="rounded-lg border border-zinc-200 bg-white p-4">
+        <div className="text-sm font-semibold text-zinc-900">Where to review expenses now</div>
+        <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-zinc-700">
+          <li>
+            Per-client: open a client in <Link className="text-blue-600 hover:underline" href="/ops/clients">/ops/clients</Link>.
+          </li>
+          <li>
+            Approvals: review worklog submissions (including expenses) in{" "}
+            <Link className="text-blue-600 hover:underline" href="/admin/approvals">
+              /admin/approvals
+            </Link>
+            .
+          </li>
+        </ul>
+      </section>
+
+      <div className="text-xs text-zinc-500">
+        Note: The standalone Ops Expenses CRUD UI has been removed from navigation to reduce confusion.
+      </div>
     </div>
   );
 }

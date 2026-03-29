@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { requireAdminOrThrow } from "@/lib/adminAuth";
+import { requireAdminOrAccountManagerOrThrow } from "@/lib/adminAuth";
 import { ApprovalStatus } from "@prisma/client";
 
 export async function POST(req: Request) {
-  await requireAdminOrThrow({ message: "Unauthorized" });
+  await requireAdminOrAccountManagerOrThrow({ message: "Unauthorized" });
 
   const body = (await req.json().catch(() => null)) as any;
   const id = typeof body?.id === "string" ? body.id.trim() : "";

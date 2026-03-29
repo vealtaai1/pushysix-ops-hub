@@ -1,10 +1,13 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { requireAdminOrThrow, requireAdminUserIdOrThrow } from "@/lib/adminAuth";
+import {
+  requireAdminOrAccountManagerOrThrow,
+  requireAdminOrAccountManagerUserIdOrThrow,
+} from "@/lib/adminAuth";
 import { ApprovalStatus } from "@prisma/client";
 
 export async function POST(req: Request) {
-  await requireAdminOrThrow({ message: "Unauthorized" });
+  await requireAdminOrAccountManagerOrThrow({ message: "Unauthorized" });
 
   const body = (await req.json().catch(() => null)) as any;
   const id = typeof body?.id === "string" ? body.id.trim() : "";
@@ -12,7 +15,7 @@ export async function POST(req: Request) {
   if (!id) return NextResponse.json({ ok: false, message: "id is required" }, { status: 400 });
   if (!note) return NextResponse.json({ ok: false, message: "Rejection reason is required" }, { status: 400 });
 
-  const reviewerId = await requireAdminUserIdOrThrow();
+  const reviewerId = await requireAdminOrAccountManagerUserIdOrThrow();
   const now = new Date();
 
   const reqRow = await prisma.approvalRequest.update({

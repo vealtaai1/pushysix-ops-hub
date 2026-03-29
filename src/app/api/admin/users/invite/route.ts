@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { createHash, randomBytes } from "crypto";
 
 import { prisma } from "@/lib/db";
-import { requireAdminOrThrow } from "@/lib/adminAuth";
+import { requireAdminOrAccountManagerOrThrow } from "@/lib/adminAuth";
 import { isPostmarkConfigured, sendPostmarkEmail } from "@/lib/email/postmark";
 import { getAuthSecret } from "@/lib/authSecret";
 
@@ -15,7 +15,7 @@ function normalizeEmail(raw: unknown): string | null {
 }
 
 export async function POST(req: Request) {
-  await requireAdminOrThrow();
+  await requireAdminOrAccountManagerOrThrow();
 
   const body = (await req.json().catch(() => null)) as unknown;
   const email = normalizeEmail((body as any)?.email);

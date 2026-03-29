@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
 
 import { prisma } from "@/lib/db";
-import { requireAdminOrThrow } from "@/lib/adminAuth";
+import { requireAdminOrAccountManagerOrThrow } from "@/lib/adminAuth";
 
 export async function GET() {
-  await requireAdminOrThrow();
+  await requireAdminOrAccountManagerOrThrow();
 
   const users = await prisma.user.findMany({
     orderBy: [{ role: "desc" }, { email: "asc" }],

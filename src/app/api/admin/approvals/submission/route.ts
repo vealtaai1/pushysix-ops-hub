@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { requireAdminOrThrow } from "@/lib/adminAuth";
+import { requireAdminOrAccountManagerOrThrow } from "@/lib/adminAuth";
 
 export async function GET(req: Request) {
-  await requireAdminOrThrow({ message: "Unauthorized" });
+  await requireAdminOrAccountManagerOrThrow({ message: "Unauthorized" });
 
   const url = new URL(req.url);
   const id = (url.searchParams.get("id") ?? "").trim();
