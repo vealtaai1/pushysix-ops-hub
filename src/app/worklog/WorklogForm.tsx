@@ -23,6 +23,17 @@ type MileageLine = {
   kilometersText: string; // kept as text so the field can be cleared
 };
 
+type ExpenseLine = {
+  id: string;
+  clientId: string | null;
+  clientName: string;
+  vendor: string;
+  description: string;
+  amountText: string;
+  receiptUrl: string;
+  reimburseToEmployee: boolean;
+};
+
 function uid() {
   return Math.random().toString(16).slice(2) + Date.now().toString(16);
 }
@@ -268,6 +279,8 @@ export function WorklogForm({
   ]);
 
   const [mileage, setMileage] = React.useState<MileageLine[]>(() => []);
+
+  const [expenses, setExpenses] = React.useState<ExpenseLine[]>(() => []);
 
   const taskHoursInvalid = React.useMemo(() => {
     return tasks.map((t) => {
@@ -670,6 +683,149 @@ export function WorklogForm({
         </div>
       ) : null}
 
+      <div className="rounded-lg border border-zinc-200 p-4">
+        <div className="mb-3 flex items-center justify-between">
+          <div>
+            <h2 className="text-sm font-semibold">Expenses (optional)</h2>
+            <div className="mt-0.5 text-xs text-zinc-600">Add expenses related to this work day. Amounts are CAD. Receipt URL required for any amount &gt; 0.</div>
+          </div>
+          <button
+            type="button"
+            className="h-9 rounded-md border border-zinc-300 bg-white px-3 text-sm hover:bg-zinc-50"
+            onClick={() =>
+              setExpenses((prev) => [
+                ...prev,
+                {
+                  id: uid(),
+                  clientId: null,
+                  clientName: "",
+                  vendor: "",
+                  description: "",
+                  amountText: "",
+                  receiptUrl: "",
+                  reimburseToEmployee: true,
+                },
+              ])
+            }
+          >
+            + Add expense
+          </button>
+        </div>
+
+        {expenses.length === 0 ? (
+          <div className="text-sm text-zinc-600">No expenses.</div>
+        ) : (
+          <div className="overflow-x-auto overflow-y-visible">
+            <table className="w-full min-w-[980px] border-separate border-spacing-0">
+              <thead>
+                <tr className="text-left text-xs text-zinc-600">
+                  <th className="border-b border-zinc-200 px-3 py-2">Client</th>
+                  <th className="border-b border-zinc-200 px-3 py-2">Vendor</th>
+                  <th className="border-b border-zinc-200 px-3 py-2">Description</th>
+                  <th className="border-b border-zinc-200 px-3 py-2">Amount (CAD)</th>
+                  <th className="border-b border-zinc-200 px-3 py-2">Receipt URL</th>
+                  <th className="border-b border-zinc-200 px-3 py-2">Reimburse?</th>
+                  <th className="border-b border-zinc-200 px-3 py-2"></th>
+                </tr>
+              </thead>
+              <tbody>
+                {expenses.map((ex) => {
+                  const amt = parseNumberText(ex.amountText);
+                  const amountInvalid = ex.amountText.trim() !== "" && (!Number.isFinite(amt) || amt < 0);
+                  const needsReceipt = Number.isFinite(amt) && amt > 0;
+                  const receiptMissing = needsReceipt && ex.receiptUrl.trim().length === 0;
+
+                  return (
+                    <tr key={ex.id} className="align-top">
+                      <td className="border-b border-zinc-100 px-3 py-2">
+                        <ClientTypeahead
+                          clients={clients}
+                          valueName={ex.clientName}
+                          placeholder="Search client…"
+                          onSelect={(c) =>
+                            setExpenses((prev) => prev.map((x) => (x.id === ex.id ? { ...x, clientId: c.id, clientName: c.name } : x)))
+                          }
+                        />
+                        {showValidation && needsReceipt && !ex.clientId ? (
+                          <div className="mt-1 text-xs text-red-700">Client required.</div>
+                        ) : null}
+                      </td>
+                      <td className="border-b border-zinc-100 px-3 py-2">
+                        <input
+                          value={ex.vendor}
+                          onChange={(e) => setExpenses((prev) => prev.map((x) => (x.id === ex.id ? { ...x, vendor: e.target.value } : x)))}
+                          className="h-10 w-44 rounded-md border border-zinc-300 bg-white px-3"
+                          placeholder="Amazon…"
+                        />
+                      </td>
+                      <td className="border-b border-zinc-100 px-3 py-2">
+                        <input
+                          value={ex.description}
+                          onChange={(e) =>
+                            setExpenses((prev) => prev.map((x) => (x.id === ex.id ? { ...x, description: e.target.value } : x)))
+                          }
+                          className={
+                            "h-10 w-72 rounded-md border bg-white px-3 " +
+                            (showValidation && needsReceipt && ex.description.trim().length === 0 ? "border-red-300" : "border-zinc-300")
+                          }
+                          placeholder="What was this for?"
+                        />
+                      </td>
+                      <td className="border-b border-zinc-100 px-3 py-2">
+                        <input
+                          inputMode="decimal"
+                          value={ex.amountText}
+                          onChange={(e) => setExpenses((prev) => prev.map((x) => (x.id === ex.id ? { ...x, amountText: e.target.value } : x)))}
+                          className={
+                            "h-10 w-36 rounded-md border bg-white px-3 " + (amountInvalid ? "border-red-300" : "border-zinc-300")
+                          }
+                          placeholder="0.00"
+                        />
+                      </td>
+                      <td className="border-b border-zinc-100 px-3 py-2">
+                        <input
+                          value={ex.receiptUrl}
+                          onChange={(e) =>
+                            setExpenses((prev) => prev.map((x) => (x.id === ex.id ? { ...x, receiptUrl: e.target.value } : x)))
+                          }
+                          className={
+                            "h-10 w-72 rounded-md border bg-white px-3 " +
+                            (showValidation && receiptMissing ? "border-red-300" : "border-zinc-300")
+                          }
+                          placeholder="https://…"
+                        />
+                        {showValidation && receiptMissing ? <div className="mt-1 text-xs text-red-700">Receipt URL required.</div> : null}
+                      </td>
+                      <td className="border-b border-zinc-100 px-3 py-2">
+                        <label className="inline-flex h-10 items-center gap-2 text-sm text-zinc-700">
+                          <input
+                            type="checkbox"
+                            checked={ex.reimburseToEmployee}
+                            onChange={(e) =>
+                              setExpenses((prev) => prev.map((x) => (x.id === ex.id ? { ...x, reimburseToEmployee: e.target.checked } : x)))
+                            }
+                          />
+                          Yes
+                        </label>
+                      </td>
+                      <td className="border-b border-zinc-100 px-3 py-2">
+                        <button
+                          type="button"
+                          className="h-10 rounded-md px-3 text-sm text-zinc-700 hover:bg-zinc-50"
+                          onClick={() => setExpenses((prev) => prev.filter((x) => x.id !== ex.id))}
+                        >
+                          Remove
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
       {isResubmission ? (
         <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950">
           <div className="font-semibold">Resubmission (admin approval required)</div>
@@ -785,6 +941,14 @@ export function WorklogForm({
               mileage: mileage.map((m) => ({
                 clientId: m.clientId,
                 kilometers: parseNumberText(m.kilometersText),
+              })),
+              expenses: expenses.map((ex) => ({
+                clientId: ex.clientId,
+                vendor: ex.vendor,
+                description: ex.description,
+                amount: ex.amountText,
+                receiptUrl: ex.receiptUrl,
+                reimburseToEmployee: ex.reimburseToEmployee,
               })),
             };
 

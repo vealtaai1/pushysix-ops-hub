@@ -220,6 +220,48 @@ export function ApprovalsClient({ initialPending }: { initialPending: PendingRow
                       </div>
                     )}
                   </div>
+
+                  <div className="rounded-lg border border-zinc-200 p-3">
+                    <div className="text-sm font-semibold">Expenses</div>
+                    {(submission.worklog.expenseEntries ?? []).length === 0 ? (
+                      <div className="mt-2 text-sm text-zinc-600">No expenses.</div>
+                    ) : (
+                      <div className="mt-2 overflow-auto">
+                        <table className="w-full min-w-[820px] border-separate border-spacing-0">
+                          <thead>
+                            <tr className="text-left text-xs text-zinc-600">
+                              <th className="border-b border-zinc-200 px-2 py-1.5">Client</th>
+                              <th className="border-b border-zinc-200 px-2 py-1.5">Vendor</th>
+                              <th className="border-b border-zinc-200 px-2 py-1.5">Description</th>
+                              <th className="border-b border-zinc-200 px-2 py-1.5">Amount</th>
+                              <th className="border-b border-zinc-200 px-2 py-1.5">Receipt</th>
+                              <th className="border-b border-zinc-200 px-2 py-1.5">Reimburse</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {(submission.worklog.expenseEntries ?? []).map((ex: any) => (
+                              <tr key={ex.id} className="text-sm align-top">
+                                <td className="border-b border-zinc-100 px-2 py-1.5">{ex.client?.name ?? "—"}</td>
+                                <td className="border-b border-zinc-100 px-2 py-1.5">{ex.vendor ?? "—"}</td>
+                                <td className="border-b border-zinc-100 px-2 py-1.5">{ex.description ?? "—"}</td>
+                                <td className="border-b border-zinc-100 px-2 py-1.5">{((Number(ex.amountCents ?? 0) / 100) || 0).toFixed(2)} {ex.currency ?? "CAD"}</td>
+                                <td className="border-b border-zinc-100 px-2 py-1.5">
+                                  {ex.receiptUrl ? (
+                                    <a className="text-blue-700 underline" href={ex.receiptUrl} target="_blank" rel="noreferrer">
+                                      receipt
+                                    </a>
+                                  ) : (
+                                    "—"
+                                  )}
+                                </td>
+                                <td className="border-b border-zinc-100 px-2 py-1.5">{ex.reimburseToEmployee ? "Yes" : "No"}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </div>
                 </div>
               ) : null}
 

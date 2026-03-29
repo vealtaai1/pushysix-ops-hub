@@ -43,6 +43,21 @@ export async function GET(req: Request) {
             },
             orderBy: [{ createdAt: "asc" }],
           },
+          expenseEntries: {
+            select: {
+              id: true,
+              expenseDate: true,
+              vendor: true,
+              description: true,
+              amountCents: true,
+              currency: true,
+              receiptUrl: true,
+              reimburseToEmployee: true,
+              status: true,
+              client: { select: { id: true, name: true } },
+            },
+            orderBy: [{ createdAt: "asc" }],
+          },
         },
       },
       dayOff: {

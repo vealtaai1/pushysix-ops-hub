@@ -24,10 +24,30 @@ type SubmitWorklogBody = {
     kilometers: number;
     notes?: string;
   }>;
+  expenses?: Array<{
+    clientId: string | null;
+    vendor?: string;
+    description: string;
+    amount: string;
+    receiptUrl?: string;
+    reimburseToEmployee?: boolean;
+  }>;
 };
 
 function nearlyEqual(a: number, b: number, eps = 0.0001) {
   return Math.abs(a - b) <= eps;
+}
+
+function parseAmountToCents(amount: string): number {
+  const normalized = String(amount || "").trim();
+  if (!normalized) return 0;
+  if (!/^[0-9]+(\.[0-9]{1,2})?$/.test(normalized)) {
+    throw new Error("Invalid amount format. Use e.g. 123.45");
+  }
+  const [whole, frac = ""] = normalized.split(".");
+  const cents = Number(whole) * 100 + Number((frac + "00").slice(0, 2));
+  if (!Number.isFinite(cents) || cents < 0) throw new Error("Invalid amount.");
+  return cents;
 }
 
 function badRequest(message: string, details?: unknown) {
@@ -158,6 +178,7 @@ export async function POST(req: Request) {
 
   await prisma.worklogEntry.deleteMany({ where: { worklogId: worklog.id } });
   await prisma.mileageEntry.deleteMany({ where: { worklogId: worklog.id } });
+  await prisma.expenseEntry.deleteMany({ where: { worklogId: worklog.id } });
 
   try {
 
@@ -207,6 +228,48 @@ export async function POST(req: Request) {
 
     if (mileageCreates.length > 0) {
       await prisma.mileageEntry.createMany({ data: mileageCreates });
+    }
+
+    const expenses = Array.isArray(body.expenses) ? body.expenses : [];
+
+    const expenseCreates = expenses
+      .map((ex) => {
+        const amountCents = parseAmountToCents(String((ex as any)?.amount ?? ""));
+        if (amountCents <= 0) return null;
+
+        const clientId = (ex as any)?.clientId ? String((ex as any).clientId) : "";
+        if (!clientId) throw new Error("Client is required for expenses with amount > 0.");
+
+        const description = String((ex as any)?.description ?? "").trim();
+        if (!description) throw new Error("Description is required for expenses with amount > 0.");
+
+        const receiptUrl = String((ex as any)?.receiptUrl ?? "").trim();
+        if (!receiptUrl) throw new Error("Receipt URL is required for expenses with amount > 0.");
+
+        const vendor = (ex as any)?.vendor ? String((ex as any).vendor).trim() : null;
+        const reimburseToEmployee = Boolean((ex as any)?.reimburseToEmployee ?? true);
+
+        return {
+          kind: "EMPLOYEE_SUBMISSION" as const,
+          status: "SUBMITTED" as const,
+          clientId,
+          expenseDate: workDate,
+          vendor,
+          description,
+          notes: null,
+          amountCents,
+          currency: "CAD",
+          reimburseToEmployee,
+          receiptUrl,
+          submittedByUserId: user.id,
+          employeeId: user.id,
+          worklogId: worklog.id,
+        };
+      })
+      .filter(Boolean) as any[];
+
+    if (expenseCreates.length > 0) {
+      await prisma.expenseEntry.createMany({ data: expenseCreates });
     }
   } catch (e) {
     const error = String(e);
