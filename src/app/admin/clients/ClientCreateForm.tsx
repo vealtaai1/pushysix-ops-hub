@@ -42,7 +42,7 @@ export function ClientCreateForm() {
           </label>
 
           <label className="grid gap-1">
-            <span className="text-sm font-medium">Billing contact email</span>
+            <span className="text-sm font-medium">Billing email</span>
             <input
               name="billingContactEmail"
               type="email"
@@ -56,32 +56,14 @@ export function ClientCreateForm() {
           </label>
         </div>
 
-        <div className="grid gap-3 md:grid-cols-3">
-          <label className="grid gap-1">
-            <span className="text-sm font-medium">Billing cycle start</span>
-            <select
-              name="billingCycleStartDay"
-              defaultValue=""
-              className={
-                "h-10 rounded-md border bg-white px-3 " +
-                (state.fieldErrors?.billingCycleStartDay ? "border-red-300" : "border-zinc-300")
-              }
-            >
-              <option value="">(default: 1st)</option>
-              <option value="FIRST">1st</option>
-              <option value="FIFTEENTH">15th</option>
-            </select>
-            <FieldError msg={state.fieldErrors?.billingCycleStartDay} />
-          </label>
-
-          <div className="hidden md:block" />
-          <div className="hidden md:block" />
-        </div>
-
         <div className="grid gap-3 md:grid-cols-2">
           <label className="grid gap-1">
             <span className="text-sm font-medium">Main contact</span>
-            <input name="mainContactName" placeholder="Jane Doe" className="h-10 rounded-md border border-zinc-300 bg-white px-3" />
+            <input
+              name="mainContactName"
+              placeholder="Jane Doe"
+              className="h-10 rounded-md border border-zinc-300 bg-white px-3"
+            />
           </label>
 
           <label className="grid gap-1">
@@ -102,22 +84,14 @@ export function ClientCreateForm() {
         <div className="grid gap-3 md:grid-cols-2">
           <label className="grid gap-1">
             <span className="text-sm font-medium">Billing contact</span>
-            <input name="billingContactName" placeholder="Accounts Payable" className="h-10 rounded-md border border-zinc-300 bg-white px-3" />
+            <input
+              name="billingContactName"
+              placeholder="Accounts Payable"
+              className="h-10 rounded-md border border-zinc-300 bg-white px-3"
+            />
           </label>
 
-          <label className="grid gap-1">
-            <span className="text-sm font-medium">Legacy billing email (optional)</span>
-            <input
-              name="clientBillingEmail"
-              type="email"
-              placeholder="billing@client.com"
-              className={
-                "h-10 rounded-md border bg-white px-3 " +
-                (state.fieldErrors?.clientBillingEmail ? "border-red-300" : "border-zinc-300")
-              }
-            />
-            <FieldError msg={state.fieldErrors?.clientBillingEmail} />
-          </label>
+          <div className="hidden md:block" />
         </div>
 
         <div className="flex items-center justify-between gap-3">

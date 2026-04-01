@@ -23,7 +23,7 @@ export function AdminClientsClient({ initialClients }: { initialClients: AdminCl
         <div className="col-span-1">Cycle</div>
         <div className="col-span-2">Retainer (hrs)</div>
         <div className="col-span-2">Caps</div>
-        <div className="col-span-2">Billing contact email</div>
+        <div className="col-span-2">Billing email</div>
         <div className="col-span-1 text-right">Open</div>
       </div>
 
@@ -50,7 +50,7 @@ export function AdminClientsClient({ initialClients }: { initialClients: AdminCl
             <div className="col-span-2 truncate text-zinc-600">{c.billingContactEmail ?? c.clientBillingEmail ?? "—"}</div>
             <div className="col-span-1 text-right">
               <Link
-                href={`/ops/clients/${c.id}`}
+                href={`/admin/clients/${c.id}`}
                 className="inline-flex h-8 items-center rounded-md border border-zinc-300 bg-white px-2.5 text-xs font-semibold text-zinc-800 hover:bg-zinc-50"
               >
                 Open
