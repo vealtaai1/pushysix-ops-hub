@@ -131,17 +131,9 @@ export default async function OpsV2ClientHubPage({ params }: { params: Promise<{
       />
 
       <section className="rounded-lg border border-zinc-200 bg-white p-4">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <div>
-            <div className="text-sm font-semibold text-zinc-900">Recent expenses</div>
-            <div className="mt-1 text-xs text-zinc-500">Expenses are submitted via Worklog and surfaced here for client review.</div>
-          </div>
-          <Link
-            href="/admin/approvals"
-            className="inline-flex h-9 items-center rounded-md border border-zinc-300 bg-white px-3 text-sm font-semibold text-zinc-800 hover:bg-zinc-50"
-          >
-            Go to approvals
-          </Link>
+        <div>
+          <div className="text-sm font-semibold text-zinc-900">Recent expenses</div>
+          <div className="mt-1 text-xs text-zinc-500">Expenses are submitted via Worklog and surfaced here for client review.</div>
         </div>
 
         {recentExpenses.length === 0 ? (

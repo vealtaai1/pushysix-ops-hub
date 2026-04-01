@@ -11,6 +11,7 @@ const ADMIN_TILES: Tile[] = [
   { href: "/admin/clients", title: "Clients", desc: "Client list, contacts, and configuration." },
   { href: "/admin/worklogs", title: "Worklogs", desc: "Review submitted worklogs." },
   { href: "/admin/approvals", title: "Approvals", desc: "Approve worklogs and requests." },
+  { href: "/admin/finance", title: "Finance", desc: "Cycle-based finance analytics and cost breakdowns." },
   { href: "/admin/equipment", title: "Equipment", desc: "Admin equipment views and utilities." },
   { href: "/admin/payroll", title: "Payroll", desc: "Payroll exports and reports.", adminOnly: true },
   { href: "/admin/users", title: "Users", desc: "View/manage roles.", adminOnly: true },
