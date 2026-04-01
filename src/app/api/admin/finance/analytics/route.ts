@@ -169,17 +169,19 @@ export async function GET(req: Request) {
     },
   });
 
+  // NOTE: MileageEntry.engagementType is not guaranteed to exist in all deployed DBs.
+  // Infer engagement from projectId presence (same policy as expenses):
+  // - RETAINER: projectId == null
+  // - MISC_PROJECT: projectId != null
   const mileageEntries = await prisma.mileageEntry.findMany({
     where: {
       clientId: { in: clients.map((c) => c.id) },
       worklog: { workDate: { gte: fromDate, lt: toDateExclusive } },
-      ...(engagementTypeParam ? { engagementType: engagementTypeParam as any } : {}),
       ...(projectId ? { projectId } : {}),
     },
     select: {
       clientId: true,
       kilometers: true,
-      engagementType: true,
       projectId: true,
       worklog: { select: { workDate: true } },
     },
@@ -307,6 +309,11 @@ export async function GET(req: Request) {
   }
 
   for (const m of mileageEntries) {
+    // Infer engagement for mileage based on projectId presence.
+    if (engagementTypeParam) {
+      if (engagementTypeParam === "RETAINER" && m.projectId != null) continue;
+      if (engagementTypeParam === "MISC_PROJECT" && m.projectId == null) continue;
+    }
     const cycle = cycleByClientId.get(m.clientId ?? "");
     if (!cycle) continue;
     const iso = m.worklog.workDate.toISOString().slice(0, 10);
@@ -407,6 +414,11 @@ export async function GET(req: Request) {
   }
 
   for (const m of mileageEntries) {
+    // Infer engagement for mileage based on projectId presence.
+    if (engagementTypeParam) {
+      if (engagementTypeParam === "RETAINER" && m.projectId != null) continue;
+      if (engagementTypeParam === "MISC_PROJECT" && m.projectId == null) continue;
+    }
     const cycle = cycleByClientId.get(m.clientId ?? "");
     if (!cycle) continue;
 
