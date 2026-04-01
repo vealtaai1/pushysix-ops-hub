@@ -158,7 +158,7 @@ export function FinanceDashboardClient({ clients }: { clients: ClientOption[] })
   );
 
 
-  const [referenceDate, setReferenceDate] = useState(() => isoToday());
+  const referenceDate = useMemo(() => isoToday(), []);
   const [clientId, setClientId] = useState<string>("");
   const [engagementKey, setEngagementKey] = useState<string>("RETAINER");
 
@@ -196,7 +196,13 @@ export function FinanceDashboardClient({ clients }: { clients: ClientOption[] })
         }
 
         const res = await fetch(`/api/admin/finance/analytics?${params.toString()}`, { cache: "no-store" });
-        const json = (await res.json()) as any;
+        const raw = await res.text();
+        let json: any;
+        try {
+          json = raw ? JSON.parse(raw) : null;
+        } catch {
+          throw new Error(`Unexpected non-JSON response (${res.status}).`);
+        }
         if (!res.ok || !json?.ok) throw new Error(json?.message ?? `Request failed (${res.status})`);
         if (!alive) return;
         setData(json as FinanceAnalyticsResponse);
@@ -220,16 +226,6 @@ export function FinanceDashboardClient({ clients }: { clients: ClientOption[] })
     <div className="space-y-6">
       <section className="rounded-lg border border-zinc-200 bg-white p-4">
         <div className="flex flex-wrap items-end gap-3">
-          <div className="grid gap-1">
-            <label className="text-xs font-medium text-zinc-700">Reference date</label>
-            <input
-              type="date"
-              value={referenceDate}
-              onChange={(e) => setReferenceDate(e.target.value)}
-              className="rounded-md border border-zinc-200 px-3 py-2 text-sm"
-            />
-          </div>
-
           <div className="grid gap-1 min-w-[260px]">
             <label className="text-xs font-medium text-zinc-700">Client</label>
             <select
@@ -326,7 +322,7 @@ export function FinanceDashboardClient({ clients }: { clients: ClientOption[] })
                   <BarChart
                     data={(data.clients ?? []).map((c) => ({
                       client: c.clientName,
-                      revenueCents: c.monthlyRetainerFeeCents ?? 0,
+                      revenueCents: c.monthlyRetainerFeeCents == null ? 0 : normalizeCents(c.monthlyRetainerFeeCents),
                       totalExpenseCents: c.totalExpenseCostCents,
                       marginCents: c.grossMarginCents ?? 0,
                     }))}
