@@ -3,17 +3,14 @@
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db";
 import { requireAdminOrThrow } from "@/lib/adminAuth";
-import { BillingCycleStartDay } from "@prisma/client";
 
 export type CreateClientState = {
   ok: boolean;
   message?: string;
   fieldErrors?: {
     name?: string;
-    clientBillingEmail?: string;
     billingContactEmail?: string;
     mainContactEmail?: string;
-    billingCycleStartDay?: string;
   };
 };
 
@@ -37,34 +34,16 @@ export async function createClient(_prevState: CreateClientState, formData: Form
   }
 
   const name = asString(formData.get("name")).trim();
-  const clientBillingEmail = asString(formData.get("clientBillingEmail")).trim();
   const billingContactEmail = asString(formData.get("billingContactEmail")).trim();
   const mainContactName = asString(formData.get("mainContactName")).trim();
   const mainContactEmail = asString(formData.get("mainContactEmail")).trim();
   const billingContactName = asString(formData.get("billingContactName")).trim();
-  const billingCycleStartDayRaw = asString(formData.get("billingCycleStartDay")).trim();
 
   const fieldErrors: NonNullable<CreateClientState["fieldErrors"]> = {};
 
   if (!name) fieldErrors.name = "Client name is required.";
 
-  // Billing cycle start is optional on create; if omitted we let Prisma default apply.
-  let billingCycleStartDay: BillingCycleStartDay | null = null;
-  if (!billingCycleStartDayRaw) {
-    billingCycleStartDay = null;
-  } else if (billingCycleStartDayRaw === BillingCycleStartDay.FIRST) {
-    billingCycleStartDay = BillingCycleStartDay.FIRST;
-  } else if (billingCycleStartDayRaw === BillingCycleStartDay.FIFTEENTH) {
-    billingCycleStartDay = BillingCycleStartDay.FIFTEENTH;
-  } else {
-    fieldErrors.billingCycleStartDay = "Choose a valid cycle start day.";
-  }
-
-  const emailToSave = clientBillingEmail ? clientBillingEmail : null;
-  if (clientBillingEmail && !isEmail(clientBillingEmail)) {
-    fieldErrors.clientBillingEmail = "Enter a valid email address.";
-  }
-
+  // Single billing email input, stored in both the new contact field and the legacy billing email slot.
   const billingContactEmailToSave = billingContactEmail ? billingContactEmail : null;
   if (billingContactEmail && !isEmail(billingContactEmail)) {
     fieldErrors.billingContactEmail = "Enter a valid email address.";
@@ -84,7 +63,6 @@ export async function createClient(_prevState: CreateClientState, formData: Form
   await prisma.client.create({
     data: {
       name,
-      ...(billingCycleStartDay ? { billingCycleStartDay } : {}),
 
       mainContactName: mainContactName || null,
       mainContactEmail: mainContactEmailToSave,
@@ -92,7 +70,7 @@ export async function createClient(_prevState: CreateClientState, formData: Form
       billingContactEmail: billingContactEmailToSave,
 
       // Legacy + downstream behavior
-      clientBillingEmail: billingContactEmailToSave ?? emailToSave,
+      clientBillingEmail: billingContactEmailToSave,
 
       monthlyRetainerHours: 0,
       maxShootsPerCycle: null,
@@ -148,7 +126,10 @@ export async function deleteClient(_prevState: DeleteClientState, formData: Form
       new Set<string>([...entryLinks.map((r) => r.worklogId), ...mileageLinks.map((r) => r.worklogId)])
     );
 
-    await Promise.all([tx.worklogEntry.deleteMany({ where: { clientId } }), tx.mileageEntry.deleteMany({ where: { clientId } })]);
+    await Promise.all([
+      tx.worklogEntry.deleteMany({ where: { clientId } }),
+      tx.mileageEntry.deleteMany({ where: { clientId } }),
+    ]);
 
     // Cleanup: if any worklogs are now empty (no entries + no mileage), delete them.
     if (touchedWorklogIds.length > 0) {
