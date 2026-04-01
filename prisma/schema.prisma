@@ -201,7 +201,7 @@ model Project {
   shortDescription String?
 
   code      String
-  shortCode String @unique
+  shortCode String
 
   status   ProjectStatus @default(OPEN)
   closedAt DateTime?
@@ -224,6 +224,7 @@ model Project {
   projectCloseBillingEmails ProjectCloseBillingEmail[]
 
   @@unique([clientId, code])
+  @@unique([clientId, shortCode])
   @@index([clientId])
   @@index([status])
 }
