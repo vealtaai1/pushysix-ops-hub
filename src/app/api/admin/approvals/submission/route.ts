@@ -2,8 +2,21 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { requireAdminOrAccountManagerOrThrow } from "@/lib/adminAuth";
 
+function statusFromAuthError(e: unknown) {
+  const msg = e instanceof Error ? e.message : "Unauthorized";
+  if (msg.toLowerCase().includes("forbidden")) return 403;
+  return 401;
+}
+
 export async function GET(req: Request) {
-  await requireAdminOrAccountManagerOrThrow({ message: "Unauthorized" });
+  try {
+    await requireAdminOrAccountManagerOrThrow();
+  } catch (e) {
+    return NextResponse.json(
+      { ok: false, message: e instanceof Error ? e.message : "Unauthorized" },
+      { status: statusFromAuthError(e) }
+    );
+  }
 
   const url = new URL(req.url);
   const id = (url.searchParams.get("id") ?? "").trim();

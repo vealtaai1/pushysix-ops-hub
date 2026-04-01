@@ -6,15 +6,36 @@ import {
 } from "@/lib/adminAuth";
 import { ApprovalStatus } from "@prisma/client";
 
+function statusFromAuthError(e: unknown) {
+  const msg = e instanceof Error ? e.message : "Unauthorized";
+  if (msg.toLowerCase().includes("forbidden")) return 403;
+  return 401;
+}
+
 export async function POST(req: Request) {
-  await requireAdminOrAccountManagerOrThrow({ message: "Unauthorized" });
+  try {
+    await requireAdminOrAccountManagerOrThrow();
+  } catch (e) {
+    return NextResponse.json(
+      { ok: false, message: e instanceof Error ? e.message : "Unauthorized" },
+      { status: statusFromAuthError(e) }
+    );
+  }
 
   const body = (await req.json().catch(() => null)) as any;
   const id = typeof body?.id === "string" ? body.id.trim() : "";
   const note = typeof body?.note === "string" ? body.note.trim() : "";
   if (!id) return NextResponse.json({ ok: false, message: "id is required" }, { status: 400 });
 
-  const reviewerId = await requireAdminOrAccountManagerUserIdOrThrow();
+  let reviewerId: string;
+  try {
+    reviewerId = await requireAdminOrAccountManagerUserIdOrThrow();
+  } catch (e) {
+    return NextResponse.json(
+      { ok: false, message: e instanceof Error ? e.message : "Unauthorized" },
+      { status: statusFromAuthError(e) }
+    );
+  }
   const now = new Date();
 
   const reqRow = await prisma.approvalRequest.update({
@@ -48,6 +69,25 @@ export async function POST(req: Request) {
         approvalReason: null,
         approvedAt: now,
         approvedByUserId: reviewerId,
+      },
+    });
+  }
+
+  // Resolve any sibling PENDING approval requests for the same underlying entity.
+  // (Prevents multiple pending rows for the same worklog/day-off showing up in the queue.)
+  if (reqRow.worklogId || reqRow.dayOffId) {
+    await prisma.approvalRequest.updateMany({
+      where: {
+        id: { not: reqRow.id },
+        status: ApprovalStatus.PENDING,
+        ...(reqRow.worklogId ? { worklogId: reqRow.worklogId } : {}),
+        ...(reqRow.dayOffId ? { dayOffId: reqRow.dayOffId } : {}),
+      },
+      data: {
+        status: ApprovalStatus.SUPERSEDED,
+        reviewedAt: now,
+        reviewedByUserId: reviewerId,
+        reviewNote: `Superseded by approval of request ${reqRow.id}.`,
       },
     });
   }

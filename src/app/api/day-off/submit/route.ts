@@ -98,6 +98,20 @@ export async function POST(req: Request) {
   });
 
   if (!withinWindow) {
+    // Ensure at most one PENDING approval request per day-off.
+    await prisma.approvalRequest.updateMany({
+      where: {
+        dayOffId: dayOff.id,
+        status: ApprovalStatus.PENDING,
+      },
+      data: {
+        status: ApprovalStatus.SUPERSEDED,
+        reviewedAt: new Date(),
+        reviewedByUserId: null,
+        reviewNote: "Superseded by a newer submission.",
+      },
+    });
+
     await prisma.approvalRequest.create({
       data: {
         type: ApprovalType.DAY_OFF,

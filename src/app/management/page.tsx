@@ -3,12 +3,11 @@ import Link from "next/link";
 export const dynamic = "force-dynamic";
 
 const LINKS: Array<{ href: string; title: string; desc: string }> = [
-  { href: "/management/retainers", title: "Retainers", desc: "Review retainer usage + caps." },
-  { href: "/management/clients", title: "Clients", desc: "Add/edit clients (no delete)." },
+  { href: "/management/retainers", title: "Retainer Logs", desc: "Review retainer usage + caps." },
+  // Clients live under /ops/clients (client hub).
   { href: "/management/approvals", title: "Approvals", desc: "Approve/reject late worklogs, resubmits, day-offs." },
   { href: "/management/worklogs", title: "Worklogs", desc: "Manager view across users." },
-  { href: "/management/payroll", title: "Payroll", desc: "Payroll hours + export." },
-  { href: "/management/users", title: "Users", desc: "Invite users (no delete)." },
+  { href: "/management/users", title: "Users", desc: "View users." },
 ];
 
 export default function ManagementHomePage() {

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { calgaryLocalStamp, getWorklogWindowStamps, parseISODateOnly } from "@/lib/calgaryTime";
+import { assertValidBucketKey } from "@/lib/buckets";
 import { ApprovalStatus, ApprovalType, Prisma, WorklogEngagementType } from "@prisma/client";
 
 type SubmitWorklogBody = {
@@ -21,11 +22,15 @@ type SubmitWorklogBody = {
   mileage: Array<{
     clientId: string | null;
     clientName?: string;
+    engagementType?: "RETAINER" | "MISC_PROJECT";
+    projectId?: string | null;
     kilometers: number;
     notes?: string;
   }>;
   expenses?: Array<{
     clientId: string | null;
+    engagementType?: "RETAINER" | "MISC_PROJECT";
+    projectId?: string | null;
     vendor?: string;
     description: string;
     amount: string;
@@ -197,12 +202,14 @@ export async function POST(req: Request) {
         const engagementType: WorklogEngagementType =
           t.engagementType === "MISC_PROJECT" ? WorklogEngagementType.MISC_PROJECT : WorklogEngagementType.RETAINER;
 
+        const { bucketKey, bucketName } = assertValidBucketKey(t.bucketKey);
+
         return {
           worklogId: worklog.id,
           clientId: t.clientId,
           engagementType,
-          bucketKey: t.bucketKey,
-          bucketName: t.bucketName ?? t.bucketKey,
+          bucketKey,
+          bucketName,
           minutes,
           notes,
         };
@@ -218,9 +225,20 @@ export async function POST(req: Request) {
         const km = Number(m.kilometers);
         if (!Number.isFinite(km) || km <= 0) throw new Error("Invalid kilometers.");
         if (!m.clientId) throw new Error("Client is required for mileage > 0.");
+
+        const engagementType: WorklogEngagementType =
+          m.engagementType === "MISC_PROJECT" ? WorklogEngagementType.MISC_PROJECT : WorklogEngagementType.RETAINER;
+
+        const projectId = m.projectId ? String(m.projectId) : null;
+        if (engagementType === WorklogEngagementType.MISC_PROJECT && !projectId) {
+          throw new Error("Project is required for misc project mileage.");
+        }
+
         return {
           worklogId: worklog.id,
           clientId: m.clientId,
+          engagementType,
+          projectId,
           kilometers: km,
           notes: m.notes ? String(m.notes) : null,
         };
@@ -246,20 +264,31 @@ export async function POST(req: Request) {
         const receiptUrl = String((ex as any)?.receiptUrl ?? "").trim();
         if (!receiptUrl) throw new Error("Receipt URL is required for expenses with amount > 0.");
 
+        const engagementType: WorklogEngagementType =
+          (ex as any)?.engagementType === "MISC_PROJECT" ? WorklogEngagementType.MISC_PROJECT : WorklogEngagementType.RETAINER;
+
+        const projectId = (ex as any)?.projectId ? String((ex as any).projectId) : null;
+        if (engagementType === WorklogEngagementType.MISC_PROJECT && !projectId) {
+          throw new Error("Project is required for misc project expenses.");
+        }
+
         const vendor = (ex as any)?.vendor ? String((ex as any).vendor).trim() : null;
-        const reimburseToEmployee = Boolean((ex as any)?.reimburseToEmployee ?? true);
+        const category = String((ex as any)?.category ?? "OTHER").trim() || "OTHER";
 
         return {
           kind: "EMPLOYEE_SUBMISSION" as const,
           status: "SUBMITTED" as const,
           clientId,
+          engagementType,
+          projectId,
           expenseDate: workDate,
           vendor,
+          category: category as any,
           description,
           notes: null,
           amountCents,
           currency: "CAD",
-          reimburseToEmployee,
+          reimburseToEmployee: true,
           receiptUrl,
           submittedByUserId: user.id,
           employeeId: user.id,

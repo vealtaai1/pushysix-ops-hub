@@ -13,6 +13,7 @@
     "prisma:migrate:deploy": "node scripts/prismaMigrateDeploy.js",
     "prisma:snapshot-to-migrations": "node scripts/prismaSnapshotToMigrations.js",
     "assert:retainers": "node scripts/retainers.assert.mjs",
+    "backfill:retainer-fees": "node scripts/backfillMonthlyRetainerFeeCents.js",
     "prisma:seed": "npx prisma db seed"
   },
   "prisma": {

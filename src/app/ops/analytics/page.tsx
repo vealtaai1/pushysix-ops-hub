@@ -1,2 +1,6 @@
-export { dynamic } from "../v2/analytics/page";
-export { default } from "../v2/analytics/page";
+import { notFound } from "next/navigation";
+
+// Analytics has been removed.
+export default function OpsAnalyticsPage() {
+  notFound();
+}

@@ -370,7 +370,7 @@ export function RetainersDashboardClient({ initialRows }: { initialRows: ClientR
     <div className="space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-xl font-semibold">Admin — Retainers Dashboard</h1>
+          <h1 className="text-xl font-semibold">Retainer Logs</h1>
           <p className="text-sm text-zinc-600">Visual overview + drill-down by client and cycle.</p>
         </div>
 

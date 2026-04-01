@@ -1,12 +1,18 @@
 import Link from "next/link";
 
 import { auth } from "@/auth";
+import { AddRetainerClient } from "./AddRetainerClient";
+import { ClearRetainerClient } from "./ClearRetainerClient";
+import { RetainerFeeEditorClient } from "./RetainerFeeEditorClient";
 
 type RetainersSectionProps = {
   client: {
     id: string;
+    name: string;
     billingCycleStartDay: "FIRST" | "FIFTEENTH";
     monthlyRetainerHours: number;
+    monthlyRetainerFeeCents: number | null;
+    monthlyRetainerFeeCurrency: string;
     maxShootsPerCycle: number | null;
     maxCaptureHoursPerCycle: number | null;
   };
@@ -23,10 +29,20 @@ function formatUsageMode(mode: "PER_DAY" | "PER_HOUR"): string {
   return mode === "PER_DAY" ? "per day" : "per hour";
 }
 
+function fmtMoneyFromCents(cents: number | null, currency: string): string {
+  if (cents == null) return "—";
+  if (!Number.isFinite(cents)) return "—";
+  try {
+    return new Intl.NumberFormat("en-CA", { style: "currency", currency: currency || "CAD" }).format(cents / 100);
+  } catch {
+    return `${(cents / 100).toFixed(2)} ${currency || "CAD"}`;
+  }
+}
+
 export async function RetainersSection({ client, quotaItems }: RetainersSectionProps) {
   const session = await auth();
   const role = session?.user?.role;
-  const canManage = role === "ADMIN" || role === "ACCOUNT_MANAGER";
+  const isAdmin = role === "ADMIN";
 
   const hasAny =
     client.monthlyRetainerHours > 0 ||
@@ -34,10 +50,12 @@ export async function RetainersSection({ client, quotaItems }: RetainersSectionP
     client.maxCaptureHoursPerCycle !== null ||
     quotaItems.length > 0;
 
+  const canAddInitialRetainer = isAdmin && !hasAny;
+
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between gap-3">
-        <h2 className="text-lg font-semibold">Retainers</h2>
+        <h2 className="text-lg font-semibold">Retainer</h2>
         <div className="flex items-center gap-2">
           <Link
             href={`/ops/retainers/${client.id}`}
@@ -45,7 +63,12 @@ export async function RetainersSection({ client, quotaItems }: RetainersSectionP
           >
             Ad spend
           </Link>
-          {canManage ? (
+
+          {canAddInitialRetainer ? <AddRetainerClient clientId={client.id} clientName={client.name} /> : null}
+
+          {isAdmin && hasAny ? <ClearRetainerClient clientId={client.id} /> : null}
+
+          {isAdmin ? (
             <Link
               href="/admin/retainers"
               className="inline-flex h-9 items-center rounded-md bg-zinc-900 px-3 text-sm font-semibold text-white hover:opacity-90"
@@ -69,10 +92,24 @@ export async function RetainersSection({ client, quotaItems }: RetainersSectionP
 
             <div className="grid grid-cols-12 gap-2 px-4 py-3 text-sm">
               <div className="col-span-6 font-medium">Base retainer</div>
-              <div className="col-span-3">
-                {client.monthlyRetainerHours}h / cycle
-              </div>
+              <div className="col-span-3">{client.monthlyRetainerHours}h / cycle</div>
               <div className="col-span-3 text-zinc-600">Cycle start: {client.billingCycleStartDay.toLowerCase()}</div>
+            </div>
+
+            <div className="grid grid-cols-12 gap-2 px-4 py-3 text-sm border-t border-zinc-200">
+              <div className="col-span-6 font-medium">Monthly retainer fee</div>
+              <div className="col-span-3 whitespace-nowrap">{fmtMoneyFromCents(client.monthlyRetainerFeeCents, client.monthlyRetainerFeeCurrency)}</div>
+              <div className="col-span-3">
+                {isAdmin ? (
+                  <RetainerFeeEditorClient
+                    clientId={client.id}
+                    initialFeeCents={client.monthlyRetainerFeeCents}
+                    currency={client.monthlyRetainerFeeCurrency}
+                  />
+                ) : (
+                  <span className="text-zinc-600">Admin-only</span>
+                )}
+              </div>
             </div>
 
             {client.maxShootsPerCycle !== null ? (

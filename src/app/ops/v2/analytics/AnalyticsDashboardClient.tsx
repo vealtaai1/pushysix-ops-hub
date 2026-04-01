@@ -26,6 +26,11 @@ type AnalyticsResponse = {
     entryCount: number;
     distinctClients: number;
     distinctUsers: number;
+    payrollCostCents: number;
+    retainerRevenueCents: number | null;
+    marginCents: number | null;
+    revenueCurrency: string;
+    cyclesInRange: number;
   };
   appliedFilters?: { clientId: string | null; bucketKey: string | null; userId: string | null };
   minutesByDay: Array<{ date: string; minutes: number }>;
@@ -55,6 +60,15 @@ function isoDaysAgo(days: number): string {
 function fmtHours(minutes: number): string {
   const h = minutes / 60;
   return `${h.toFixed(1)}h`;
+}
+
+function fmtMoneyFromCents(cents: number | null, currency: string): string {
+  if (cents == null) return "—";
+  try {
+    return new Intl.NumberFormat("en-CA", { style: "currency", currency: currency || "CAD" }).format(cents / 100);
+  } catch {
+    return `${(cents / 100).toFixed(2)} ${currency || "CAD"}`;
+  }
 }
 
 const PIE_COLORS = [
@@ -313,10 +327,21 @@ export function AnalyticsDashboardClient({
 
         {data ? (
           <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
-            <Stat label="Total" value={fmtHours(data.totals.totalMinutes)} />
-            <Stat label="Entries" value={String(data.totals.entryCount)} />
-            <Stat label="Clients" value={String(data.totals.distinctClients)} />
-            <Stat label="Users" value={String(data.totals.distinctUsers)} />
+            <Stat label="Logged" value={fmtHours(data.totals.totalMinutes)} />
+
+            {clientId ? (
+              <>
+                <Stat label="Payroll (est.)" value={fmtMoneyFromCents(data.totals.payrollCostCents, "CAD")} />
+                <Stat label={`Revenue (×${data.totals.cyclesInRange} cycle${data.totals.cyclesInRange === 1 ? "" : "s"})`} value={fmtMoneyFromCents(data.totals.retainerRevenueCents, data.totals.revenueCurrency)} />
+                <Stat label="Margin" value={fmtMoneyFromCents(data.totals.marginCents, data.totals.revenueCurrency)} />
+              </>
+            ) : (
+              <>
+                <Stat label="Entries" value={String(data.totals.entryCount)} />
+                <Stat label="Clients" value={String(data.totals.distinctClients)} />
+                <Stat label="Users" value={String(data.totals.distinctUsers)} />
+              </>
+            )}
           </div>
         ) : null}
       </section>

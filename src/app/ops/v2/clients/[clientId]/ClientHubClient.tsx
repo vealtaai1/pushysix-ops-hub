@@ -1,7 +1,14 @@
 "use client";
 
 import * as React from "react";
-import { closeProject, createProject, type CloseProjectState, type CreateProjectState } from "./actions";
+import {
+  closeProject,
+  createProject,
+  deleteProject,
+  type CloseProjectState,
+  type CreateProjectState,
+  type DeleteProjectState,
+} from "./actions";
 
 type ClientHubClientProps = {
   client: {
@@ -19,6 +26,7 @@ type ClientHubClientProps = {
     createdAt: Date;
     closedAt: Date | null;
   }>;
+  canCloseProjects: boolean;
 };
 
 function pad4(n: number) {
@@ -49,7 +57,7 @@ function slugifyShortCode(input: string) {
     .replace(/-+$/, "");
 }
 
-export function ClientHubClient({ client, initialProjects }: ClientHubClientProps) {
+export function ClientHubClient({ client, initialProjects, canCloseProjects }: ClientHubClientProps) {
   const [showAdd, setShowAdd] = React.useState(false);
 
   const createInit: CreateProjectState = { ok: false };
@@ -57,6 +65,9 @@ export function ClientHubClient({ client, initialProjects }: ClientHubClientProp
 
   const closeInit: CloseProjectState = { ok: false };
   const [closeState, closeAction, closePending] = React.useActionState(closeProject, closeInit);
+
+  const deleteInit: DeleteProjectState = { ok: false };
+  const [deleteState, deleteAction, deletePending] = React.useActionState(deleteProject, deleteInit);
 
   const [projectName, setProjectName] = React.useState("");
   const [projectShortName, setProjectShortName] = React.useState("");
@@ -84,19 +95,29 @@ export function ClientHubClient({ client, initialProjects }: ClientHubClientProp
     }
   }, [closeState.ok]);
 
+  React.useEffect(() => {
+    if (deleteState.ok) {
+      window.location.reload();
+    }
+  }, [deleteState.ok]);
+
   const shortCodePreview = slugifyShortCode(projectShortName);
 
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-3">
         <h2 className="text-lg font-semibold">Projects</h2>
-        <button
-          type="button"
-          className="h-9 rounded-md bg-zinc-900 px-3 text-sm font-semibold text-white hover:opacity-90"
-          onClick={() => setShowAdd(true)}
-        >
-          Add project
-        </button>
+        {canCloseProjects ? (
+          <button
+            type="button"
+            className="h-9 rounded-md bg-zinc-900 px-3 text-sm font-semibold text-white hover:opacity-90"
+            onClick={() => setShowAdd(true)}
+          >
+            Add project
+          </button>
+        ) : (
+          <div className="text-xs text-zinc-500">Admin only</div>
+        )}
       </div>
 
       <div className="overflow-hidden rounded-lg border border-zinc-200">
@@ -119,20 +140,54 @@ export function ClientHubClient({ client, initialProjects }: ClientHubClientProp
               <div className="col-span-1 text-zinc-700">{p.status}</div>
               <div className="col-span-1 text-right">
                 {p.status === "OPEN" ? (
-                  <form action={closeAction}>
+                  canCloseProjects ? (
+                    <form
+                      action={closeAction}
+                      onSubmit={(e) => {
+                        if (!window.confirm(`Close project ${p.code}?`)) e.preventDefault();
+                      }}
+                    >
+                      <input type="hidden" name="clientId" value={client.id} />
+                      <input type="hidden" name="projectId" value={p.id} />
+                      <button
+                        type="submit"
+                        disabled={closePending}
+                        className={
+                          "h-8 rounded-md border px-2.5 text-xs font-semibold " +
+                          (closePending
+                            ? "border-zinc-200 bg-zinc-100 text-zinc-400"
+                            : "border-zinc-300 bg-white text-zinc-800 hover:bg-zinc-50")
+                        }
+                      >
+                        {closePending ? "Closing…" : "Close"}
+                      </button>
+                    </form>
+                  ) : (
+                    <span className="text-xs text-zinc-400">Admin only</span>
+                  )
+                ) : canCloseProjects ? (
+                  <form
+                    action={deleteAction}
+                    onSubmit={(e) => {
+                      const ok = window.confirm(
+                        `Delete project ${p.code}?\n\nThis cannot be undone. Expenses/mileage will be unlinked (projectId cleared).`
+                      );
+                      if (!ok) e.preventDefault();
+                    }}
+                  >
                     <input type="hidden" name="clientId" value={client.id} />
                     <input type="hidden" name="projectId" value={p.id} />
                     <button
                       type="submit"
-                      disabled={closePending}
+                      disabled={deletePending}
                       className={
                         "h-8 rounded-md border px-2.5 text-xs font-semibold " +
-                        (closePending
+                        (deletePending
                           ? "border-zinc-200 bg-zinc-100 text-zinc-400"
-                          : "border-zinc-300 bg-white text-zinc-800 hover:bg-zinc-50")
+                          : "border-red-300 bg-white text-red-700 hover:bg-red-50")
                       }
                     >
-                      {closePending ? "Closing…" : "Close"}
+                      {deletePending ? "Deleting…" : "Delete"}
                     </button>
                   </form>
                 ) : (
@@ -146,6 +201,10 @@ export function ClientHubClient({ client, initialProjects }: ClientHubClientProp
 
       {closeState.message ? (
         <div className={"text-sm " + (closeState.ok ? "text-emerald-700" : "text-red-700")}>{closeState.message}</div>
+      ) : null}
+
+      {deleteState.message ? (
+        <div className={"text-sm " + (deleteState.ok ? "text-emerald-700" : "text-red-700")}>{deleteState.message}</div>
       ) : null}
 
       {showAdd ? (

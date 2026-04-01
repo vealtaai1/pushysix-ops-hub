@@ -14,6 +14,17 @@ export function ExpenseFormEmployee({
   const [clientId, setClientId] = React.useState(clients[0]?.id ?? "");
   const [employeeId, setEmployeeId] = React.useState(employees[0]?.id ?? "");
   const [expenseDate, setExpenseDate] = React.useState(() => new Date().toISOString().slice(0, 10));
+  const [category, setCategory] = React.useState<
+    | "MILEAGE"
+    | "HOTEL_ACCOMMODATION"
+    | "MEAL"
+    | "PROP"
+    | "CAMERA_GEAR_EQUIPMENT"
+    | "PARKING"
+    | "CAR_RENTAL"
+    | "FUEL"
+    | "OTHER"
+  >("OTHER");
   const [description, setDescription] = React.useState("");
   const [vendor, setVendor] = React.useState("");
   const [amount, setAmount] = React.useState("");
@@ -35,6 +46,7 @@ export function ExpenseFormEmployee({
           employeeId,
           clientId,
           expenseDate,
+          category,
           vendor,
           description,
           amount,
@@ -120,6 +132,20 @@ export function ExpenseFormEmployee({
           </FieldRow>
 
           <FieldRow>
+            <Field label="Category">
+              <Select value={category} onChange={(e) => setCategory(e.target.value as any)} required>
+                <option value="MILEAGE">Mileage</option>
+                <option value="HOTEL_ACCOMMODATION">Hotel/Accommodation</option>
+                <option value="MEAL">Meal</option>
+                <option value="PROP">Prop</option>
+                <option value="CAMERA_GEAR_EQUIPMENT">Camera Gear/Equipment</option>
+                <option value="PARKING">Parking</option>
+                <option value="CAR_RENTAL">Car Rental</option>
+                <option value="FUEL">Fuel</option>
+                <option value="OTHER">Other</option>
+              </Select>
+            </Field>
+
             <Field label="Vendor">
               <TextInput
                 data-testid="expense-employee-vendor"
@@ -200,6 +226,7 @@ export function ExpenseFormEmployee({
             employeeId,
             clientId,
             expenseDate,
+            category,
             vendor,
             description,
             amount,

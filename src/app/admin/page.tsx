@@ -1,18 +1,22 @@
 import Link from "next/link";
 
+import { auth } from "@/auth";
+
 export const dynamic = "force-dynamic";
 
-const ADMIN_TILES: Array<{ href: string; title: string; desc: string }> = [
-  { href: "/admin/retainers", title: "Retainers", desc: "Manage retainers and billing enforcement." },
+type Tile = { href: string; title: string; desc: string; adminOnly?: boolean };
+
+const ADMIN_TILES: Tile[] = [
+  { href: "/admin/retainers", title: "Retainer Logs", desc: "Manage retainers and billing enforcement." },
   { href: "/admin/clients", title: "Clients", desc: "Client list, contacts, and configuration." },
   { href: "/admin/worklogs", title: "Worklogs", desc: "Review submitted worklogs." },
   { href: "/admin/approvals", title: "Approvals", desc: "Approve worklogs and requests." },
   { href: "/admin/equipment", title: "Equipment", desc: "Admin equipment views and utilities." },
-  { href: "/admin/payroll", title: "Payroll", desc: "Payroll exports and reports." },
-  { href: "/admin/users", title: "Users", desc: "Invite users and manage roles." },
+  { href: "/admin/payroll", title: "Payroll", desc: "Payroll exports and reports.", adminOnly: true },
+  { href: "/admin/users", title: "Users", desc: "View/manage roles.", adminOnly: true },
 ];
 
-function Tile({ href, title, desc }: { href: string; title: string; desc: string }) {
+function TileCard({ href, title, desc }: { href: string; title: string; desc: string }) {
   return (
     <Link
       href={href}
@@ -24,7 +28,13 @@ function Tile({ href, title, desc }: { href: string; title: string; desc: string
   );
 }
 
-export default function AdminDashboardPage() {
+export default async function AdminDashboardPage() {
+  const session = await auth();
+  const role = session?.user?.role;
+  const isAdmin = role === "ADMIN";
+
+  const tiles = ADMIN_TILES.filter((t) => (t.adminOnly ? isAdmin : true));
+
   return (
     <div className="space-y-6">
       <div>
@@ -33,8 +43,8 @@ export default function AdminDashboardPage() {
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {ADMIN_TILES.map((t) => (
-          <Tile key={t.href} href={t.href} title={t.title} desc={t.desc} />
+        {tiles.map((t) => (
+          <TileCard key={t.href} href={t.href} title={t.title} desc={t.desc} />
         ))}
       </div>
     </div>

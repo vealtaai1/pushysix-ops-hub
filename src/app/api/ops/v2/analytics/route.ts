@@ -36,6 +36,46 @@ function isoToUTCDate(iso: string): Date {
   return new Date(Date.UTC(p.year, p.month - 1, p.day, 0, 0, 0, 0));
 }
 
+function utcYMD(d: Date): { y: number; m: number; day: number } {
+  return { y: d.getUTCFullYear(), m: d.getUTCMonth() + 1, day: d.getUTCDate() };
+}
+
+function cycleStartKey(dateUTC: Date, billingCycleStartDay: "FIRST" | "FIFTEENTH"): string {
+  const { y, m, day } = utcYMD(dateUTC);
+  if (billingCycleStartDay === "FIRST") {
+    return `${y}-${String(m).padStart(2, "0")}-01`;
+  }
+
+  // FIFTEENTH: cycles run 15th → 14th.
+  // For days 15+, start is the 15th of this month.
+  // For days 1–14, start is the 15th of the previous month.
+  if (day >= 15) {
+    return `${y}-${String(m).padStart(2, "0")}-15`;
+  }
+
+  const prev = new Date(Date.UTC(y, m - 2, 15, 0, 0, 0, 0));
+  const py = prev.getUTCFullYear();
+  const pm = prev.getUTCMonth() + 1;
+  return `${py}-${String(pm).padStart(2, "0")}-15`;
+}
+
+function countDistinctBillingCyclesInclusive(
+  fromISO: string,
+  toISO: string,
+  billingCycleStartDay: "FIRST" | "FIFTEENTH"
+): number {
+  const from = isoToUTCDate(fromISO);
+  const to = isoToUTCDate(toISO);
+  const seen = new Set<string>();
+
+  for (let cur = new Date(from); cur <= to; ) {
+    seen.add(cycleStartKey(cur, billingCycleStartDay));
+    cur.setUTCDate(cur.getUTCDate() + 1);
+  }
+
+  return seen.size;
+}
+
 function toNum(v: unknown): number {
   if (typeof v === "bigint") return Number(v);
   if (v == null) return 0;
@@ -98,13 +138,15 @@ export async function GET(req: Request) {
           entryCount: bigint | number;
           distinctClients: bigint | number;
           distinctUsers: bigint | number;
+          payrollCostCents: bigint | number | null;
         }>
       >(Prisma.sql`
         SELECT
           COALESCE(SUM(e.minutes), 0) AS "totalMinutes",
           COUNT(*) AS "entryCount",
           COUNT(DISTINCT e."clientId") AS "distinctClients",
-          COUNT(DISTINCT w."userId") AS "distinctUsers"
+          COUNT(DISTINCT w."userId") AS "distinctUsers",
+          COALESCE(ROUND(SUM((e.minutes * COALESCE(u."hourlyWageCents", 0)) / 60.0)), 0) AS "payrollCostCents"
         ${fromJoin}
       `)
       .then((r) => r[0]!),
@@ -174,11 +216,36 @@ export async function GET(req: Request) {
     `),
   ]);
 
+  const payrollCostCents = toNum(totalsRow.payrollCostCents);
+
+  const pricing = clientId
+    ? await prisma.client.findUnique({
+        where: { id: clientId },
+        select: {
+          monthlyRetainerFeeCents: true,
+          monthlyRetainerFeeCurrency: true,
+          billingCycleStartDay: true,
+        },
+      })
+    : null;
+
+  const cyclesInRange = pricing?.monthlyRetainerFeeCents != null
+    ? countDistinctBillingCyclesInclusive(fromISO, toISO, pricing.billingCycleStartDay)
+    : 0;
+
+  const retainerRevenueCents = pricing?.monthlyRetainerFeeCents != null ? pricing.monthlyRetainerFeeCents * cyclesInRange : null;
+  const marginCents = retainerRevenueCents != null ? retainerRevenueCents - payrollCostCents : null;
+
   const totals = {
     totalMinutes: toNum(totalsRow.totalMinutes),
     entryCount: toNum(totalsRow.entryCount),
     distinctClients: toNum(totalsRow.distinctClients),
     distinctUsers: toNum(totalsRow.distinctUsers),
+    payrollCostCents,
+    retainerRevenueCents,
+    marginCents,
+    revenueCurrency: pricing?.monthlyRetainerFeeCurrency ?? "CAD",
+    cyclesInRange,
   };
 
   const dayMap = new Map<string, number>();

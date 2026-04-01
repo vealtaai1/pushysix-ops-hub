@@ -3,8 +3,21 @@ import { prisma } from "@/lib/db";
 import { requireAdminOrAccountManagerOrThrow } from "@/lib/adminAuth";
 import { ApprovalStatus } from "@prisma/client";
 
+function statusFromAuthError(e: unknown) {
+  const msg = e instanceof Error ? e.message : "Unauthorized";
+  if (msg.toLowerCase().includes("forbidden")) return 403;
+  return 401;
+}
+
 export async function POST(req: Request) {
-  await requireAdminOrAccountManagerOrThrow({ message: "Unauthorized" });
+  try {
+    await requireAdminOrAccountManagerOrThrow();
+  } catch (e) {
+    return NextResponse.json(
+      { ok: false, message: e instanceof Error ? e.message : "Unauthorized" },
+      { status: statusFromAuthError(e) }
+    );
+  }
 
   const body = (await req.json().catch(() => null)) as any;
   const id = typeof body?.id === "string" ? body.id.trim() : "";
@@ -41,6 +54,24 @@ export async function POST(req: Request) {
         approvalReason: null,
         approvedAt: null,
         approvedByUserId: null,
+      },
+    });
+  }
+
+  // Ensure only one PENDING approval request per entity after undo.
+  if (reqRow.worklogId || reqRow.dayOffId) {
+    await prisma.approvalRequest.updateMany({
+      where: {
+        id: { not: reqRow.id },
+        status: ApprovalStatus.PENDING,
+        ...(reqRow.worklogId ? { worklogId: reqRow.worklogId } : {}),
+        ...(reqRow.dayOffId ? { dayOffId: reqRow.dayOffId } : {}),
+      },
+      data: {
+        status: ApprovalStatus.SUPERSEDED,
+        reviewedAt: new Date(),
+        reviewedByUserId: null,
+        reviewNote: `Superseded by undo of request ${reqRow.id}.`,
       },
     });
   }

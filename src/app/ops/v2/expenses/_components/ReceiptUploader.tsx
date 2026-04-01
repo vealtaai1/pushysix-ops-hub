@@ -10,6 +10,13 @@ type ReceiptUploaderProps = {
   expenseEntryId?: string;
   initialUrl?: string | null;
   onUploaded?: (url: string) => void;
+  /**
+   * Optional. If set, hints to mobile browsers that this file input should use the camera.
+   *
+   * - true → `capture="environment"`
+   * - "user" | "environment" → passed through
+   */
+  capture?: boolean | "user" | "environment";
 };
 
 export function ReceiptUploader({
@@ -17,6 +24,7 @@ export function ReceiptUploader({
   expenseEntryId,
   initialUrl,
   onUploaded,
+  capture,
 }: ReceiptUploaderProps) {
   const [isUploading, setIsUploading] = useState(false);
   const [progress, setProgress] = useState<number | null>(null);
@@ -78,6 +86,7 @@ export function ReceiptUploader({
             type="file"
             className="hidden"
             accept="image/jpeg,image/png,image/webp,application/pdf"
+            capture={capture === true ? "environment" : capture}
             disabled={isUploading}
             onChange={(e) => {
               const f = e.target.files?.[0];

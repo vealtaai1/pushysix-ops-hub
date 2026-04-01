@@ -52,6 +52,7 @@ enum ApprovalStatus {
   PENDING
   APPROVED
   REJECTED
+  SUPERSEDED
 }
 
 model User {

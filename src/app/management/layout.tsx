@@ -5,11 +5,11 @@ import Link from "next/link";
 import { auth } from "@/auth";
 
 const MANAGEMENT_LINKS: Array<{ href: string; label: string }> = [
-  { href: "/management/retainers", label: "Retainers" },
-  { href: "/management/clients", label: "Clients" },
+  { href: "/management/retainers", label: "Retainer Logs" },
+  // Clients live under /ops/clients (client hub).
   { href: "/management/approvals", label: "Approvals" },
   { href: "/management/worklogs", label: "Worklogs" },
-  { href: "/management/payroll", label: "Payroll" },
+  // Payroll is admin-only (lives under /admin).
   { href: "/management/users", label: "Users" },
 ];
 
@@ -48,7 +48,7 @@ export default async function ManagementLayout({ children }: { children: ReactNo
               (isAdmin ? "bg-zinc-900" : "bg-emerald-700")
             }
           >
-            {isAdmin ? "ADMIN (MANAGEMENT)" : "MANAGEMENT MODE"}
+            {"MANAGEMENT MODE"}
           </span>
           <Link href="/management" className="text-sm font-semibold text-zinc-900">
             Management

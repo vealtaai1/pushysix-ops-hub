@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { prisma } from "@/lib/db";
-import { requireAdminOrAccountManagerOrThrow } from "@/lib/adminAuth";
+import { requireAdminOrThrow } from "@/lib/adminAuth";
 import { parseISODateOnly } from "@/lib/calgaryTime";
 
 function badRequest(message: string, details?: unknown) {
@@ -32,10 +32,8 @@ function isoToUTCDate(iso: string): Date {
 }
 
 export async function GET(req: Request) {
-  // NOTE: /admin pages are currently ADMIN-only via /admin/layout.tsx.
-  // This API is intentionally broader (ADMIN or ACCOUNT_MANAGER) so we can
-  // later expose analytics to AMs without rewriting it.
-  await requireAdminOrAccountManagerOrThrow();
+  // Finance policy: analytics are ADMIN-only.
+  await requireAdminOrThrow();
 
   const url = new URL(req.url);
 

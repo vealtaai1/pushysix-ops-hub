@@ -23,9 +23,7 @@ export function ClientCreateForm() {
     <div className="rounded-lg border border-zinc-200 p-4">
       <div className="mb-4">
         <div className="text-sm font-semibold">Add client</div>
-        <div className="text-xs text-zinc-500">
-          Contract basics + billing cycle start day. (More fields later.)
-        </div>
+        <div className="text-xs text-zinc-500">Create the client first. You can add retainer/projects later.</div>
       </div>
 
       <form ref={formRef} action={action} className="grid gap-4">
@@ -37,8 +35,7 @@ export function ClientCreateForm() {
               required
               placeholder="Acme Inc."
               className={
-                "h-10 rounded-md border bg-white px-3 " +
-                (state.fieldErrors?.name ? "border-red-300" : "border-zinc-300")
+                "h-10 rounded-md border bg-white px-3 " + (state.fieldErrors?.name ? "border-red-300" : "border-zinc-300")
               }
             />
             <FieldError msg={state.fieldErrors?.name} />
@@ -52,9 +49,7 @@ export function ClientCreateForm() {
               placeholder="billing@client.com"
               className={
                 "h-10 rounded-md border bg-white px-3 " +
-                (state.fieldErrors?.clientBillingEmail
-                  ? "border-red-300"
-                  : "border-zinc-300")
+                (state.fieldErrors?.clientBillingEmail ? "border-red-300" : "border-zinc-300")
               }
             />
             <FieldError msg={state.fieldErrors?.clientBillingEmail} />
@@ -69,9 +64,7 @@ export function ClientCreateForm() {
               defaultValue="FIRST"
               className={
                 "h-10 rounded-md border bg-white px-3 " +
-                (state.fieldErrors?.billingCycleStartDay
-                  ? "border-red-300"
-                  : "border-zinc-300")
+                (state.fieldErrors?.billingCycleStartDay ? "border-red-300" : "border-zinc-300")
               }
             >
               <option value="FIRST">1st</option>
@@ -80,64 +73,8 @@ export function ClientCreateForm() {
             <FieldError msg={state.fieldErrors?.billingCycleStartDay} />
           </label>
 
-          <label className="grid gap-1">
-            <span className="text-sm font-medium">Monthly retainer hours</span>
-            <input
-              name="monthlyRetainerHours"
-              type="number"
-              min={0}
-              step={1}
-              required
-              placeholder="20"
-              className={
-                "h-10 rounded-md border bg-white px-3 " +
-                (state.fieldErrors?.monthlyRetainerHours
-                  ? "border-red-300"
-                  : "border-zinc-300")
-              }
-            />
-            <FieldError msg={state.fieldErrors?.monthlyRetainerHours} />
-          </label>
-
           <div className="hidden md:block" />
-        </div>
-
-        <div className="grid gap-3 md:grid-cols-2">
-          <label className="grid gap-1">
-            <span className="text-sm font-medium">Max shoots / cycle (optional)</span>
-            <input
-              name="maxShootsPerCycle"
-              type="number"
-              min={0}
-              step={1}
-              placeholder="e.g. 2"
-              className={
-                "h-10 rounded-md border bg-white px-3 " +
-                (state.fieldErrors?.maxShootsPerCycle
-                  ? "border-red-300"
-                  : "border-zinc-300")
-              }
-            />
-            <FieldError msg={state.fieldErrors?.maxShootsPerCycle} />
-          </label>
-
-          <label className="grid gap-1">
-            <span className="text-sm font-medium">Max capture hours / cycle (optional)</span>
-            <input
-              name="maxCaptureHoursPerCycle"
-              type="number"
-              min={0}
-              step={1}
-              placeholder="e.g. 10"
-              className={
-                "h-10 rounded-md border bg-white px-3 " +
-                (state.fieldErrors?.maxCaptureHoursPerCycle
-                  ? "border-red-300"
-                  : "border-zinc-300")
-              }
-            />
-            <FieldError msg={state.fieldErrors?.maxCaptureHoursPerCycle} />
-          </label>
+          <div className="hidden md:block" />
         </div>
 
         <div className="flex items-center justify-between gap-3">

@@ -22,9 +22,9 @@ export default function OpsHomePage() {
         <p className="text-sm text-zinc-600">Operations surfaces are now grouped under /ops.</p>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <Tile href="/ops/clients" title="Clients" desc="Client hub (projects, retainers, billing close)." />
-        <Tile href="/ops/analytics" title="Analytics" desc="Worklog minutes over time." />
+        <Tile href="/ops/projects" title="Projects" desc="All projects across clients." />
       </div>
     </div>
   );

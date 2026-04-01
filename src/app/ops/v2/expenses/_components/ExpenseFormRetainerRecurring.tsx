@@ -11,6 +11,17 @@ export function ExpenseFormRetainerRecurring({
   const [clientId, setClientId] = React.useState(clients[0]?.id ?? "");
   const [startDate, setStartDate] = React.useState(() => new Date().toISOString().slice(0, 10));
   const [frequency, setFrequency] = React.useState<"MONTHLY" | "QUARTERLY">("MONTHLY");
+  const [category, setCategory] = React.useState<
+    | "MILEAGE"
+    | "HOTEL_ACCOMMODATION"
+    | "MEAL"
+    | "PROP"
+    | "CAMERA_GEAR_EQUIPMENT"
+    | "PARKING"
+    | "CAR_RENTAL"
+    | "FUEL"
+    | "OTHER"
+  >("OTHER");
   const [description, setDescription] = React.useState("");
   const [vendor, setVendor] = React.useState("");
   const [amount, setAmount] = React.useState("");
@@ -88,6 +99,20 @@ export function ExpenseFormRetainerRecurring({
           </FieldRow>
 
           <FieldRow>
+            <Field label="Category">
+              <Select value={category} onChange={(e) => setCategory(e.target.value as any)} required>
+                <option value="MILEAGE">Mileage</option>
+                <option value="HOTEL_ACCOMMODATION">Hotel/Accommodation</option>
+                <option value="MEAL">Meal</option>
+                <option value="PROP">Prop</option>
+                <option value="CAMERA_GEAR_EQUIPMENT">Camera Gear/Equipment</option>
+                <option value="PARKING">Parking</option>
+                <option value="CAR_RENTAL">Car Rental</option>
+                <option value="FUEL">Fuel</option>
+                <option value="OTHER">Other</option>
+              </Select>
+            </Field>
+
             <Field label="Vendor (optional)">
               <TextInput
                 data-testid="expense-retainer-vendor"
@@ -152,6 +177,7 @@ export function ExpenseFormRetainerRecurring({
             frequency,
             startDate,
             endDate: endDate || null,
+            category,
             vendor,
             description,
             amount,

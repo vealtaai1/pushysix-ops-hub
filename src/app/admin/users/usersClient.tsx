@@ -10,6 +10,7 @@ type UserRow = {
   name: string | null;
   role: UserRole;
   createdAt: string;
+  hourlyWageCents?: number | null;
 };
 
 const ROLE_ADMIN = "ADMIN" as unknown as UserRole;
@@ -17,9 +18,7 @@ const ROLE_EMPLOYEE = "EMPLOYEE" as unknown as UserRole;
 const ROLE_ACCOUNT_MANAGER = "ACCOUNT_MANAGER" as unknown as UserRole;
 
 export function UsersClient() {
-  const [email, setEmail] = useState("");
   const [status, setStatus] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
 
   const [users, setUsers] = useState<UserRow[] | null>(null);
   const [usersLoading, setUsersLoading] = useState(false);
@@ -110,70 +109,12 @@ export function UsersClient() {
 
   return (
     <div className="space-y-6">
-      <div className="max-w-xl rounded-lg border border-zinc-200 bg-white p-4">
-        <form
-          className="space-y-3"
-          onSubmit={async (e) => {
-            e.preventDefault();
-            setStatus(null);
-            setLoading(true);
-            try {
-              const res = await fetch("/api/admin/users/invite", {
-                method: "POST",
-                headers: { "content-type": "application/json" },
-                body: JSON.stringify({ email }),
-              });
-              const json = (await res.json().catch(() => null)) as any;
-              if (!res.ok || !json?.ok) {
-                const detailsMsg = typeof json?.details?.message === "string" ? json.details.message : null;
-                throw new Error(detailsMsg ? `${json?.message ?? "Invite failed"} (${detailsMsg})` : json?.message ?? `Invite failed (${res.status})`);
-              }
-              setEmail("");
-
-              if (json?.emailSent === false && typeof json?.setPasswordUrl === "string") {
-                setStatus(`${json?.message ?? "Invite link created"}\n\nSet-password link: ${json.setPasswordUrl}`);
-              } else {
-                setStatus("Invite sent.");
-              }
-
-              await refreshUsers();
-            } catch (err) {
-              setStatus(err instanceof Error ? err.message : "Invite failed");
-            } finally {
-              setLoading(false);
-            }
-          }}
-        >
-          <label className="block">
-            <div className="text-sm font-medium text-zinc-900">Invite email</div>
-            <input
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="employee@pushysix.com"
-              inputMode="email"
-              autoComplete="email"
-              required
-              className="mt-1 w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 outline-none focus:border-zinc-900"
-            />
-          </label>
-
-          <button
-            type="submit"
-            disabled={loading}
-            className="rounded-md bg-zinc-900 px-3 py-2 text-sm font-semibold text-white disabled:opacity-60"
-          >
-            {loading ? "Sending…" : "Send invite"}
-          </button>
-
-          {status ? <p className="text-sm text-zinc-700 whitespace-pre-wrap">{status}</p> : null}
-        </form>
-      </div>
-
       <div className="rounded-lg border border-zinc-200 bg-white p-4">
         <div className="mb-3 flex items-center justify-between gap-3">
           <div>
             <h2 className="text-sm font-semibold">Users</h2>
             <p className="text-xs text-zinc-600">Manage roles. Total: {users?.length ?? "…"}</p>
+            <p className="text-xs text-zinc-500">Invites are disabled.</p>
           </div>
           <button
             type="button"
@@ -184,6 +125,8 @@ export function UsersClient() {
             {usersLoading ? "Refreshing…" : "Refresh"}
           </button>
         </div>
+
+        {status ? <p className="mb-3 text-sm text-zinc-700 whitespace-pre-wrap">{status}</p> : null}
 
         {!users ? (
           <div className="text-sm text-zinc-600">Loading…</div>

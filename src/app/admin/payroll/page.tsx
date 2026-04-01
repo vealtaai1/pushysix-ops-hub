@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db";
 import { getBiweeklyPayPeriods, isoDay, parseISODateOnlyToUTCNoon, type PayrollConfig } from "@/lib/payroll";
 import { computePayrollForRange } from "@/lib/payrollServer";
 import { checkNoPendingApprovalsInRange } from "@/lib/payrollGuards";
+import { requireAdminOrThrow } from "@/lib/adminAuth";
 
 export const dynamic = "force-dynamic";
 
@@ -23,6 +24,8 @@ export default async function AdminPayrollPage({
 }: {
   searchParams?: Promise<Record<string, string | string[] | undefined>>;
 }) {
+  await requireAdminOrThrow({ message: "Forbidden: admin access required." });
+
   const sp = (searchParams ? await searchParams : {}) as Record<string, unknown>;
   const startISO = typeof sp.start === "string" ? sp.start : undefined;
   const endISO = typeof sp.end === "string" ? sp.end : undefined;

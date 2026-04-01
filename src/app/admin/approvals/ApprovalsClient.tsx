@@ -44,7 +44,9 @@ export function ApprovalsClient({ initialPending }: { initialPending: PendingRow
     setSubmissionError(null);
     setSubmission(null);
     try {
-      const res = await fetch(`/api/admin/approvals/submission?id=${encodeURIComponent(id)}`);
+      const res = await fetch(`/api/admin/approvals/submission?id=${encodeURIComponent(id)}`, {
+        credentials: "include",
+      });
       const json = (await res.json().catch(() => null)) as any;
       if (!res.ok || !json?.ok) throw new Error(json?.message ?? `Failed to load submission (${res.status})`);
       setSubmission(json.submission);
@@ -55,20 +57,47 @@ export function ApprovalsClient({ initialPending }: { initialPending: PendingRow
     }
   }
 
+  async function parseJsonOrText(res: Response): Promise<{ json: any | null; text: string | null }> {
+    const ct = res.headers.get("content-type") ?? "";
+    if (ct.includes("application/json")) {
+      const json = (await res.json().catch(() => null)) as any;
+      return { json, text: null };
+    }
+    const text = await res.text().catch(() => null);
+    return { json: null, text };
+  }
+
+  function handleAuthError(res: Response) {
+    if (res.status !== 401 && res.status !== 403) return false;
+    // Session expired or role changed. Send user to login.
+    const callbackUrl = window.location.pathname + window.location.search;
+    window.location.href = `/login?callbackUrl=${encodeURIComponent(callbackUrl)}`;
+    return true;
+  }
+
   async function approve(id: string, note: string) {
     setBusyId(id);
     try {
       const res = await fetch("/api/admin/approvals/approve", {
         method: "POST",
+        credentials: "include",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ id, note }),
       });
-      const json = (await res.json().catch(() => null)) as any;
-      if (!res.ok || !json?.ok) throw new Error(json?.message ?? `Approve failed (${res.status})`);
+
+      if (handleAuthError(res)) return;
+
+      const { json, text } = await parseJsonOrText(res);
+      if (!res.ok || !json?.ok) {
+        const extra = text ? `\n\n${text.slice(0, 300)}` : "";
+        throw new Error(json?.message ?? `Approve failed (${res.status})${extra}`);
+      }
 
       const removed = rows.find((r) => r.id === id);
       setRows((prev) => prev.filter((r) => r.id !== id));
       setToast({ text: `Approved ${removed?.requestedByUser.email ?? "request"}. Undo?`, undoId: id });
+    } catch (e) {
+      alert(e instanceof Error ? e.message : "Approve failed");
     } finally {
       setBusyId(null);
     }
@@ -79,15 +108,24 @@ export function ApprovalsClient({ initialPending }: { initialPending: PendingRow
     try {
       const res = await fetch("/api/admin/approvals/reject", {
         method: "POST",
+        credentials: "include",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ id, note }),
       });
-      const json = (await res.json().catch(() => null)) as any;
-      if (!res.ok || !json?.ok) throw new Error(json?.message ?? `Reject failed (${res.status})`);
+
+      if (handleAuthError(res)) return;
+
+      const { json, text } = await parseJsonOrText(res);
+      if (!res.ok || !json?.ok) {
+        const extra = text ? `\n\n${text.slice(0, 300)}` : "";
+        throw new Error(json?.message ?? `Reject failed (${res.status})${extra}`);
+      }
 
       const removed = rows.find((r) => r.id === id);
       setRows((prev) => prev.filter((r) => r.id !== id));
       setToast({ text: `Rejected ${removed?.requestedByUser.email ?? "request"}. Undo?`, undoId: id });
+    } catch (e) {
+      alert(e instanceof Error ? e.message : "Reject failed");
     } finally {
       setBusyId(null);
     }
@@ -98,6 +136,7 @@ export function ApprovalsClient({ initialPending }: { initialPending: PendingRow
     try {
       const res = await fetch("/api/admin/approvals/undo", {
         method: "POST",
+        credentials: "include",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ id }),
       });
@@ -106,6 +145,8 @@ export function ApprovalsClient({ initialPending }: { initialPending: PendingRow
 
       // easiest: reload the page data by hard refresh
       window.location.reload();
+    } catch (e) {
+      alert(e instanceof Error ? e.message : "Undo failed");
     } finally {
       setBusyId(null);
       setToast(null);

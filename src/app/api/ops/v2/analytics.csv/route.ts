@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-import { requireAdminOrAccountManagerOrThrow } from "@/lib/adminAuth";
+import { requireAdminOrThrow } from "@/lib/adminAuth";
 import { parseISODateOnly } from "@/lib/calgaryTime";
 import { prisma } from "@/lib/db";
 
@@ -45,7 +45,7 @@ export async function GET(req: Request) {
   }
 
   try {
-    await requireAdminOrAccountManagerOrThrow();
+    await requireAdminOrThrow();
   } catch (e) {
     const message = e instanceof Error ? e.message : "Unauthorized";
     const status = message.startsWith("Forbidden") ? 403 : 401;

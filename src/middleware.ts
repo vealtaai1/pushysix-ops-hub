@@ -53,13 +53,23 @@ export default function middleware(req: NextRequest) {
 
 export const config = {
   matcher: [
+    // Note: `:path*` does NOT match the bare route in Next middleware matchers.
+    // Include both forms so `/dashboard` (etc.) is protected.
+    "/admin",
     "/admin/:path*",
+    "/dashboard",
     "/dashboard/:path*",
+    "/worklog",
     "/worklog/:path*",
+    "/schedule",
     "/schedule/:path*",
+    "/portal",
     "/portal/:path*",
+    "/equipment",
     "/equipment/:path*",
+    "/ops",
     "/ops/:path*",
-    "/management/:path*", 
+    "/management",
+    "/management/:path*",
   ],
 };

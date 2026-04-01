@@ -4,9 +4,10 @@ import Link from "next/link";
 
 const OPS_LINKS: Array<{ href: string; label: string; desc: string }> = [
   { href: "/ops/clients", label: "Clients", desc: "Client hub" },
+  { href: "/ops/projects", label: "Projects", desc: "All projects" },
   // Expenses are submitted via Worklog; review happens in client pages + approvals.
   // Intentionally omit /ops/expenses from navigation.
-  { href: "/ops/analytics", label: "Analytics", desc: "Worklog analytics" },
+
 ];
 
 export default function OpsLayout({ children }: { children: ReactNode }) {

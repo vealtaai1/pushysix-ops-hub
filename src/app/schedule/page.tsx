@@ -38,8 +38,15 @@ export default async function SchedulePage() {
 
   let dbError: string | null = null;
 
-  let worklogs: Array<{ workDate: Date; status: "APPROVED" | "PENDING" | "REJECTED" }> = [];
-  let dayoffs: Array<{ dayDate: Date; status: "APPROVED" | "PENDING" | "REJECTED" }> = [];
+  type SimpleApprovalStatus = "APPROVED" | "PENDING" | "REJECTED";
+
+  // NOTE: ApprovalStatus now includes SUPERSEDED (used only for ApprovalRequest rows).
+  // Worklog/DayOff should never be SUPERSEDED, but we defensively normalize it.
+  const asSimpleStatus = (s: import("@prisma/client").ApprovalStatus): SimpleApprovalStatus =>
+    s === "SUPERSEDED" ? "PENDING" : s;
+
+  let worklogs: Array<{ workDate: Date; status: SimpleApprovalStatus }> = [];
+  let dayoffs: Array<{ dayDate: Date; status: SimpleApprovalStatus }> = [];
 
   try {
     const { prisma } = await import("@/lib/db");
@@ -59,8 +66,8 @@ export default async function SchedulePage() {
       }),
     ]);
 
-    worklogs = results[0];
-    dayoffs = results[1];
+    worklogs = results[0].map((w) => ({ ...w, status: asSimpleStatus(w.status) }));
+    dayoffs = results[1].map((d) => ({ ...d, status: asSimpleStatus(d.status) }));
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     dbError = `Could not load schedule status data from the database (${msg}).`;

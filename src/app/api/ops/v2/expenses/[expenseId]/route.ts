@@ -53,6 +53,7 @@ export async function GET(_request: Request, ctx: { params: Promise<{ expenseId:
       clientId: e.clientId,
       clientName: e.client.name,
       expenseDate: toISODateString(e.expenseDate),
+      category: (e as any).category,
       description: e.description,
       vendor: e.vendor,
       amountCents: e.amountCents,
@@ -84,6 +85,7 @@ export async function PATCH(request: Request, ctx: { params: Promise<{ expenseId
 
     if (body.expenseDate !== undefined) data.expenseDate = parseISODateToUTCDate(String(body.expenseDate));
     if (body.vendor !== undefined) data.vendor = body.vendor ? String(body.vendor) : null;
+    if (body.category !== undefined) data.category = String(body.category);
     if (body.description !== undefined) data.description = String(body.description).trim();
     if (body.notes !== undefined) data.notes = body.notes ? String(body.notes) : null;
 
@@ -113,6 +115,7 @@ export async function PATCH(request: Request, ctx: { params: Promise<{ expenseId
         clientId: updated.clientId,
         clientName: updated.client.name,
         expenseDate: toISODateString(updated.expenseDate),
+        category: (updated as any).category,
         description: updated.description,
         vendor: updated.vendor,
         amountCents: updated.amountCents,

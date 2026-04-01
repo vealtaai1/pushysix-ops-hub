@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
+import { auth } from "@/auth";
 import { ClientHubClient } from "./ClientHubClient";
 import { RetainersSection } from "./RetainersSection";
 
@@ -21,12 +22,17 @@ export default async function OpsV2ClientHubPage({ params }: { params: Promise<{
       clientBillingEmail: true,
       billingCycleStartDay: true,
       monthlyRetainerHours: true,
+      monthlyRetainerFeeCents: true,
+      monthlyRetainerFeeCurrency: true,
       maxShootsPerCycle: true,
       maxCaptureHoursPerCycle: true,
     },
   });
 
   if (!client) notFound();
+
+  const session = await auth();
+  const canCloseProjects = session?.user?.role === "ADMIN";
 
   const [projects, quotaItems, recentExpenses] = await Promise.all([
     prisma.project.findMany({
@@ -101,15 +107,6 @@ export default async function OpsV2ClientHubPage({ params }: { params: Promise<{
         </div>
 
         <div className="flex items-center gap-2">
-          {OPS_V2_ANALYTICS_ENABLED ? (
-            <Link
-              href={`/ops/clients/${client.id}/analytics`}
-              className="inline-flex h-9 items-center rounded-md border border-zinc-300 bg-white px-3 text-sm font-semibold text-zinc-800 hover:bg-zinc-50"
-            >
-              Analytics
-            </Link>
-          ) : null}
-
           <Link
             href={`/ops/retainers/${client.id}`}
             className="inline-flex h-9 items-center rounded-md border border-zinc-300 bg-white px-3 text-sm font-semibold text-zinc-800 hover:bg-zinc-50"
@@ -122,8 +119,11 @@ export default async function OpsV2ClientHubPage({ params }: { params: Promise<{
       <RetainersSection
         client={{
           id: client.id,
+          name: client.name,
           billingCycleStartDay: client.billingCycleStartDay,
           monthlyRetainerHours: client.monthlyRetainerHours,
+          monthlyRetainerFeeCents: client.monthlyRetainerFeeCents,
+          monthlyRetainerFeeCurrency: client.monthlyRetainerFeeCurrency,
           maxShootsPerCycle: client.maxShootsPerCycle,
           maxCaptureHoursPerCycle: client.maxCaptureHoursPerCycle,
         }}
@@ -195,7 +195,7 @@ export default async function OpsV2ClientHubPage({ params }: { params: Promise<{
         )}
       </section>
 
-      <ClientHubClient client={client} initialProjects={projects} />
+      <ClientHubClient client={client} initialProjects={projects} canCloseProjects={canCloseProjects} />
     </div>
   );
 }

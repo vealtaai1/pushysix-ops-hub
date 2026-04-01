@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-import { requireAdminOrAccountManagerOrThrow } from "@/lib/adminAuth";
+import { requireAdminOrThrow } from "@/lib/adminAuth";
 import { prisma } from "@/lib/db";
 
 function badRequest(message: string, details?: unknown) {
@@ -26,7 +26,7 @@ type AdSpendRow = {
 
 export async function GET(req: Request, ctx: { params: Promise<{ clientId: string }> }) {
   try {
-    await requireAdminOrAccountManagerOrThrow();
+    await requireAdminOrThrow();
   } catch (e) {
     const message = e instanceof Error ? e.message : "Unauthorized";
     const status = message.startsWith("Forbidden") ? 403 : 401;
@@ -112,8 +112,9 @@ export async function GET(req: Request, ctx: { params: Promise<{ clientId: strin
 }
 
 export async function PUT(req: Request, ctx: { params: Promise<{ clientId: string }> }) {
+  // Policy: Account Managers can view ad spend, but only Admin can edit it.
   try {
-    await requireAdminOrAccountManagerOrThrow();
+    await requireAdminOrThrow();
   } catch (e) {
     const message = e instanceof Error ? e.message : "Unauthorized";
     const status = message.startsWith("Forbidden") ? 403 : 401;

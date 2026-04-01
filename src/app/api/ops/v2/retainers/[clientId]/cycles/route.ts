@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-import { requireAdminOrAccountManagerOrThrow } from "@/lib/adminAuth";
+import { requireAdminOrThrow } from "@/lib/adminAuth";
 import { prisma } from "@/lib/db";
 import { CALGARY_TZ, parseISODateAsUTC } from "@/lib/time";
 import { getRetainerCycleRange } from "@/lib/retainers";
@@ -36,7 +36,7 @@ async function ensureCycle(clientId: string, startISO: string, endISO: string) {
 // Ops v2: AM/Admin access to cycle list for a specific client.
 export async function GET(req: Request, ctx: { params: Promise<{ clientId: string }> }) {
   try {
-    await requireAdminOrAccountManagerOrThrow();
+    await requireAdminOrThrow();
   } catch (e) {
     const message = e instanceof Error ? e.message : "Unauthorized";
     const status = message.startsWith("Forbidden") ? 403 : 401;

@@ -5,12 +5,24 @@ export type MoneyInput = {
   currency: "CAD" | "USD";
 };
 
+export type ExpenseCategory =
+  | "MILEAGE"
+  | "HOTEL_ACCOMMODATION"
+  | "MEAL"
+  | "PROP"
+  | "CAMERA_GEAR_EQUIPMENT"
+  | "PARKING"
+  | "CAR_RENTAL"
+  | "FUEL"
+  | "OTHER";
+
 export type ExpenseEntryListItem = {
   id: string;
   kind: ExpenseEntryKind;
   clientId: string;
   clientName: string;
   expenseDate: string; // ISO date (yyyy-mm-dd)
+  category: ExpenseCategory;
   description: string;
   vendor?: string | null;
   amountCents: number;

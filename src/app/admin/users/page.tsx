@@ -11,7 +11,7 @@ export default async function AdminUsersPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-xl font-semibold">Admin — Users</h1>
-        <p className="text-sm text-zinc-600">Invite employees by email (they receive a sign-in link).</p>
+        <p className="text-sm text-zinc-600">View and manage roles. (Invites are disabled.)</p>
       </div>
 
       <UsersClient />

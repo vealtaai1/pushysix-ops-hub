@@ -5,6 +5,7 @@ import { Open_Sans } from "next/font/google";
 import "./globals.css";
 import { AuthButtons } from "@/app/_components/AuthButtons";
 import { ModeSwitcherServer } from "@/app/_components/ModeSwitcherServer";
+import { auth } from "@/auth";
 
 const openSans = Open_Sans({
   subsets: ["latin"],
@@ -16,11 +17,14 @@ export const metadata: Metadata = {
   description: "Daily worklogs, retainers, and billing enforcement.",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const session = await auth();
+  const homeHref = session?.user ? "/dashboard" : "/login";
+
   return (
     <html lang="en">
       <body className={`${openSans.variable} font-sans antialiased`}>
@@ -28,7 +32,7 @@ export default function RootLayout({
         <div className="min-h-dvh bg-zinc-50 text-zinc-950">
           <header className="border-b border-zinc-200 bg-white">
             <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3">
-              <Link href="/dashboard" className="flex items-center gap-3" aria-label="Pushysix Ops Hub">
+              <Link href={homeHref} className="flex items-center gap-3" aria-label="Pushysix Ops Hub">
                 <Image
                   src="/brand/pushysix-hex.png"
                   alt="Pushysix"

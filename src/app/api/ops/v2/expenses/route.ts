@@ -69,6 +69,7 @@ export async function GET(request: Request): Promise<Response> {
       clientId: e.clientId,
       clientName: e.client.name,
       expenseDate: toISODateString(e.expenseDate),
+      category: (e as any).category,
       description: e.description,
       vendor: e.vendor,
       amountCents: e.amountCents,
@@ -92,6 +93,7 @@ export async function POST(request: Request): Promise<Response> {
     const clientId = String(body.clientId || "");
     const expenseDate = parseISODateToUTCDate(String(body.expenseDate || ""));
     const vendor = body.vendor ? String(body.vendor) : null;
+    const category = String(body.category || "OTHER").trim() || "OTHER";
     const description = String(body.description || "").trim();
     const notes = body.notes ? String(body.notes) : null;
     const receiptUrl = body.receiptUrl ? String(body.receiptUrl) : null;
@@ -124,6 +126,7 @@ export async function POST(request: Request): Promise<Response> {
         clientId,
         expenseDate,
         vendor,
+        category: category as any,
         description,
         notes,
         amountCents,
@@ -144,6 +147,7 @@ export async function POST(request: Request): Promise<Response> {
         clientId: created.clientId,
         clientName: created.client.name,
         expenseDate: toISODateString(created.expenseDate),
+        category: (created as any).category,
         description: created.description,
         vendor: created.vendor,
         amountCents: created.amountCents,

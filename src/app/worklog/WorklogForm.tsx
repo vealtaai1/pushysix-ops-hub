@@ -3,8 +3,11 @@
 import * as React from "react";
 import { createPortal } from "react-dom";
 import { BUCKETS } from "@/lib/buckets";
+import { ReceiptUploader } from "@/app/ops/v2/expenses/_components/ReceiptUploader";
 
 type Client = { id: string; name: string };
+
+type Project = { id: string; clientId: string; code: string; name: string };
 
 type TaskLine = {
   id: string;
@@ -20,18 +23,30 @@ type MileageLine = {
   id: string;
   clientId: string | null;
   clientName: string;
+  engagementType: "RETAINER" | "MISC_PROJECT";
+  projectId: string | null;
   kilometersText: string; // kept as text so the field can be cleared
 };
+
+type ExpenseCategory =
+  | "MILEAGE"
+  | "HOTEL_ACCOMMODATION"
+  | "MEAL"
+  | "PROP"
+  | "CAMERA_GEAR_EQUIPMENT"
+  | "OTHER";
 
 type ExpenseLine = {
   id: string;
   clientId: string | null;
   clientName: string;
-  vendor: string;
+  engagementType: "RETAINER" | "MISC_PROJECT";
+  projectId: string | null;
+  category: ExpenseCategory;
   description: string;
   amountText: string;
+  // Receipt is uploaded (or captured via camera) and stored as a URL; we don't allow manual entry.
   receiptUrl: string;
-  reimburseToEmployee: boolean;
 };
 
 function uid() {
@@ -49,9 +64,14 @@ function quarterIncrementValid(n: number) {
 }
 
 function parseNumberText(text: string) {
+  // Keep parsing permissive because our inputs are stored as raw text.
+  // - Accept commas as decimal separators ("1,5")
+  // - Avoid HTML <input type="number"> browser coercion/rounding quirks by parsing ourselves.
   const t = text.trim();
   if (t === "") return 0;
-  const n = Number(t);
+  const normalized = t.replace(/,/g, ".");
+  // parseFloat is more forgiving than Number for partial user input like "100.".
+  const n = Number.parseFloat(normalized);
   return Number.isFinite(n) ? n : NaN;
 }
 
@@ -162,14 +182,31 @@ function ClientTypeahead(props: {
 
 export function WorklogForm({
   clients,
+  projects,
   initialDate,
   initialEmail,
 }: {
   clients: Client[];
+  projects: Project[];
   initialDate?: string | null;
   initialEmail?: string | null;
 }) {
   const today = React.useMemo(() => todayISODate(), []);
+
+  const projectsByClient = React.useMemo(() => {
+    const map = new Map<string, Project[]>();
+    for (const p of projects ?? []) {
+      const arr = map.get(p.clientId) ?? [];
+      arr.push(p);
+      map.set(p.clientId, arr);
+    }
+    // stable sort
+    for (const [k, arr] of map.entries()) {
+      arr.sort((a, b) => a.code.localeCompare(b.code));
+      map.set(k, arr);
+    }
+    return map;
+  }, [projects]);
 
   const normalizedInitialDate = React.useMemo(() => {
     if (!initialDate) return null;
@@ -349,7 +386,11 @@ export function WorklogForm({
     const linesValid = mileage.every((m) => {
       const km = parseNumberText(m.kilometersText);
       if (!Number.isFinite(km)) return false;
-      return (km > 0 ? Boolean(m.clientId) : true) && km >= 0;
+      if (km < 0) return false;
+      if (km === 0) return true;
+      if (!m.clientId) return false;
+      if (m.engagementType === "MISC_PROJECT" && !m.projectId) return false;
+      return true;
     });
     if (!linesValid) return false;
     return nearlyEqual(allocatedKm, totalKm);
@@ -414,10 +455,16 @@ export function WorklogForm({
           <label className="grid gap-1">
             <span className="text-sm font-medium">Total km (If applicable)</span>
             <input
-              type="number"
-              min={0}
-              step={0.1}
+              // NOTE: We intentionally use text+inputMode instead of type=number.
+              // Some browsers coerce/round number inputs based on step/min, which caused reports like 100 → 99.5.
+              type="text"
+              inputMode="decimal"
+              placeholder="0"
               value={totalKmText}
+              onWheel={(e) => {
+                // Prevent accidental scroll-wheel changes (common with numeric fields).
+                (e.currentTarget as HTMLInputElement).blur();
+              }}
               onChange={(e) => {
                 const nextText = e.target.value;
                 setTotalKmText(nextText);
@@ -620,7 +667,12 @@ export function WorklogForm({
             <button
               type="button"
               className="h-9 rounded-md border border-zinc-300 bg-white px-3 text-sm hover:bg-zinc-50"
-              onClick={() => setMileage((prev) => [...prev, { id: uid(), clientId: null, clientName: "", kilometersText: "" }])}
+              onClick={() =>
+                setMileage((prev) => [
+                  ...prev,
+                  { id: uid(), clientId: null, clientName: "", engagementType: "RETAINER", projectId: null, kilometersText: "" },
+                ])
+              }
             >
               + Add allocation
             </button>
@@ -631,6 +683,7 @@ export function WorklogForm({
               <thead>
                 <tr className="text-left text-xs text-zinc-600">
                   <th className="border-b border-zinc-200 px-3 py-2">Client</th>
+                  <th className="border-b border-zinc-200 px-3 py-2">Engagement</th>
                   <th className="border-b border-zinc-200 px-3 py-2">Kilometers</th>
                   <th className="border-b border-zinc-200 px-3 py-2"></th>
                 </tr>
@@ -644,22 +697,76 @@ export function WorklogForm({
                         valueName={m.clientName}
                         placeholder="Search client…"
                         onSelect={(c) =>
-                          setMileage((prev) => prev.map((x) => (x.id === m.id ? { ...x, clientId: c.id, clientName: c.name } : x)))
+                          setMileage((prev) =>
+                            prev.map((x) =>
+                              x.id === m.id
+                                ? {
+                                    ...x,
+                                    clientId: c.id,
+                                    clientName: c.name,
+                                    // If changing client, clear project selection
+                                    projectId: x.clientId !== c.id ? null : x.projectId,
+                                  }
+                                : x,
+                            ),
+                          )
                         }
                       />
                     </td>
+
+                    <td className="border-b border-zinc-100 px-3 py-2">
+                      <select
+                        value={m.engagementType === "RETAINER" ? "RETAINER" : m.projectId ? `PROJECT:${m.projectId}` : ""}
+                        onChange={(e) => {
+                          const v = e.target.value;
+                          if (v === "RETAINER") {
+                            setMileage((prev) =>
+                              prev.map((x) => (x.id === m.id ? { ...x, engagementType: "RETAINER", projectId: null } : x)),
+                            );
+                            return;
+                          }
+
+                          if (v.startsWith("PROJECT:")) {
+                            const pid = v.slice("PROJECT:".length) || null;
+                            setMileage((prev) =>
+                              prev.map((x) =>
+                                x.id === m.id ? { ...x, engagementType: "MISC_PROJECT", projectId: pid } : x,
+                              ),
+                            );
+                          }
+                        }}
+                        disabled={!m.clientId}
+                        className="h-10 w-72 rounded-md border border-zinc-300 bg-white px-3 disabled:bg-zinc-50"
+                      >
+                        <option value="RETAINER">Retainer</option>
+                        <option value="" disabled>
+                          Project…
+                        </option>
+                        {(m.clientId ? projectsByClient.get(m.clientId) ?? [] : []).map((p) => (
+                          <option key={p.id} value={`PROJECT:${p.id}`}>
+                            {p.code}
+                          </option>
+                        ))}
+                      </select>
+                      <div className="mt-1 text-xs text-zinc-500">Choose retainer or a specific project number.</div>
+                    </td>
+
                     <td className="border-b border-zinc-100 px-3 py-2">
                       <input
-                        type="number"
-                        min={0}
-                        step={0.1}
+                        type="text"
+                        inputMode="decimal"
+                        placeholder="0"
                         value={m.kilometersText}
+                        onWheel={(e) => {
+                          (e.currentTarget as HTMLInputElement).blur();
+                        }}
                         onChange={(e) =>
                           setMileage((prev) => prev.map((x) => (x.id === m.id ? { ...x, kilometersText: e.target.value } : x)))
                         }
                         className="h-10 w-40 rounded-md border border-zinc-300 bg-white px-3"
                       />
                     </td>
+
                     <td className="border-b border-zinc-100 px-3 py-2">
                       <button
                         type="button"
@@ -687,7 +794,7 @@ export function WorklogForm({
         <div className="mb-3 flex items-center justify-between">
           <div>
             <h2 className="text-sm font-semibold">Expenses (optional)</h2>
-            <div className="mt-0.5 text-xs text-zinc-600">Add expenses related to this work day. Amounts are CAD. Receipt URL required for any amount &gt; 0.</div>
+            <div className="mt-0.5 text-xs text-zinc-600">Add expenses related to this work day. Amounts are CAD. A receipt upload is required for any amount &gt; 0.</div>
           </div>
           <button
             type="button"
@@ -699,11 +806,12 @@ export function WorklogForm({
                   id: uid(),
                   clientId: null,
                   clientName: "",
-                  vendor: "",
+                  engagementType: "RETAINER",
+                  projectId: null,
+                  category: "OTHER",
                   description: "",
                   amountText: "",
                   receiptUrl: "",
-                  reimburseToEmployee: true,
                 },
               ])
             }
@@ -720,11 +828,11 @@ export function WorklogForm({
               <thead>
                 <tr className="text-left text-xs text-zinc-600">
                   <th className="border-b border-zinc-200 px-3 py-2">Client</th>
-                  <th className="border-b border-zinc-200 px-3 py-2">Vendor</th>
+                  <th className="border-b border-zinc-200 px-3 py-2">Engagement</th>
+                  <th className="border-b border-zinc-200 px-3 py-2">Category</th>
                   <th className="border-b border-zinc-200 px-3 py-2">Description</th>
                   <th className="border-b border-zinc-200 px-3 py-2">Amount (CAD)</th>
-                  <th className="border-b border-zinc-200 px-3 py-2">Receipt URL</th>
-                  <th className="border-b border-zinc-200 px-3 py-2">Reimburse?</th>
+                  <th className="border-b border-zinc-200 px-3 py-2">Receipt</th>
                   <th className="border-b border-zinc-200 px-3 py-2"></th>
                 </tr>
               </thead>
@@ -743,21 +851,82 @@ export function WorklogForm({
                           valueName={ex.clientName}
                           placeholder="Search client…"
                           onSelect={(c) =>
-                            setExpenses((prev) => prev.map((x) => (x.id === ex.id ? { ...x, clientId: c.id, clientName: c.name } : x)))
+                            setExpenses((prev) =>
+                              prev.map((x) =>
+                                x.id === ex.id
+                                  ? {
+                                      ...x,
+                                      clientId: c.id,
+                                      clientName: c.name,
+                                      // If changing client, clear project selection
+                                      projectId: x.clientId !== c.id ? null : x.projectId,
+                                    }
+                                  : x,
+                              ),
+                            )
                           }
                         />
                         {showValidation && needsReceipt && !ex.clientId ? (
                           <div className="mt-1 text-xs text-red-700">Client required.</div>
                         ) : null}
                       </td>
+
                       <td className="border-b border-zinc-100 px-3 py-2">
-                        <input
-                          value={ex.vendor}
-                          onChange={(e) => setExpenses((prev) => prev.map((x) => (x.id === ex.id ? { ...x, vendor: e.target.value } : x)))}
-                          className="h-10 w-44 rounded-md border border-zinc-300 bg-white px-3"
-                          placeholder="Amazon…"
-                        />
+                        <select
+                          value={ex.engagementType === "RETAINER" ? "RETAINER" : ex.projectId ? `PROJECT:${ex.projectId}` : ""}
+                          onChange={(e) => {
+                            const v = e.target.value;
+                            if (v === "RETAINER") {
+                              setExpenses((prev) =>
+                                prev.map((x) => (x.id === ex.id ? { ...x, engagementType: "RETAINER", projectId: null } : x)),
+                              );
+                              return;
+                            }
+
+                            if (v.startsWith("PROJECT:")) {
+                              const pid = v.slice("PROJECT:".length) || null;
+                              setExpenses((prev) =>
+                                prev.map((x) =>
+                                  x.id === ex.id ? { ...x, engagementType: "MISC_PROJECT", projectId: pid } : x,
+                                ),
+                              );
+                            }
+                          }}
+                          disabled={!ex.clientId}
+                          className="h-10 w-72 rounded-md border border-zinc-300 bg-white px-3 disabled:bg-zinc-50"
+                        >
+                          <option value="RETAINER">Retainer</option>
+                          <option value="" disabled>
+                            Project…
+                          </option>
+                          {(ex.clientId ? projectsByClient.get(ex.clientId) ?? [] : []).map((p) => (
+                            <option key={p.id} value={`PROJECT:${p.id}`}>
+                              {p.code}
+                            </option>
+                          ))}
+                        </select>
+                        {showValidation && needsReceipt && ex.engagementType === "MISC_PROJECT" && !ex.projectId ? (
+                          <div className="mt-1 text-xs text-red-700">Project is required when logging to a project engagement.</div>
+                        ) : null}
                       </td>
+
+                      <td className="border-b border-zinc-100 px-3 py-2">
+                        <select
+                          value={ex.category}
+                          onChange={(e) =>
+                            setExpenses((prev) => prev.map((x) => (x.id === ex.id ? { ...x, category: e.target.value as any } : x)))
+                          }
+                          className="h-10 w-56 rounded-md border border-zinc-300 bg-white px-3"
+                        >
+                          <option value="MILEAGE">Mileage</option>
+                          <option value="HOTEL_ACCOMMODATION">Hotel/Accommodation</option>
+                          <option value="MEAL">Meal</option>
+                          <option value="PROP">Prop</option>
+                          <option value="CAMERA_GEAR_EQUIPMENT">Camera Gear/Equipment</option>
+                          <option value="OTHER">Other</option>
+                        </select>
+                      </td>
+
                       <td className="border-b border-zinc-100 px-3 py-2">
                         <input
                           value={ex.description}
@@ -771,6 +940,7 @@ export function WorklogForm({
                           placeholder="What was this for?"
                         />
                       </td>
+
                       <td className="border-b border-zinc-100 px-3 py-2">
                         <input
                           inputMode="decimal"
@@ -782,31 +952,20 @@ export function WorklogForm({
                           placeholder="0.00"
                         />
                       </td>
+
                       <td className="border-b border-zinc-100 px-3 py-2">
-                        <input
-                          value={ex.receiptUrl}
-                          onChange={(e) =>
-                            setExpenses((prev) => prev.map((x) => (x.id === ex.id ? { ...x, receiptUrl: e.target.value } : x)))
-                          }
-                          className={
-                            "h-10 w-72 rounded-md border bg-white px-3 " +
-                            (showValidation && receiptMissing ? "border-red-300" : "border-zinc-300")
-                          }
-                          placeholder="https://…"
-                        />
-                        {showValidation && receiptMissing ? <div className="mt-1 text-xs text-red-700">Receipt URL required.</div> : null}
-                      </td>
-                      <td className="border-b border-zinc-100 px-3 py-2">
-                        <label className="inline-flex h-10 items-center gap-2 text-sm text-zinc-700">
-                          <input
-                            type="checkbox"
-                            checked={ex.reimburseToEmployee}
-                            onChange={(e) =>
-                              setExpenses((prev) => prev.map((x) => (x.id === ex.id ? { ...x, reimburseToEmployee: e.target.checked } : x)))
+                        <div className={showValidation && receiptMissing ? "rounded-md border border-red-300" : ""}>
+                          <ReceiptUploader
+                            clientId={ex.clientId ?? undefined}
+                            expenseEntryId={ex.id}
+                            initialUrl={ex.receiptUrl || null}
+                            capture
+                            onUploaded={(url) =>
+                              setExpenses((prev) => prev.map((x) => (x.id === ex.id ? { ...x, receiptUrl: url } : x)))
                             }
                           />
-                          Yes
-                        </label>
+                        </div>
+                        {showValidation && receiptMissing ? <div className="mt-1 text-xs text-red-700">Receipt upload required.</div> : null}
                       </td>
                       <td className="border-b border-zinc-100 px-3 py-2">
                         <button
@@ -940,15 +1099,18 @@ export function WorklogForm({
               }),
               mileage: mileage.map((m) => ({
                 clientId: m.clientId,
+                engagementType: m.engagementType,
+                projectId: m.projectId,
                 kilometers: parseNumberText(m.kilometersText),
               })),
               expenses: expenses.map((ex) => ({
                 clientId: ex.clientId,
-                vendor: ex.vendor,
+                engagementType: ex.engagementType,
+                projectId: ex.projectId,
+                category: ex.category,
                 description: ex.description,
                 amount: ex.amountText,
                 receiptUrl: ex.receiptUrl,
-                reimburseToEmployee: ex.reimburseToEmployee,
               })),
             };
 

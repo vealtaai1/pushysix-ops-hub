@@ -4,7 +4,12 @@ import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
 import { revalidatePath } from "next/cache";
 
-function isOpsManagerRole(role: unknown): boolean {
+function isAdminRole(role: unknown): boolean {
+  return role === "ADMIN";
+}
+
+function isAdminOrAccountManagerRole(role: unknown): boolean {
+  // Legacy helper — keep for now in case other actions add manager perms later.
   return role === "ADMIN" || role === "ACCOUNT_MANAGER";
 }
 
@@ -54,8 +59,8 @@ export async function createProject(prev: CreateProjectState, formData: FormData
     return { ok: false, message: "Sign in required." };
   }
 
-  if (!isOpsManagerRole(session.user.role)) {
-    return { ok: false, message: "Forbidden: Admin or account manager access required." };
+  if (!isAdminRole(session.user.role)) {
+    return { ok: false, message: "Forbidden: admin access required." };
   }
 
   const clientId = String(formData.get("clientId") || "");
@@ -117,6 +122,8 @@ export async function createProject(prev: CreateProjectState, formData: FormData
 }
 
 export type CloseProjectState = { ok: boolean; message?: string };
+export type DeleteProjectState = { ok: boolean; message?: string };
+export type ClearRetainerState = { ok: boolean; message?: string };
 
 const BILLING_CLOSE_EMAIL_ENABLED = process.env.BILLING_CLOSE_EMAIL_ENABLED === "true";
 
@@ -127,8 +134,9 @@ export async function closeProject(prev: CloseProjectState, formData: FormData):
     return { ok: false, message: "Sign in required." };
   }
 
-  if (!isOpsManagerRole(session.user.role)) {
-    return { ok: false, message: "Forbidden: Admin or account manager access required." };
+  // Policy: account managers can add projects, but cannot edit existing ones.
+  if (!isAdminRole(session.user.role)) {
+    return { ok: false, message: "Forbidden: admin access required." };
   }
 
   const clientId = String(formData.get("clientId") || "");
@@ -244,4 +252,87 @@ Closed at: ${project.closedAt?.toISOString?.() ?? now.toISOString()}
 
     return { ok: true, message: "Project closed. (Billing email failed to send.)" };
   }
+}
+
+export async function deleteProject(prev: DeleteProjectState, formData: FormData): Promise<DeleteProjectState> {
+  const session = await auth();
+
+  if (!session?.user) {
+    return { ok: false, message: "Sign in required." };
+  }
+
+  if (!isAdminRole(session.user.role)) {
+    return { ok: false, message: "Forbidden: admin access required." };
+  }
+
+  const clientId = String(formData.get("clientId") || "");
+  const projectId = String(formData.get("projectId") || "");
+
+  if (!clientId) return { ok: false, message: "Missing clientId." };
+  if (!projectId) return { ok: false, message: "Missing projectId." };
+
+  const existing = await prisma.project.findUnique({
+    where: { id: projectId },
+    select: { id: true, clientId: true, status: true, code: true },
+  });
+
+  if (!existing || existing.clientId !== clientId) {
+    return { ok: false, message: "Project not found." };
+  }
+
+  // Safety policy: require closure before deletion.
+  if (existing.status !== "CLOSED") {
+    return { ok: false, message: "Project must be closed before it can be deleted." };
+  }
+
+  await prisma.project.delete({ where: { id: projectId } });
+
+  revalidatePath(`/ops/v2/clients/${clientId}`);
+  // Legacy path (keep until fully migrated)
+  revalidatePath(`/ops/clients/${clientId}`);
+
+  return { ok: true, message: `Project ${existing.code} deleted.` };
+}
+
+export async function clearClientRetainer(prev: ClearRetainerState, formData: FormData): Promise<ClearRetainerState> {
+  const session = await auth();
+
+  if (!session?.user) {
+    return { ok: false, message: "Sign in required." };
+  }
+
+  if (!isAdminRole(session.user.role)) {
+    return { ok: false, message: "Forbidden: admin access required." };
+  }
+
+  const clientId = String(formData.get("clientId") || "");
+  if (!clientId) return { ok: false, message: "Missing clientId." };
+
+  const existing = await prisma.client.findUnique({
+    where: { id: clientId },
+    select: { id: true, name: true },
+  });
+
+  if (!existing) return { ok: false, message: "Client not found." };
+
+  await prisma.$transaction([
+    prisma.clientQuotaItem.deleteMany({ where: { clientId } }),
+    prisma.client.update({
+      where: { id: clientId },
+      data: {
+        monthlyRetainerHours: 0,
+        monthlyRetainerFeeCents: null,
+        // Keep currency stable (currently CAD-only)
+        monthlyRetainerFeeCurrency: "CAD",
+        maxShootsPerCycle: null,
+        maxCaptureHoursPerCycle: null,
+      },
+      select: { id: true },
+    }),
+  ]);
+
+  revalidatePath(`/ops/v2/clients/${clientId}`);
+  revalidatePath(`/ops/clients/${clientId}`);
+
+  return { ok: true, message: "Retainer cleared." };
 }

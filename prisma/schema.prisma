@@ -50,6 +50,7 @@ enum ApprovalStatus {
   PENDING
   APPROVED
   REJECTED
+  SUPERSEDED
 }
 
 enum EmailSendStatus {
@@ -73,6 +74,18 @@ enum ExpenseEntryKind {
   RETAINER_RECURRING
 }
 
+enum ExpenseCategory {
+  MILEAGE
+  HOTEL_ACCOMMODATION
+  MEAL
+  PROP
+  CAMERA_GEAR_EQUIPMENT
+  PARKING
+  CAR_RENTAL
+  FUEL
+  OTHER
+}
+
 enum WorklogEngagementType {
   RETAINER
   MISC_PROJECT
@@ -85,6 +98,10 @@ model User {
   name          String?
   image         String?
   role          UserRole  @default(EMPLOYEE)
+
+  // Payroll (money stored as cents)
+  hourlyWageCents    Int?
+  hourlyWageCurrency String @default("CAD")
 
   passwordHash String?
 
@@ -132,6 +149,10 @@ model Client {
 
   // Contract basics
   monthlyRetainerHours Int @default(0)
+
+  // Contract pricing (money stored as cents)
+  monthlyRetainerFeeCents    Int?
+  monthlyRetainerFeeCurrency String @default("CAD")
 
   // Optional caps/guardrails (per billing cycle)
   maxShootsPerCycle       Int?
@@ -184,6 +205,9 @@ model Project {
   // Expenses
   expenseEntries ExpenseEntry[]
 
+  // Mileage
+  mileageEntries MileageEntry[]
+
   // Emails
   projectCloseBillingEmails ProjectCloseBillingEmail[]
 
@@ -225,6 +249,10 @@ model ExpenseEntry {
   id       String @id @default(cuid())
   clientId String
 
+  // Whether this expense belongs to the client retainer engagement or a misc project.
+  engagementType WorklogEngagementType @default(RETAINER)
+
+  // Required when engagementType = MISC_PROJECT (enforced in app code)
   projectId String?
 
   // Optional linkage when an expense is created "inline" on a specific worklog day.
@@ -241,6 +269,7 @@ model ExpenseEntry {
   expenseDate DateTime
 
   vendor      String?
+  category    ExpenseCategory @default(OTHER)
   description String
   notes       String?
 
@@ -265,6 +294,7 @@ model ExpenseEntry {
   employee        User? @relation("ExpenseEntriesForEmployee", fields: [employeeId], references: [id], onDelete: SetNull)
 
   @@index([clientId, expenseDate])
+  @@index([engagementType])
   @@index([projectId])
   @@index([worklogId])
   @@index([submittedByUserId, expenseDate])
@@ -443,17 +473,28 @@ model MileageEntry {
   kilometers Float
   notes      String?
 
-  // optional: attach mileage to a client later
+  // Mileage must be attributable to either:
+  // - a client retainer engagement, or
+  // - a specific misc project under that client.
+  engagementType WorklogEngagementType @default(RETAINER)
+
+  // Required when engagementType = MISC_PROJECT (enforced in app code)
+  projectId String?
+
+  // Required for any non-zero mileage allocation (enforced in app code)
   clientId String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  worklog Worklog @relation(fields: [worklogId], references: [id], onDelete: Cascade)
-  client  Client? @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  worklog  Worklog  @relation(fields: [worklogId], references: [id], onDelete: Cascade)
+  client   Client?  @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  project  Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
 
   @@index([worklogId])
   @@index([clientId])
+  @@index([engagementType])
+  @@index([projectId])
 }
 
 model DayOff {

@@ -19,6 +19,18 @@ async function getClients() {
   });
 }
 
+async function getOpenProjects() {
+  const url = process.env.DATABASE_URL;
+  if (!url || (url.startsWith("file:") && process.env.VERCEL)) return [] as Array<{ id: string; clientId: string; code: string; name: string }>;
+
+  const { prisma } = await import("@/lib/db");
+  return prisma.project.findMany({
+    where: { status: "OPEN" },
+    orderBy: [{ clientId: "asc" }, { code: "asc" }],
+    select: { id: true, clientId: true, code: true, name: true },
+  });
+}
+
 export default async function WorklogPage({
   searchParams,
 }: {
@@ -36,11 +48,13 @@ export default async function WorklogPage({
   const effectiveEmail = emailParam ?? sessionEmail;
 
   let clients: Array<{ id: string; name: string }> = [];
+  let projects: Array<{ id: string; clientId: string; code: string; name: string }> = [];
   let dbWarning: string | null = null;
   let dbError: string | null = null;
 
   try {
     clients = await getClients();
+    projects = await getOpenProjects();
 
     if (clients.length === 0 && process.env.DATABASE_URL?.startsWith("file:")) {
       dbWarning = "Client list is unavailable because this deployment is still pointing at a local SQLite database.";
@@ -75,7 +89,7 @@ export default async function WorklogPage({
         <div className="rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">{dbWarning}</div>
       ) : null}
 
-      <WorklogForm clients={clients} initialDate={dateParam} initialEmail={effectiveEmail} />
+      <WorklogForm clients={clients} projects={projects} initialDate={dateParam} initialEmail={effectiveEmail} />
     </div>
   );
 }
