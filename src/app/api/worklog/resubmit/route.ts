@@ -12,6 +12,7 @@ type ResubmitWorklogBody = {
   tasks: Array<{
     clientId: string | null;
     engagementType?: "RETAINER" | "MISC_PROJECT";
+    projectId?: string | null;
     bucketKey: string;
     bucketName?: string;
     hours: number;
@@ -192,12 +193,18 @@ export async function POST(req: Request) {
         const engagementType: WorklogEngagementType =
           t.engagementType === "MISC_PROJECT" ? WorklogEngagementType.MISC_PROJECT : WorklogEngagementType.RETAINER;
 
+        const projectId = t.projectId ? String(t.projectId) : null;
+        if (engagementType === WorklogEngagementType.MISC_PROJECT && !projectId) {
+          throw new Error("Project is required for misc project task hours.");
+        }
+
         const { bucketKey, bucketName } = assertValidBucketKey(t.bucketKey);
 
         return {
           worklogId: updated.id,
           clientId: t.clientId,
           engagementType,
+          projectId,
           bucketKey,
           bucketName,
           minutes,

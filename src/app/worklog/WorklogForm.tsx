@@ -14,6 +14,7 @@ type TaskLine = {
   clientId: string | null;
   clientName: string;
   engagementType: "RETAINER" | "MISC_PROJECT";
+  projectId: string | null;
   bucketKey: string;
   hoursText: string; // kept as text so the field can be cleared
   notes: string;
@@ -183,11 +184,13 @@ function ClientTypeahead(props: {
 export function WorklogForm({
   clients,
   projects,
+  clientIdsWithRetainer,
   initialDate,
   initialEmail,
 }: {
   clients: Client[];
   projects: Project[];
+  clientIdsWithRetainer: string[];
   initialDate?: string | null;
   initialEmail?: string | null;
 }) {
@@ -207,6 +210,10 @@ export function WorklogForm({
     }
     return map;
   }, [projects]);
+
+  const hasRetainerByClientId = React.useMemo(() => {
+    return new Set<string>(clientIdsWithRetainer ?? []);
+  }, [clientIdsWithRetainer]);
 
   const normalizedInitialDate = React.useMemo(() => {
     if (!initialDate) return null;
@@ -309,6 +316,7 @@ export function WorklogForm({
       clientId: null,
       clientName: "",
       engagementType: "RETAINER",
+      projectId: null,
       bucketKey: "",
       hoursText: "",
       notes: "",
@@ -370,6 +378,20 @@ export function WorklogForm({
       return Number.isFinite(n) && n > 0 && t.bucketKey.trim().length === 0;
     });
   }, [tasks]);
+
+  const hasTaskEngagementViolations = React.useMemo(() => {
+    return tasks.some((t) => {
+      const n = parseNumberText(t.hoursText);
+      if (!Number.isFinite(n) || n <= 0) return false;
+      if (!t.clientId) return false;
+
+      if (t.engagementType === "RETAINER") {
+        return !hasRetainerByClientId.has(t.clientId);
+      }
+
+      return !t.projectId;
+    });
+  }, [tasks, hasRetainerByClientId]);
 
   const allocatedKm = React.useMemo(() => {
     return mileage.reduce((sum, m) => {
@@ -487,6 +509,9 @@ export function WorklogForm({
           {showValidation && hasBucketViolations ? (
             <div className="text-red-700">Task category is required for any task with hours &gt; 0.</div>
           ) : null}
+          {showValidation && hasTaskEngagementViolations ? (
+            <div className="text-red-700">Engagement must be set to Retainer (if configured) or a specific open project.</div>
+          ) : null}
           {showValidation && hasNotesViolations ? <div className="text-red-700">Notes are required for any task with hours &gt; 0.</div> : null}
           {showValidation && mileageRequired && !mileageComplete ? (
             <div className="text-red-700">Mileage must be allocated to match Total km.</div>
@@ -522,6 +547,7 @@ export function WorklogForm({
                   clientId: null,
                   clientName: "",
                   engagementType: "RETAINER",
+                  projectId: null,
                   bucketKey: "",
                   hoursText: "",
                   notes: "",
@@ -696,21 +722,22 @@ export function WorklogForm({
                         clients={clients}
                         valueName={m.clientName}
                         placeholder="Search client…"
-                        onSelect={(c) =>
+                        onSelect={(c) => {
+                          const hasRetainer = hasRetainerByClientId.has(c.id);
+                          const openProjects = projectsByClient.get(c.id) ?? [];
+
+                          const engagementType: MileageLine["engagementType"] = hasRetainer
+                            ? "RETAINER"
+                            : openProjects.length > 0
+                              ? "MISC_PROJECT"
+                              : "RETAINER";
+
+                          const projectId = engagementType === "MISC_PROJECT" ? openProjects[0]?.id ?? null : null;
+
                           setMileage((prev) =>
-                            prev.map((x) =>
-                              x.id === m.id
-                                ? {
-                                    ...x,
-                                    clientId: c.id,
-                                    clientName: c.name,
-                                    // If changing client, clear project selection
-                                    projectId: x.clientId !== c.id ? null : x.projectId,
-                                  }
-                                : x,
-                            ),
-                          )
-                        }
+                            prev.map((x) => (x.id === m.id ? { ...x, clientId: c.id, clientName: c.name, engagementType, projectId } : x)),
+                          );
+                        }}
                       />
                     </td>
 
@@ -738,15 +765,34 @@ export function WorklogForm({
                         disabled={!m.clientId}
                         className="h-10 w-72 rounded-md border border-zinc-300 bg-white px-3 disabled:bg-zinc-50"
                       >
-                        <option value="RETAINER">Retainer</option>
-                        <option value="" disabled>
-                          Project…
-                        </option>
-                        {(m.clientId ? projectsByClient.get(m.clientId) ?? [] : []).map((p) => (
-                          <option key={p.id} value={`PROJECT:${p.id}`}>
-                            {p.code}
+                        {m.clientId ? (
+                          <>
+                            {hasRetainerByClientId.has(m.clientId) ? <option value="RETAINER">Retainer</option> : null}
+                            {(projectsByClient.get(m.clientId) ?? []).length > 0 ? (
+                              <>
+                                {hasRetainerByClientId.has(m.clientId) ? (
+                                  <option value="" disabled>
+                                    Project…
+                                  </option>
+                                ) : null}
+                                {(projectsByClient.get(m.clientId) ?? []).map((p) => (
+                                  <option key={p.id} value={`PROJECT:${p.id}`}>
+                                    {p.code}
+                                  </option>
+                                ))}
+                              </>
+                            ) : null}
+                            {!hasRetainerByClientId.has(m.clientId) && (projectsByClient.get(m.clientId) ?? []).length === 0 ? (
+                              <option value="" disabled>
+                                (No retainer or open projects)
+                              </option>
+                            ) : null}
+                          </>
+                        ) : (
+                          <option value="" disabled>
+                            Select client first
                           </option>
-                        ))}
+                        )}
                       </select>
                       <div className="mt-1 text-xs text-zinc-500">Choose retainer or a specific project number.</div>
                     </td>
@@ -850,21 +896,22 @@ export function WorklogForm({
                           clients={clients}
                           valueName={ex.clientName}
                           placeholder="Search client…"
-                          onSelect={(c) =>
+                          onSelect={(c) => {
+                            const hasRetainer = hasRetainerByClientId.has(c.id);
+                            const openProjects = projectsByClient.get(c.id) ?? [];
+
+                            const engagementType: ExpenseLine["engagementType"] = hasRetainer
+                              ? "RETAINER"
+                              : openProjects.length > 0
+                                ? "MISC_PROJECT"
+                                : "RETAINER";
+
+                            const projectId = engagementType === "MISC_PROJECT" ? openProjects[0]?.id ?? null : null;
+
                             setExpenses((prev) =>
-                              prev.map((x) =>
-                                x.id === ex.id
-                                  ? {
-                                      ...x,
-                                      clientId: c.id,
-                                      clientName: c.name,
-                                      // If changing client, clear project selection
-                                      projectId: x.clientId !== c.id ? null : x.projectId,
-                                    }
-                                  : x,
-                              ),
-                            )
-                          }
+                              prev.map((x) => (x.id === ex.id ? { ...x, clientId: c.id, clientName: c.name, engagementType, projectId } : x)),
+                            );
+                          }}
                         />
                         {showValidation && needsReceipt && !ex.clientId ? (
                           <div className="mt-1 text-xs text-red-700">Client required.</div>
@@ -895,15 +942,34 @@ export function WorklogForm({
                           disabled={!ex.clientId}
                           className="h-10 w-72 rounded-md border border-zinc-300 bg-white px-3 disabled:bg-zinc-50"
                         >
-                          <option value="RETAINER">Retainer</option>
-                          <option value="" disabled>
-                            Project…
-                          </option>
-                          {(ex.clientId ? projectsByClient.get(ex.clientId) ?? [] : []).map((p) => (
-                            <option key={p.id} value={`PROJECT:${p.id}`}>
-                              {p.code}
+                          {ex.clientId ? (
+                            <>
+                              {hasRetainerByClientId.has(ex.clientId) ? <option value="RETAINER">Retainer</option> : null}
+                              {(projectsByClient.get(ex.clientId) ?? []).length > 0 ? (
+                                <>
+                                  {hasRetainerByClientId.has(ex.clientId) ? (
+                                    <option value="" disabled>
+                                      Project…
+                                    </option>
+                                  ) : null}
+                                  {(projectsByClient.get(ex.clientId) ?? []).map((p) => (
+                                    <option key={p.id} value={`PROJECT:${p.id}`}>
+                                      {p.code}
+                                    </option>
+                                  ))}
+                                </>
+                              ) : null}
+                              {!hasRetainerByClientId.has(ex.clientId) && (projectsByClient.get(ex.clientId) ?? []).length === 0 ? (
+                                <option value="" disabled>
+                                  (No retainer or open projects)
+                                </option>
+                              ) : null}
+                            </>
+                          ) : (
+                            <option value="" disabled>
+                              Select client first
                             </option>
-                          ))}
+                          )}
                         </select>
                         {showValidation && needsReceipt && ex.engagementType === "MISC_PROJECT" && !ex.projectId ? (
                           <div className="mt-1 text-xs text-red-700">Project is required when logging to a project engagement.</div>
@@ -1091,6 +1157,7 @@ export function WorklogForm({
                 return {
                   clientId: t.clientId,
                   engagementType: t.engagementType,
+                  projectId: t.projectId,
                   bucketKey: t.bucketKey,
                   bucketName: bucket?.name ?? t.bucketKey,
                   hours: parseNumberText(t.hoursText),

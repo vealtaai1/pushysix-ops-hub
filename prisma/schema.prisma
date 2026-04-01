@@ -208,6 +208,9 @@ model Project {
   // Mileage
   mileageEntries MileageEntry[]
 
+  // Worklogs (task hours)
+  worklogEntries WorklogEntry[]
+
   // Emails
   projectCloseBillingEmails ProjectCloseBillingEmail[]
 
@@ -442,6 +445,10 @@ model WorklogEntry {
   worklogId String
   clientId  String
 
+  // Optional linkage when engagementType=MISC_PROJECT.
+  // (Employees select a specific open project number in the worklog form.)
+  projectId String?
+
   // Whether this work is counted against the client retainer or billed as an ad-hoc/misc project.
   engagementType WorklogEngagementType @default(RETAINER)
 
@@ -459,10 +466,12 @@ model WorklogEntry {
 
   worklog   Worklog          @relation(fields: [worklogId], references: [id], onDelete: Cascade)
   client    Client           @relation(fields: [clientId], references: [id], onDelete: Restrict)
+  project   Project?         @relation(fields: [projectId], references: [id], onDelete: SetNull)
 
   @@index([worklogId])
   @@index([clientId])
   @@index([engagementType])
+  @@index([projectId])
   @@index([bucketKey])
 }
 
