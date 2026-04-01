@@ -39,6 +39,16 @@ function minutesToPayrollCostCents(minutes: number, hourlyWageCents: number): nu
   return Math.round((minutes * hourlyWageCents) / 60);
 }
 
+function normalizeMoneyCents(cents: number | null): number | null {
+  if (cents == null) return null;
+  if (!Number.isFinite(cents)) return null;
+  // Defensive: some historical data has been observed to be scaled by 100 twice
+  // (e.g., $6,000 stored as 60,000,000 instead of 600,000 cents), which renders as “$600k”.
+  // If the value is implausibly large for a monthly retainer, assume double-scaling and correct.
+  if (Math.abs(cents) >= 5_000_000 && cents % 100 === 0) return Math.trunc(cents / 100);
+  return cents;
+}
+
 function mileageRateCentsPerKm(): { rateCentsPerKm: number; isEnvConfigured: boolean } {
   // Default is a common CAD reimbursement rate.
   // Override with env MILEAGE_RATE_CENTS_PER_KM.
@@ -52,11 +62,18 @@ function mileageRateCentsPerKm(): { rateCentsPerKm: number; isEnvConfigured: boo
 
 export async function GET(req: Request) {
   // Finance policy: finance analytics are ADMIN-only.
-  await requireAdminOrThrow();
+  try {
+    await requireAdminOrThrow();
+  } catch (e) {
+    const message = e instanceof Error ? e.message : "Unauthorized";
+    const status = message.toLowerCase().includes("forbidden") ? 403 : 401;
+    return NextResponse.json({ ok: false, message }, { status });
+  }
 
   const url = new URL(req.url);
 
-  // Use referenceDate to determine each client's billing cycle range.
+  try {
+    // Use referenceDate to determine each client's billing cycle range.
   const referenceISO = asISODateOnly(url.searchParams.get("referenceDate")) ?? isoTodayUTC();
   const clientId = (url.searchParams.get("clientId") ?? "").trim() || null;
   const engagementTypeParam = (url.searchParams.get("engagementType") ?? "").trim() || null; // RETAINER|MISC_PROJECT
@@ -209,7 +226,7 @@ export async function GET(req: Request) {
       billingCycleStartDay: c.billingCycleStartDay,
       cycle,
 
-      monthlyRetainerFeeCents: c.monthlyRetainerFeeCents,
+      monthlyRetainerFeeCents: normalizeMoneyCents(c.monthlyRetainerFeeCents),
       monthlyRetainerFeeCurrency: c.monthlyRetainerFeeCurrency,
       monthlyRetainerHours: c.monthlyRetainerHours,
 
@@ -479,4 +496,8 @@ export async function GET(req: Request) {
     },
     { status: 200 },
   );
+  } catch (e) {
+    const message = e instanceof Error ? e.message : String(e);
+    return NextResponse.json({ ok: false, message }, { status: 500 });
+  }
 }
