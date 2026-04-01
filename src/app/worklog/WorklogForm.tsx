@@ -621,7 +621,22 @@ export function WorklogForm({
                         valueName={t.clientName}
                         placeholder="Search client…"
                         onSelect={(c) => {
-                          setTasks((prev) => prev.map((x) => (x.id === t.id ? { ...x, clientId: c.id, clientName: c.name } : x)));
+                          const hasRetainer = hasRetainerByClientId.has(c.id);
+                          const openProjects = projectsByClient.get(c.id) ?? [];
+
+                          const engagementType: TaskLine["engagementType"] = hasRetainer
+                            ? "RETAINER"
+                            : openProjects.length > 0
+                              ? "MISC_PROJECT"
+                              : "RETAINER";
+
+                          const projectId = engagementType === "MISC_PROJECT" ? openProjects[0]?.id ?? null : null;
+
+                          setTasks((prev) =>
+                            prev.map((x) =>
+                              x.id === t.id ? { ...x, clientId: c.id, clientName: c.name, engagementType, projectId } : x,
+                            ),
+                          );
                         }}
                       />
                       {t.clientId ? null : <div className="mt-1 text-xs text-zinc-500">Choose a client</div>}
@@ -629,18 +644,56 @@ export function WorklogForm({
 
                     <td className="border-b border-zinc-100 px-3 py-2">
                       <select
-                        value={t.engagementType}
-                        onChange={(e) =>
-                          setTasks((prev) =>
-                            prev.map((x) => (x.id === t.id ? { ...x, engagementType: e.target.value as TaskLine["engagementType"] } : x)),
-                          )
-                        }
-                        className="h-10 w-full rounded-md border border-zinc-300 bg-white px-3"
+                        value={t.engagementType === "RETAINER" ? "RETAINER" : t.projectId ? `PROJECT:${t.projectId}` : ""}
+                        onChange={(e) => {
+                          const v = e.target.value;
+                          if (v === "RETAINER") {
+                            setTasks((prev) =>
+                              prev.map((x) => (x.id === t.id ? { ...x, engagementType: "RETAINER", projectId: null } : x)),
+                            );
+                            return;
+                          }
+
+                          if (v.startsWith("PROJECT:")) {
+                            const pid = v.slice("PROJECT:".length) || null;
+                            setTasks((prev) =>
+                              prev.map((x) => (x.id === t.id ? { ...x, engagementType: "MISC_PROJECT", projectId: pid } : x)),
+                            );
+                          }
+                        }}
+                        disabled={!t.clientId}
+                        className="h-10 w-full rounded-md border border-zinc-300 bg-white px-3 disabled:bg-zinc-50"
                       >
-                        <option value="RETAINER">Retainer</option>
-                        <option value="MISC_PROJECT">Misc project</option>
+                        {t.clientId ? (
+                          <>
+                            {hasRetainerByClientId.has(t.clientId) ? <option value="RETAINER">Retainer</option> : null}
+                            {(projectsByClient.get(t.clientId) ?? []).length > 0 ? (
+                              <>
+                                {hasRetainerByClientId.has(t.clientId) ? (
+                                  <option value="" disabled>
+                                    Project…
+                                  </option>
+                                ) : null}
+                                {(projectsByClient.get(t.clientId) ?? []).map((p) => (
+                                  <option key={p.id} value={`PROJECT:${p.id}`}>
+                                    {p.code}
+                                  </option>
+                                ))}
+                              </>
+                            ) : null}
+                            {!hasRetainerByClientId.has(t.clientId) && (projectsByClient.get(t.clientId) ?? []).length === 0 ? (
+                              <option value="" disabled>
+                                (No retainer or open projects)
+                              </option>
+                            ) : null}
+                          </>
+                        ) : (
+                          <option value="" disabled>
+                            Select client first
+                          </option>
+                        )}
                       </select>
-                      <div className="mt-1 text-xs text-zinc-500">Retainer time counts toward the client’s retainer cycle.</div>
+                      <div className="mt-1 text-xs text-zinc-500">Choose retainer or a specific open project.</div>
                     </td>
 
                     <td className="border-b border-zinc-100 px-3 py-2">
@@ -908,199 +961,192 @@ export function WorklogForm({
         {expenses.length === 0 ? (
           <div className="text-sm text-zinc-600">No expenses.</div>
         ) : (
-          <div className="overflow-x-auto overflow-y-visible">
-            <table className="w-full min-w-[980px] border-separate border-spacing-0">
-              <thead>
-                <tr className="text-left text-xs text-zinc-600">
-                  <th className="border-b border-zinc-200 px-3 py-2">Client</th>
-                  <th className="border-b border-zinc-200 px-3 py-2">Engagement</th>
-                  <th className="border-b border-zinc-200 px-3 py-2">Category</th>
-                  <th className="border-b border-zinc-200 px-3 py-2">Description</th>
-                  <th className="border-b border-zinc-200 px-3 py-2">Amount (CAD)</th>
-                  <th className="border-b border-zinc-200 px-3 py-2">Receipt</th>
-                  <th className="border-b border-zinc-200 px-3 py-2"></th>
-                </tr>
-              </thead>
-              <tbody>
-                {expenses.map((ex) => {
-                  const isActive = expenseLineIsActive(ex);
-                  const amt = parseNumberText(ex.amountText);
-                  const amountMissing = isActive && ex.amountText.trim() === "";
-                  const amountInvalid = ex.amountText.trim() !== "" && (!Number.isFinite(amt) || amt <= 0);
-                  const receiptMissing = isActive && ex.receiptUrl.trim().length === 0;
+          <div className="space-y-3">
+            {expenses.map((ex, i) => {
+              const isActive = expenseLineIsActive(ex);
+              const amt = parseNumberText(ex.amountText);
+              const amountMissing = isActive && ex.amountText.trim() === "";
+              const amountInvalid = ex.amountText.trim() !== "" && (!Number.isFinite(amt) || amt <= 0);
+              const receiptMissing = isActive && ex.receiptUrl.trim().length === 0;
 
-                  return (
-                    <tr key={ex.id} className="align-top">
-                      <td className="border-b border-zinc-100 px-3 py-2">
-                        <ClientTypeahead
-                          clients={clients}
-                          valueName={ex.clientName}
-                          placeholder="Search client…"
-                          onSelect={(c) => {
-                            const hasRetainer = hasRetainerByClientId.has(c.id);
-                            const openProjects = projectsByClient.get(c.id) ?? [];
+              return (
+                <div key={ex.id} className="rounded-lg border border-zinc-200 bg-white p-4">
+                  <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                    <div className="text-sm font-semibold text-zinc-900">Expense {i + 1}</div>
+                    <button
+                      type="button"
+                      className="h-9 rounded-md border border-zinc-300 bg-white px-3 text-sm text-zinc-700 hover:bg-zinc-50"
+                      onClick={() => setExpenses((prev) => prev.filter((x) => x.id !== ex.id))}
+                    >
+                      Remove
+                    </button>
+                  </div>
 
-                            const engagementType: ExpenseLine["engagementType"] = hasRetainer
-                              ? "RETAINER"
-                              : openProjects.length > 0
-                                ? "MISC_PROJECT"
-                                : "RETAINER";
+                  <div className="grid gap-3 md:grid-cols-12">
+                    <div className="md:col-span-4">
+                      <div className="mb-1 text-xs font-medium text-zinc-600">Client</div>
+                      <ClientTypeahead
+                        clients={clients}
+                        valueName={ex.clientName}
+                        placeholder="Search client…"
+                        onSelect={(c) => {
+                          const hasRetainer = hasRetainerByClientId.has(c.id);
+                          const openProjects = projectsByClient.get(c.id) ?? [];
 
-                            const projectId = engagementType === "MISC_PROJECT" ? openProjects[0]?.id ?? null : null;
+                          const engagementType: ExpenseLine["engagementType"] = hasRetainer
+                            ? "RETAINER"
+                            : openProjects.length > 0
+                              ? "MISC_PROJECT"
+                              : "RETAINER";
 
+                          const projectId = engagementType === "MISC_PROJECT" ? openProjects[0]?.id ?? null : null;
+
+                          setExpenses((prev) =>
+                            prev.map((x) =>
+                              x.id === ex.id ? { ...x, clientId: c.id, clientName: c.name, engagementType, projectId } : x,
+                            ),
+                          );
+                        }}
+                      />
+                      {showValidation && isActive && !ex.clientId ? (
+                        <div className="mt-1 text-xs text-red-700">Client is required for an expense line.</div>
+                      ) : null}
+                    </div>
+
+                    <div className="md:col-span-4">
+                      <div className="mb-1 text-xs font-medium text-zinc-600">Engagement</div>
+                      <select
+                        value={ex.engagementType === "RETAINER" ? "RETAINER" : ex.projectId ? `PROJECT:${ex.projectId}` : ""}
+                        onChange={(e) => {
+                          const v = e.target.value;
+                          if (v === "RETAINER") {
                             setExpenses((prev) =>
-                              prev.map((x) => (x.id === ex.id ? { ...x, clientId: c.id, clientName: c.name, engagementType, projectId } : x)),
+                              prev.map((x) => (x.id === ex.id ? { ...x, engagementType: "RETAINER", projectId: null } : x)),
                             );
-                          }}
-                        />
-                        {showValidation && isActive && !ex.clientId ? (
-                          <div className="mt-1 text-xs text-red-700">Client is required for an expense line.</div>
-                        ) : null}
-                      </td>
-
-                      <td className="border-b border-zinc-100 px-3 py-2">
-                        <select
-                          value={ex.engagementType === "RETAINER" ? "RETAINER" : ex.projectId ? `PROJECT:${ex.projectId}` : ""}
-                          onChange={(e) => {
-                            const v = e.target.value;
-                            if (v === "RETAINER") {
-                              setExpenses((prev) =>
-                                prev.map((x) => (x.id === ex.id ? { ...x, engagementType: "RETAINER", projectId: null } : x)),
-                              );
-                              return;
-                            }
-
-                            if (v.startsWith("PROJECT:")) {
-                              const pid = v.slice("PROJECT:".length) || null;
-                              setExpenses((prev) =>
-                                prev.map((x) =>
-                                  x.id === ex.id ? { ...x, engagementType: "MISC_PROJECT", projectId: pid } : x,
-                                ),
-                              );
-                            }
-                          }}
-                          disabled={!ex.clientId}
-                          className="h-10 w-72 rounded-md border border-zinc-300 bg-white px-3 disabled:bg-zinc-50"
-                        >
-                          {ex.clientId ? (
-                            <>
-                              {hasRetainerByClientId.has(ex.clientId) ? <option value="RETAINER">Retainer</option> : null}
-                              {(projectsByClient.get(ex.clientId) ?? []).length > 0 ? (
-                                <>
-                                  {hasRetainerByClientId.has(ex.clientId) ? (
-                                    <option value="" disabled>
-                                      Project…
-                                    </option>
-                                  ) : null}
-                                  {(projectsByClient.get(ex.clientId) ?? []).map((p) => (
-                                    <option key={p.id} value={`PROJECT:${p.id}`}>
-                                      {p.code}
-                                    </option>
-                                  ))}
-                                </>
-                              ) : null}
-                              {!hasRetainerByClientId.has(ex.clientId) && (projectsByClient.get(ex.clientId) ?? []).length === 0 ? (
-                                <option value="" disabled>
-                                  (No retainer or open projects)
-                                </option>
-                              ) : null}
-                            </>
-                          ) : (
-                            <option value="" disabled>
-                              Select client first
-                            </option>
-                          )}
-                        </select>
-                        {showValidation && isActive && ex.engagementType === "MISC_PROJECT" && !ex.projectId ? (
-                          <div className="mt-1 text-xs text-red-700">Project is required when logging to a project engagement.</div>
-                        ) : null}
-                      </td>
-
-                      <td className="border-b border-zinc-100 px-3 py-2">
-                        <select
-                          value={ex.category}
-                          onChange={(e) =>
-                            setExpenses((prev) => prev.map((x) => (x.id === ex.id ? { ...x, category: e.target.value as any } : x)))
+                            return;
                           }
-                          className="h-10 w-56 rounded-md border border-zinc-300 bg-white px-3"
-                        >
-                          <option value="MILEAGE" disabled>
-                            Mileage (use the Mileage section above)
+
+                          if (v.startsWith("PROJECT:")) {
+                            const pid = v.slice("PROJECT:".length) || null;
+                            setExpenses((prev) =>
+                              prev.map((x) => (x.id === ex.id ? { ...x, engagementType: "MISC_PROJECT", projectId: pid } : x)),
+                            );
+                          }
+                        }}
+                        disabled={!ex.clientId}
+                        className="h-10 w-full rounded-md border border-zinc-300 bg-white px-3 disabled:bg-zinc-50"
+                      >
+                        {ex.clientId ? (
+                          <>
+                            {hasRetainerByClientId.has(ex.clientId) ? <option value="RETAINER">Retainer</option> : null}
+                            {(projectsByClient.get(ex.clientId) ?? []).length > 0 ? (
+                              <>
+                                {hasRetainerByClientId.has(ex.clientId) ? (
+                                  <option value="" disabled>
+                                    Project…
+                                  </option>
+                                ) : null}
+                                {(projectsByClient.get(ex.clientId) ?? []).map((p) => (
+                                  <option key={p.id} value={`PROJECT:${p.id}`}>
+                                    {p.code}
+                                  </option>
+                                ))}
+                              </>
+                            ) : null}
+                            {!hasRetainerByClientId.has(ex.clientId) && (projectsByClient.get(ex.clientId) ?? []).length === 0 ? (
+                              <option value="" disabled>
+                                (No retainer or open projects)
+                              </option>
+                            ) : null}
+                          </>
+                        ) : (
+                          <option value="" disabled>
+                            Select client first
                           </option>
-                          <option value="HOTEL_ACCOMMODATION">Hotel/Accommodation</option>
-                          <option value="MEAL">Meal</option>
-                          <option value="PROP">Prop</option>
-                          <option value="CAMERA_GEAR_EQUIPMENT">Camera Gear/Equipment</option>
-                          <option value="OTHER">Other</option>
-                        </select>
-                      </td>
+                        )}
+                      </select>
+                      {showValidation && isActive && ex.engagementType === "MISC_PROJECT" && !ex.projectId ? (
+                        <div className="mt-1 text-xs text-red-700">Project is required when logging to a project engagement.</div>
+                      ) : null}
+                    </div>
 
-                      <td className="border-b border-zinc-100 px-3 py-2">
-                        <input
-                          value={ex.description}
-                          onChange={(e) =>
-                            setExpenses((prev) => prev.map((x) => (x.id === ex.id ? { ...x, description: e.target.value } : x)))
-                          }
-                          className={
-                            "h-10 w-72 rounded-md border bg-white px-3 " +
-                            (showValidation && isActive && ex.description.trim().length === 0 ? "border-red-300" : "border-zinc-300")
-                          }
-                          placeholder="What was this for?"
-                        />
-                      </td>
+                    <div className="md:col-span-4">
+                      <div className="mb-1 text-xs font-medium text-zinc-600">Category</div>
+                      <select
+                        value={ex.category}
+                        onChange={(e) =>
+                          setExpenses((prev) => prev.map((x) => (x.id === ex.id ? { ...x, category: e.target.value as any } : x)))
+                        }
+                        className="h-10 w-full rounded-md border border-zinc-300 bg-white px-3"
+                      >
+                        <option value="MILEAGE" disabled>
+                          Mileage (use the Mileage section above)
+                        </option>
+                        <option value="HOTEL_ACCOMMODATION">Hotel/Accommodation</option>
+                        <option value="MEAL">Meal</option>
+                        <option value="PROP">Prop</option>
+                        <option value="CAMERA_GEAR_EQUIPMENT">Camera Gear/Equipment</option>
+                        <option value="OTHER">Other</option>
+                      </select>
+                    </div>
 
-                      <td className="border-b border-zinc-100 px-3 py-2">
-                        <input
-                          inputMode="decimal"
-                          value={ex.amountText}
-                          onChange={(e) =>
-                            setExpenses((prev) => prev.map((x) => (x.id === ex.id ? { ...x, amountText: e.target.value } : x)))
-                          }
-                          className={
-                            "h-10 w-36 rounded-md border bg-white px-3 " +
-                            (amountInvalid || (showValidation && amountMissing) ? "border-red-300" : "border-zinc-300")
-                          }
-                          placeholder="0.00"
-                        />
-                        {showValidation && amountMissing ? <div className="mt-1 text-xs text-red-700">Amount is required.</div> : null}
-                        {showValidation && !amountMissing && amountInvalid ? (
-                          <div className="mt-1 text-xs text-red-700">Amount must be a number greater than 0.</div>
-                        ) : null}
-                      </td>
+                    <div className="md:col-span-6">
+                      <div className="mb-1 text-xs font-medium text-zinc-600">Description</div>
+                      <input
+                        value={ex.description}
+                        onChange={(e) =>
+                          setExpenses((prev) => prev.map((x) => (x.id === ex.id ? { ...x, description: e.target.value } : x)))
+                        }
+                        className={
+                          "h-10 w-full rounded-md border bg-white px-3 " +
+                          (showValidation && isActive && ex.description.trim().length === 0 ? "border-red-300" : "border-zinc-300")
+                        }
+                        placeholder="What was this for?"
+                      />
+                    </div>
 
-                      <td className="border-b border-zinc-100 px-3 py-2">
-                        <div className={showValidation && receiptMissing ? "rounded-md border border-red-300" : ""}>
-                          {!ex.clientId ? (
-                            <div className="mb-2 text-xs text-zinc-600">Select a client to upload a receipt.</div>
-                          ) : null}
-                          <div className={!ex.clientId ? "pointer-events-none opacity-50" : ""}>
-                            <ReceiptUploader
-                              clientId={ex.clientId ?? undefined}
-                              expenseEntryId={ex.id}
-                              initialUrl={ex.receiptUrl || null}
-                              capture
-                              onUploaded={(url) =>
-                                setExpenses((prev) => prev.map((x) => (x.id === ex.id ? { ...x, receiptUrl: url } : x)))
-                              }
-                            />
-                          </div>
+                    <div className="md:col-span-2">
+                      <div className="mb-1 text-xs font-medium text-zinc-600">Amount (CAD)</div>
+                      <input
+                        inputMode="decimal"
+                        value={ex.amountText}
+                        onChange={(e) =>
+                          setExpenses((prev) => prev.map((x) => (x.id === ex.id ? { ...x, amountText: e.target.value } : x)))
+                        }
+                        className={
+                          "h-10 w-full rounded-md border bg-white px-3 " +
+                          (amountInvalid || (showValidation && amountMissing) ? "border-red-300" : "border-zinc-300")
+                        }
+                        placeholder="0.00"
+                      />
+                      {showValidation && amountMissing ? <div className="mt-1 text-xs text-red-700">Amount is required.</div> : null}
+                      {showValidation && !amountMissing && amountInvalid ? (
+                        <div className="mt-1 text-xs text-red-700">Amount must be a number greater than 0.</div>
+                      ) : null}
+                    </div>
+
+                    <div className="md:col-span-4">
+                      <div className="mb-1 text-xs font-medium text-zinc-600">Receipt</div>
+                      <div className={showValidation && receiptMissing ? "rounded-md border border-red-300 p-1" : ""}>
+                        {!ex.clientId ? <div className="mb-2 text-xs text-zinc-600">Select a client to upload a receipt.</div> : null}
+                        <div className={!ex.clientId ? "pointer-events-none opacity-50" : ""}>
+                          <ReceiptUploader
+                            clientId={ex.clientId ?? undefined}
+                            expenseEntryId={ex.id}
+                            initialUrl={ex.receiptUrl || null}
+                            capture
+                            onUploaded={(url) =>
+                              setExpenses((prev) => prev.map((x) => (x.id === ex.id ? { ...x, receiptUrl: url } : x)))
+                            }
+                          />
                         </div>
-                        {showValidation && receiptMissing ? <div className="mt-1 text-xs text-red-700">Receipt is required.</div> : null}
-                      </td>
-                      <td className="border-b border-zinc-100 px-3 py-2">
-                        <button
-                          type="button"
-                          className="h-10 rounded-md px-3 text-sm text-zinc-700 hover:bg-zinc-50"
-                          onClick={() => setExpenses((prev) => prev.filter((x) => x.id !== ex.id))}
-                        >
-                          Remove
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+                      </div>
+                      {showValidation && receiptMissing ? <div className="mt-1 text-xs text-red-700">Receipt is required.</div> : null}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         )}
       </div>
