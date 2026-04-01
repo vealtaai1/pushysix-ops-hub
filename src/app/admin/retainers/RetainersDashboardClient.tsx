@@ -16,6 +16,7 @@ type ClientRow = {
     monthlyRetainerHours: number;
     maxShootsPerCycle: number | null;
     maxCaptureHoursPerCycle: number | null;
+    clientBillingEmail: string | null;
   };
   range: { startISO: string; endISO: string };
   totalUsedHours: number;
@@ -24,10 +25,7 @@ type ClientRow = {
   overAny: boolean;
   shoots: number;
   shootsLimit: number | null;
-  categoryOverAny: boolean;
-  categoryOverCount: number;
-  categoryWorstPercentUsed: number | null;
-  categoryOverScore: number;
+
 };
 
 type DetailPayload = {
@@ -40,6 +38,7 @@ type DetailPayload = {
     monthlyRetainerHours: number;
     maxShootsPerCycle: number | null;
     maxCaptureHoursPerCycle: number | null;
+    clientBillingEmail: string | null;
   };
   range: { startISO: string; endISO: string };
   cycle: { id: string; startISO: string; endISO: string } | null;
@@ -84,6 +83,14 @@ function badgeClass(kind: "ok" | "warn" | "bad") {
   return "border-zinc-200 bg-white text-zinc-700";
 }
 
+function summaryTileClass(kind: "blue" | "orange" | "red" | "yellow" | "green") {
+  if (kind === "red") return "border-red-200 bg-red-50 text-red-900";
+  if (kind === "orange") return "border-orange-200 bg-orange-50 text-orange-900";
+  if (kind === "yellow") return "border-yellow-200 bg-yellow-50 text-yellow-950";
+  if (kind === "green") return "border-emerald-200 bg-emerald-50 text-emerald-950";
+  return "border-sky-200 bg-sky-50 text-sky-950";
+}
+
 const PIE_COLORS = [
   "#10b981",
   "#3b82f6",
@@ -107,24 +114,6 @@ export function RetainersDashboardClient({ initialRows }: { initialRows: ClientR
   const [loadingDetail, setLoadingDetail] = React.useState(false);
   const [detailError, setDetailError] = React.useState<string | null>(null);
 
-  const [cycleStartEdit, setCycleStartEdit] = React.useState<string>("");
-  const [cycleEndEdit, setCycleEndEdit] = React.useState<string>("");
-  const [savingCycleDates, setSavingCycleDates] = React.useState(false);
-  const [cycleSaveError, setCycleSaveError] = React.useState<string | null>(null);
-
-  const [bucketEdit, setBucketEdit] = React.useState<Record<string, string>>({});
-  const [savingBucket, setSavingBucket] = React.useState<string | null>(null);
-  const [bucketError, setBucketError] = React.useState<string | null>(null);
-  const [showAddBucket, setShowAddBucket] = React.useState(false);
-  const [bucketOptions, setBucketOptions] = React.useState<Array<{ bucketKey: string; bucketName: string }> | null>(null);
-  const [bucketOptionsLoading, setBucketOptionsLoading] = React.useState(false);
-  const [bucketOptionsError, setBucketOptionsError] = React.useState<string | null>(null);
-
-  const [addBucketPresetKey, setAddBucketPresetKey] = React.useState<string>("");
-  const [addBucketKey, setAddBucketKey] = React.useState("");
-  const [addBucketName, setAddBucketName] = React.useState("");
-  const [addBucketLimitHours, setAddBucketLimitHours] = React.useState("");
-  const [addingBucket, setAddingBucket] = React.useState(false);
 
   async function loadCycles(clientId: string) {
     setCyclesLoading(true);
@@ -167,43 +156,6 @@ export function RetainersDashboardClient({ initialRows }: { initialRows: ClientR
         return;
       }
       setDetail(data);
-      setCycleStartEdit(data.range.startISO);
-      setCycleEndEdit(data.range.endISO);
-      setCycleSaveError(null);
-      setBucketError(null);
-      setBucketOptionsError(null);
-      setShowAddBucket(false);
-      setAddBucketPresetKey("");
-      setAddBucketKey("");
-      setAddBucketName("");
-      setAddBucketLimitHours("");
-
-      // Initialize editable limits (stored as hours strings).
-      const next: Record<string, string> = {};
-      for (const bl of data.bucketLimits ?? []) {
-        const k = String(bl.id ?? bl.bucketKey);
-        next[k] = fmtHours((bl.minutesLimit ?? 0) / 60);
-      }
-      setBucketEdit(next);
-
-      // Load bucket options (existing categories) for this client.
-      setBucketOptionsLoading(true);
-      setBucketOptionsError(null);
-      try {
-        const r = await fetch(`/api/admin/retainers/buckets?clientId=${encodeURIComponent(sel.clientId)}&limit=120`);
-        const j = (await r.json()) as { ok?: boolean; buckets?: Array<{ bucketKey: string; bucketName: string }>; message?: string };
-        if (!r.ok || j.ok !== true || !Array.isArray(j.buckets)) {
-          setBucketOptions([]);
-          setBucketOptionsError(j.message ?? "Failed to load categories.");
-        } else {
-          setBucketOptions(j.buckets);
-        }
-      } catch {
-        setBucketOptions([]);
-        setBucketOptionsError("Network error loading categories.");
-      } finally {
-        setBucketOptionsLoading(false);
-      }
     } catch {
       setDetailError("Network error loading detail.");
     } finally {
@@ -221,30 +173,18 @@ export function RetainersDashboardClient({ initialRows }: { initialRows: ClientR
     if (atRiskOnly) {
       next = next.filter((r) => {
         const percent = r.totalPercentUsed;
-        const categoryPct = r.categoryWorstPercentUsed;
-        return r.overAny || r.categoryOverAny || (percent != null && percent >= 90) || (categoryPct != null && categoryPct >= 90);
+        return r.overAny || (percent != null && percent >= 90);
       });
     }
 
     const riskScore = (r: ClientRow) => {
       const percent = r.totalPercentUsed ?? 0;
       const overByHours = Math.max(0, r.totalUsedHours - r.totalLimitHours);
-      const categoryWorstPct = r.categoryWorstPercentUsed ?? 0;
-
       // Heuristic (high to low):
-      // 1) Any hard overage: total/capture/shoots OR any category restriction over.
+      // 1) Any hard overage: total/capture/shoots.
       // 2) Magnitude of overage hours.
-      // 3) Category restriction severity.
-      // 4) Total % used.
-      return (
-        (r.overAny ? 50_000 : 0) +
-        (r.categoryOverAny ? 25_000 : 0) +
-        overByHours * 1000 +
-        (r.categoryOverScore ?? 0) * 5000 +
-        Math.max(0, categoryWorstPct - 100) * 50 +
-        categoryWorstPct +
-        percent
-      );
+      // 3) Total % used.
+      return (r.overAny ? 50_000 : 0) + overByHours * 1000 + percent;
     };
 
     next = [...next].sort((a, b) => {
@@ -253,8 +193,7 @@ export function RetainersDashboardClient({ initialRows }: { initialRows: ClientR
         const ao = Math.max(0, a.totalUsedHours - a.totalLimitHours);
         const bo = Math.max(0, b.totalUsedHours - b.totalLimitHours);
         if (bo !== ao) return bo - ao;
-        // tie-break on category overages
-        return (b.categoryOverScore ?? 0) - (a.categoryOverScore ?? 0);
+        return 0;
       }
       // RISK
       return riskScore(b) - riskScore(a);
@@ -313,6 +252,57 @@ export function RetainersDashboardClient({ initialRows }: { initialRows: ClientR
     return detail.entries.reduce((sum, e) => sum + (e.minutes ?? 0), 0) / 60;
   }, [detail]);
 
+  const cycleSummary = React.useMemo(() => {
+    if (!detail) return null as null | {
+      total: { usedHours: number; limitHours: number; percentUsed: number | null; isOver: boolean };
+      capture: { usedHours: number; limitHours: number | null; percentUsed: number | null; isOver: boolean };
+      shoots: { used: number; limit: number | null; percentUsed: number | null; isOver: boolean };
+    };
+
+    const totalUsedHours = totalAllDetailHours;
+    const totalLimitHours = detail.client.monthlyRetainerHours ?? 0;
+    const totalIsOver = totalUsedHours > totalLimitHours;
+    const totalPercentUsed = totalLimitHours > 0 ? (totalUsedHours / totalLimitHours) * 100 : totalLimitHours === 0 ? (totalUsedHours === 0 ? 0 : 100) : null;
+
+    const captureUsedHours =
+      detail.entries.reduce((sum, e) => sum + (e.bucketKey === "capture" ? (e.minutes ?? 0) : 0), 0) / 60;
+    const captureLimitHours = detail.client.maxCaptureHoursPerCycle ?? null;
+    const captureIsOver = captureLimitHours != null ? captureUsedHours > captureLimitHours : false;
+    const capturePercentUsed =
+      captureLimitHours == null
+        ? null
+        : captureLimitHours === 0
+          ? captureUsedHours === 0
+            ? 0
+            : 100
+          : (captureUsedHours / captureLimitHours) * 100;
+
+    const shootDaySet = new Set<string>();
+    for (const e of detail.entries) {
+      if (e.bucketKey !== "capture") continue;
+      if ((e.minutes ?? 0) <= 0) continue;
+      const iso = String(e.worklog.workDate).slice(0, 10);
+      if (iso >= detail.range.startISO && iso <= detail.range.endISO) shootDaySet.add(iso);
+    }
+    const shootsUsed = shootDaySet.size;
+    const shootsLimit = detail.client.maxShootsPerCycle ?? null;
+    const shootsIsOver = shootsLimit != null ? shootsUsed > shootsLimit : false;
+    const shootsPercentUsed =
+      shootsLimit == null
+        ? null
+        : shootsLimit === 0
+          ? shootsUsed === 0
+            ? 0
+            : 100
+          : (shootsUsed / shootsLimit) * 100;
+
+    return {
+      total: { usedHours: totalUsedHours, limitHours: totalLimitHours, percentUsed: totalPercentUsed, isOver: totalIsOver },
+      capture: { usedHours: captureUsedHours, limitHours: captureLimitHours, percentUsed: capturePercentUsed, isOver: captureIsOver },
+      shoots: { used: shootsUsed, limit: shootsLimit, percentUsed: shootsPercentUsed, isOver: shootsIsOver },
+    };
+  }, [detail, totalAllDetailHours]);
+
   const burnProjection = React.useMemo(() => {
     if (!detail) return null as null | {
       todayISO: string;
@@ -345,8 +335,8 @@ export function RetainersDashboardClient({ initialRows }: { initialRows: ClientR
     const burnRateHoursPerDay = totalAllDetailHours / daysElapsed;
     const projectedHours = burnRateHoursPerDay * cycleDays;
 
-    // Semi-monthly cycle gets half of the monthly retainer hours.
-    const limitHours = (detail.client.monthlyRetainerHours ?? 0) / 2;
+    // Full-month cycles use the full monthly retainer hours.
+    const limitHours = detail.client.monthlyRetainerHours ?? 0;
     const projectedOverByHours = projectedHours - limitHours;
     const projectedPercentUsed = limitHours > 0 ? (projectedHours / limitHours) * 100 : null;
 
@@ -380,7 +370,7 @@ export function RetainersDashboardClient({ initialRows }: { initialRows: ClientR
     <div className="space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-xl font-semibold">Admin — Retainers Dashboard</h1>
+          <h1 className="text-xl font-semibold">Retainer Logs</h1>
           <p className="text-sm text-zinc-600">Visual overview + drill-down by client and cycle.</p>
         </div>
 
@@ -485,15 +475,7 @@ export function RetainersDashboardClient({ initialRows }: { initialRows: ClientR
                     </span>
                   ) : null}
 
-                  {r.categoryOverAny ? (
-                    <span className={"rounded-md border px-2 py-1 text-xs " + badgeClass("bad")}>
-                      Categories over ({r.categoryOverCount})
-                    </span>
-                  ) : r.categoryWorstPercentUsed != null && r.categoryWorstPercentUsed >= 90 ? (
-                    <span className={"rounded-md border px-2 py-1 text-xs " + badgeClass("warn")}>
-                      Categories near limit ({Math.round(r.categoryWorstPercentUsed)}%)
-                    </span>
-                  ) : null}
+
                 </div>
               </div>
             </button>
@@ -504,7 +486,7 @@ export function RetainersDashboardClient({ initialRows }: { initialRows: ClientR
       {/* Modal */}
       {selected ? (
         <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/40 p-4" role="dialog" aria-modal="true">
-          <div className="w-full max-w-5xl rounded-xl bg-white shadow-xl">
+          <div className="flex w-full max-w-5xl max-h-[calc(100vh-2rem)] flex-col overflow-hidden rounded-xl bg-white shadow-xl">
             <div className="flex flex-col gap-3 border-b border-zinc-200 p-4 sm:flex-row sm:items-start sm:justify-between">
               <div className="min-w-0">
                 <div className="text-lg font-semibold text-zinc-900">
@@ -617,12 +599,109 @@ export function RetainersDashboardClient({ initialRows }: { initialRows: ClientR
               </div>
             </div>
 
-            <div className="p-4">
+            <div className="p-4 overflow-auto">
               {loadingDetail ? <div className="text-sm text-zinc-600">Loading…</div> : null}
               {detailError ? <div className="text-sm text-red-700">{detailError}</div> : null}
 
               {detail ? (
-                <div className="grid gap-6 lg:grid-cols-3">
+                <div className="space-y-4">
+                  {/* High-level cycle summary */}
+                  {cycleSummary ? (
+                    <div className="rounded-lg border border-zinc-200 bg-zinc-50 p-3">
+                      <div className="text-sm font-semibold text-zinc-900">Cycle summary</div>
+                      <div className="mt-0.5 text-xs text-zinc-600">
+                        Cycle beginning {new Intl.DateTimeFormat("en-US", { month: "long", day: "numeric", year: "numeric", timeZone: CALGARY_TZ }).format(parseISODateAsUTC(detail.range.startISO))}.
+                      </div>
+                      <div className="mt-2 grid gap-2 sm:grid-cols-3">
+                        {(() => {
+                          let kind: "blue" | "orange" | "red" | "yellow" | "green" = "blue";
+
+                          if (cycleSummary.total.isOver) {
+                            kind = "red";
+                          } else if (burnProjection && burnProjection.projectedOverByHours > 0) {
+                            kind = "orange";
+                          } else if (burnProjection) {
+                            const expected = burnProjection.limitHours * (burnProjection.daysElapsed / burnProjection.cycleDays);
+                            const low = expected * 0.8;
+                            const high = expected * 1.2;
+                            kind = cycleSummary.total.usedHours < low ? "yellow" : cycleSummary.total.usedHours > high ? "orange" : "green";
+                          } else {
+                            kind = "blue";
+                          }
+
+                          return (
+                            <div className={"rounded-md border px-3 py-2 " + summaryTileClass(kind)}>
+                              <div className="text-xs font-semibold">Total hours</div>
+                              <div className="mt-0.5 text-sm font-semibold">
+                                {fmtHours(cycleSummary.total.usedHours)}h / {fmtHours(cycleSummary.total.limitHours)}h
+                              </div>
+                              {cycleSummary.total.percentUsed != null ? (
+                                <div className="text-xs opacity-80">{Math.round(cycleSummary.total.percentUsed)}% used</div>
+                              ) : null}
+                            </div>
+                          );
+                        })()}
+
+                        {(() => {
+                          let kind: "blue" | "orange" | "red" | "yellow" | "green" = "blue";
+
+                          if (cycleSummary.capture.limitHours == null) {
+                            kind = "blue";
+                          } else if (cycleSummary.capture.isOver) {
+                            kind = "red";
+                          } else if (cycleSummary.capture.percentUsed != null && cycleSummary.capture.percentUsed >= 90) {
+                            kind = "orange";
+                          } else {
+                            kind = "green";
+                          }
+
+                          return (
+                            <div className={"rounded-md border px-3 py-2 " + summaryTileClass(kind)}>
+                              <div className="text-xs font-semibold">Capture hours</div>
+                              <div className="mt-0.5 text-sm font-semibold">
+                                {fmtHours(cycleSummary.capture.usedHours)}h / {cycleSummary.capture.limitHours == null ? "—" : `${fmtHours(cycleSummary.capture.limitHours)}h`}
+                              </div>
+                              {cycleSummary.capture.percentUsed != null ? (
+                                <div className="text-xs opacity-80">{Math.round(cycleSummary.capture.percentUsed)}% used</div>
+                              ) : (
+                                <div className="text-xs opacity-80">No cap</div>
+                              )}
+                            </div>
+                          );
+                        })()}
+
+                        {(() => {
+                          let kind: "blue" | "orange" | "red" | "yellow" | "green" = "blue";
+
+                          if (cycleSummary.shoots.limit == null) {
+                            kind = "blue";
+                          } else if (cycleSummary.shoots.isOver) {
+                            kind = "red";
+                          } else if (cycleSummary.shoots.percentUsed != null && cycleSummary.shoots.percentUsed >= 90) {
+                            kind = "orange";
+                          } else {
+                            kind = "green";
+                          }
+
+                          return (
+                            <div className={"rounded-md border px-3 py-2 " + summaryTileClass(kind)}>
+                              <div className="text-xs font-semibold">Shoots</div>
+                              <div className="mt-0.5 text-sm font-semibold">
+                                {cycleSummary.shoots.used} / {cycleSummary.shoots.limit == null ? "—" : cycleSummary.shoots.limit}
+                              </div>
+                              {cycleSummary.shoots.percentUsed != null ? (
+                                <div className="text-xs opacity-80">{Math.round(cycleSummary.shoots.percentUsed)}% used</div>
+                              ) : (
+                                <div className="text-xs opacity-80">No cap</div>
+                              )}
+                            </div>
+                          );
+                        })()}
+                      </div>
+                    </div>
+                  ) : null}
+
+                  <div className="grid gap-6 lg:grid-cols-3">
                   <div className="space-y-4 lg:col-span-2">
                     <div className="grid gap-4 sm:grid-cols-2">
                       <div className="rounded-lg border border-zinc-200 p-3">
@@ -827,95 +906,6 @@ export function RetainersDashboardClient({ initialRows }: { initialRows: ClientR
                       </div>
                     </div>
 
-                    <div className="rounded-lg border border-zinc-200 p-3">
-                      <div className="text-sm font-semibold">Cycle dates (editable)</div>
-                      <div className="mt-1 text-xs text-zinc-600">
-                        Past cycles are editable. Changing dates will change which work logs are included.
-                      </div>
-
-                      <div className="mt-3 grid gap-2">
-                        <label className="grid gap-1">
-                          <span className="text-xs font-semibold text-zinc-600">Start (YYYY-MM-DD)</span>
-                          <input
-                            value={cycleStartEdit}
-                            onChange={(e) => setCycleStartEdit(e.target.value)}
-                            disabled={savingCycleDates || loadingDetail}
-                            className="h-10 rounded-md border border-zinc-300 bg-white px-3 disabled:opacity-50"
-                          />
-                        </label>
-                        <label className="grid gap-1">
-                          <span className="text-xs font-semibold text-zinc-600">End (YYYY-MM-DD)</span>
-                          <input
-                            value={cycleEndEdit}
-                            onChange={(e) => setCycleEndEdit(e.target.value)}
-                            disabled={savingCycleDates || loadingDetail}
-                            className="h-10 rounded-md border border-zinc-300 bg-white px-3 disabled:opacity-50"
-                          />
-                        </label>
-
-                        {cycleSaveError ? <div className="text-sm text-red-700">{cycleSaveError}</div> : null}
-
-                        <button
-                          type="button"
-                          disabled={!selected.cycleId || savingCycleDates}
-                          className={
-                            "h-10 rounded-md px-3 text-sm font-semibold text-white " +
-                            (!selected.cycleId || savingCycleDates ? "bg-zinc-300" : "bg-zinc-900 hover:opacity-90")
-                          }
-                          title={!selected.cycleId ? "No saved cycle record selected" : "Save cycle date changes"}
-                          onClick={async () => {
-                            if (!selected.cycleId) {
-                              setCycleSaveError("This cycle isn’t saved yet. Click ‘Refresh cycles’ first.");
-                              return;
-                            }
-
-                            const nextStart = cycleStartEdit.trim();
-                            const nextEnd = cycleEndEdit.trim();
-                            if (detail && (nextStart !== detail.range.startISO || nextEnd !== detail.range.endISO)) {
-                              if (!confirm("Save cycle date changes? This will change which work logs are included in the cycle.")) return;
-                            }
-
-                            setSavingCycleDates(true);
-                            setCycleSaveError(null);
-                            try {
-                              const res = await fetch("/api/admin/retainers/cycles", {
-                                method: "PATCH",
-                                headers: { "content-type": "application/json" },
-                                body: JSON.stringify({ id: selected.cycleId, startISO: nextStart, endISO: nextEnd }),
-                              });
-                              const data = (await res.json()) as { ok?: boolean; message?: string };
-                              if (!res.ok || data.ok !== true) {
-                                setCycleSaveError(data.message ?? "Failed to save cycle.");
-                                return;
-                              }
-                              // Update local cycles list so the dropdown reflects the new range.
-                              setCycles((prev) =>
-                                prev
-                                  ? prev.map((c) =>
-                                      c.id === selected.cycleId
-                                        ? { ...c, startISO: nextStart, endISO: nextEnd }
-                                        : c
-                                    )
-                                  : prev
-                              );
-
-                              void loadDetail({
-                                clientId: selected.clientId,
-                                cycleId: selected.cycleId,
-                                startISO: nextStart,
-                                endISO: nextEnd,
-                              });
-                            } catch {
-                              setCycleSaveError("Network error saving cycle.");
-                            } finally {
-                              setSavingCycleDates(false);
-                            }
-                          }}
-                        >
-                          {savingCycleDates ? "Saving…" : "Save cycle dates"}
-                        </button>
-                      </div>
-                    </div>
 
                     <div className="rounded-lg border border-zinc-200 p-3">
                       <div className="text-sm font-semibold">Retainer settings</div>
@@ -948,6 +938,41 @@ export function RetainersDashboardClient({ initialRows }: { initialRows: ClientR
                             className="h-10 rounded-md border border-zinc-300 bg-white px-3"
                           />
                         </label>
+
+                        <label className="grid gap-1">
+                          <span className="text-xs font-semibold text-zinc-600">Billing cycle start day</span>
+                          <select
+                            name="billingCycleStartDay"
+                            defaultValue={detail.client.billingCycleStartDay}
+                            className="h-10 rounded-md border border-zinc-300 bg-white px-3"
+                          >
+                            <option value="FIRST">1st</option>
+                            <option value="FIFTEENTH">15th</option>
+                          </select>
+                        </label>
+
+                        <label className="grid gap-1">
+                          <span className="text-xs font-semibold text-zinc-600">Client status</span>
+                          <select
+                            name="status"
+                            defaultValue={detail.client.status}
+                            className="h-10 rounded-md border border-zinc-300 bg-white px-3"
+                          >
+                            <option value="ACTIVE">Active</option>
+                            <option value="ON_HOLD">On hold</option>
+                          </select>
+                        </label>
+
+                        <label className="grid gap-1">
+                          <span className="text-xs font-semibold text-zinc-600">Billing email</span>
+                          <input
+                            name="clientBillingEmail"
+                            defaultValue={detail.client.clientBillingEmail ?? ""}
+                            className="h-10 rounded-md border border-zinc-300 bg-white px-3"
+                            placeholder="billing@client.com"
+                          />
+                        </label>
+
                         <button
                           type="submit"
                           className="h-10 rounded-md bg-zinc-900 px-3 text-sm font-semibold text-white hover:opacity-90"
@@ -956,338 +981,8 @@ export function RetainersDashboardClient({ initialRows }: { initialRows: ClientR
                         </button>
                       </form>
                     </div>
-
-                    <div className="rounded-lg border border-zinc-200 p-3">
-                      <div className="flex items-start justify-between gap-3">
-                        <div>
-                          <div className="text-sm font-semibold">Service restrictions (category quotas)</div>
-                          <div className="mt-1 text-xs text-zinc-600">
-                            Per-cycle limits by task category (bucketKey). Limits are stored on the selected cycle record.
-                          </div>
-                        </div>
-
-                        <button
-                          type="button"
-                          className="h-9 rounded-md border border-zinc-300 bg-white px-3 text-sm hover:bg-zinc-50 disabled:opacity-50"
-                          disabled={!selected.cycleId}
-                          title={!selected.cycleId ? "No saved cycle record selected (click ‘Refresh cycles’ first)" : "Add service restriction"}
-                          onClick={() => {
-                            setBucketError(null);
-                            setShowAddBucket((v) => !v);
-                          }}
-                        >
-                          {showAddBucket ? "Cancel" : "Add"}
-                        </button>
-                      </div>
-
-                      {!selected.cycleId ? (
-                        <div className="mt-3 rounded-md border border-yellow-200 bg-yellow-50 px-3 py-2 text-xs text-yellow-900">
-                          This cycle isn’t saved yet, so quotas can’t be edited. Click <span className="font-semibold">Refresh cycles</span> to create/select the saved cycle record.
-                        </div>
-                      ) : null}
-
-                      {bucketError ? <div className="mt-3 text-sm text-red-700">{bucketError}</div> : null}
-
-                      {showAddBucket ? (
-                        <div className="mt-3 grid gap-2 rounded-md border border-zinc-200 bg-zinc-50 p-3">
-                          <div className="grid gap-2">
-                            <label className="grid gap-1">
-                              <span className="text-xs font-semibold text-zinc-600">Choose an existing category (recommended)</span>
-                              <select
-                                value={addBucketPresetKey}
-                                onChange={(e) => {
-                                  const key = e.target.value;
-                                  setAddBucketPresetKey(key);
-                                  if (!key) return;
-                                  const opt = (bucketOptions ?? []).find((o) => o.bucketKey === key);
-                                  if (!opt) return;
-                                  setAddBucketKey(opt.bucketKey);
-                                  setAddBucketName(opt.bucketName);
-                                }}
-                                className="h-10 w-full rounded-md border border-zinc-300 bg-white px-3 text-sm"
-                                disabled={bucketOptionsLoading || !selected.clientId}
-                              >
-                                <option value="">
-                                  {bucketOptionsLoading
-                                    ? "Loading categories…"
-                                    : (bucketOptions ?? []).length === 0
-                                      ? "No categories found"
-                                      : "Select category…"}
-                                </option>
-                                {(bucketOptions ?? []).map((o) => (
-                                  <option key={o.bucketKey} value={o.bucketKey}>
-                                    {o.bucketName} ({o.bucketKey})
-                                  </option>
-                                ))}
-                              </select>
-                              {bucketOptionsError ? <span className="text-xs text-red-700">{bucketOptionsError}</span> : null}
-                              {!bucketOptionsLoading && (bucketOptions ?? []).length === 0 ? (
-                                <span className="text-xs text-zinc-500">
-                                  No existing categories found for this client yet — you can still enter a key/name manually.
-                                </span>
-                              ) : (
-                                <span className="text-xs text-zinc-500">Pulled from existing worklog entries for this client.</span>
-                              )}
-                            </label>
-
-                            <div className="grid gap-2 sm:grid-cols-3">
-                              <label className="grid gap-1">
-                                <span className="text-xs font-semibold text-zinc-600">Bucket key</span>
-                                <input
-                                  value={addBucketKey}
-                                  onChange={(e) => setAddBucketKey(e.target.value)}
-                                  placeholder="e.g. VIDEO_EDITING"
-                                  className="h-10 rounded-md border border-zinc-300 bg-white px-3"
-                                />
-                              </label>
-                              <label className="grid gap-1">
-                                <span className="text-xs font-semibold text-zinc-600">Name</span>
-                                <input
-                                  value={addBucketName}
-                                  onChange={(e) => setAddBucketName(e.target.value)}
-                                  placeholder="e.g. Video editing"
-                                  className="h-10 rounded-md border border-zinc-300 bg-white px-3"
-                                />
-                              </label>
-                              <label className="grid gap-1">
-                                <span className="text-xs font-semibold text-zinc-600">Limit (hours)</span>
-                                <input
-                                  value={addBucketLimitHours}
-                                  onChange={(e) => setAddBucketLimitHours(e.target.value)}
-                                  placeholder="e.g. 6"
-                                  className="h-10 rounded-md border border-zinc-300 bg-white px-3"
-                                />
-                              </label>
-                            </div>
-                          </div>
-
-                          <div className="flex items-center justify-end gap-2">
-                            <button
-                              type="button"
-                              className="h-10 rounded-md border border-zinc-300 bg-white px-3 text-sm hover:bg-zinc-50"
-                              onClick={() => {
-                                setShowAddBucket(false);
-                                setAddBucketPresetKey("");
-                                setAddBucketKey("");
-                                setAddBucketName("");
-                                setAddBucketLimitHours("");
-                                setBucketError(null);
-                                setBucketOptionsError(null);
-                              }}
-                            >
-                              Close
-                            </button>
-                            <button
-                              type="button"
-                              disabled={addingBucket || !selected.cycleId}
-                              className={
-                                "h-10 rounded-md px-3 text-sm font-semibold text-white " +
-                                (addingBucket || !selected.cycleId ? "bg-zinc-300" : "bg-zinc-900 hover:opacity-90")
-                              }
-                              onClick={async () => {
-                                if (!selected.cycleId) return;
-
-                                const bucketKey = addBucketKey.trim();
-                                const bucketName = addBucketName.trim();
-                                const minutesLimit = parseHoursToMinutes(addBucketLimitHours);
-
-                                if (!bucketKey) {
-                                  setBucketError("Bucket key is required.");
-                                  return;
-                                }
-                                if (!bucketName) {
-                                  setBucketError("Bucket name is required.");
-                                  return;
-                                }
-                                if (minutesLimit == null) {
-                                  setBucketError("Limit (hours) must be a number >= 0.");
-                                  return;
-                                }
-
-                                setAddingBucket(true);
-                                setBucketError(null);
-                                try {
-                                  const res = await fetch("/api/admin/retainers/bucket-limits", {
-                                    method: "POST",
-                                    headers: { "content-type": "application/json" },
-                                    body: JSON.stringify({
-                                      cycleId: selected.cycleId,
-                                      bucketKey,
-                                      bucketName,
-                                      minutesLimit,
-                                    }),
-                                  });
-                                  const data = (await res.json()) as { ok?: boolean; message?: string };
-                                  if (!res.ok || data.ok !== true) {
-                                    setBucketError(data.message ?? "Failed to add restriction.");
-                                    return;
-                                  }
-
-                                  setShowAddBucket(false);
-                                  setAddBucketPresetKey("");
-                                  setAddBucketKey("");
-                                  setAddBucketName("");
-                                  setAddBucketLimitHours("");
-                                  await loadDetail({
-                                    clientId: selected.clientId,
-                                    cycleId: selected.cycleId,
-                                    startISO: selected.startISO,
-                                    endISO: selected.endISO,
-                                  });
-                                } catch {
-                                  setBucketError("Network error adding restriction.");
-                                } finally {
-                                  setAddingBucket(false);
-                                }
-                              }}
-                            >
-                              {addingBucket ? "Adding…" : "Save restriction"}
-                            </button>
-                          </div>
-                        </div>
-                      ) : null}
-
-                      <div className="mt-3 overflow-hidden rounded-md border border-zinc-200">
-                        <div className="grid grid-cols-12 gap-2 bg-zinc-50 px-3 py-2 text-xs font-semibold text-zinc-600">
-                          <div className="col-span-4">Service</div>
-                          <div className="col-span-3">Used</div>
-                          <div className="col-span-3">Limit (hrs)</div>
-                          <div className="col-span-2 text-right">Actions</div>
-                        </div>
-
-                        {(detail.bucketLimits?.length ?? 0) === 0 ? (
-                          <div className="px-3 py-6 text-sm text-zinc-600">No service restrictions set for this cycle.</div>
-                        ) : (
-                          detail.bucketLimits.map((bl) => {
-                            const usedMinutes = detail.bucketUsage?.[bl.bucketKey] ?? 0;
-                            const usedHours = usedMinutes / 60;
-                            const limitHours = (bl.minutesLimit ?? 0) / 60;
-                            const pct = limitHours > 0 ? (usedHours / limitHours) * 100 : usedHours > 0 ? 100 : 0;
-                            const isOver = usedMinutes > (bl.minutesLimit ?? 0);
-
-                            const rowKey = String(bl.id ?? bl.bucketKey);
-
-                            return (
-                              <div key={rowKey} className="grid grid-cols-12 items-center gap-2 border-t border-zinc-200 px-3 py-2 text-sm">
-                                <div className="col-span-4 min-w-0">
-                                  <div className="truncate font-medium text-zinc-900">{bl.bucketName}</div>
-                                  <div className="truncate text-xs text-zinc-500">{bl.bucketKey}</div>
-                                </div>
-
-                                <div className="col-span-3">
-                                  <div className={"font-semibold " + (isOver ? "text-red-700" : "text-zinc-900")}>
-                                    {fmtHours(usedHours)}h
-                                  </div>
-                                  <div className="text-xs text-zinc-500">
-                                    of {fmtHours(limitHours)}h{limitHours > 0 ? ` (${Math.round(pct)}%)` : ""}
-                                  </div>
-                                  <div className="mt-1 h-2 w-full overflow-hidden rounded-full bg-zinc-100">
-                                    <div
-                                      className={"h-2 rounded-full " + (isOver ? "bg-red-500" : pct >= 90 ? "bg-yellow-500" : "bg-emerald-500")}
-                                      style={{ width: `${Math.max(0, Math.min(100, pct))}%` }}
-                                    />
-                                  </div>
-                                </div>
-
-                                <div className="col-span-3">
-                                  <input
-                                    value={bucketEdit[rowKey] ?? fmtHours(limitHours)}
-                                    onChange={(e) => setBucketEdit((prev) => ({ ...prev, [rowKey]: e.target.value }))}
-                                    className="h-9 w-full rounded-md border border-zinc-300 bg-white px-2 text-sm"
-                                  />
-                                </div>
-
-                                <div className="col-span-2 flex justify-end gap-2">
-                                  <button
-                                    type="button"
-                                    disabled={savingBucket === rowKey || !selected.cycleId}
-                                    className="h-9 rounded-md border border-zinc-300 bg-white px-2 text-xs hover:bg-zinc-50 disabled:opacity-50"
-                                    onClick={async () => {
-                                      if (!selected.cycleId) return;
-                                      const minutesLimit = parseHoursToMinutes(bucketEdit[rowKey] ?? "");
-                                      if (minutesLimit == null) {
-                                        setBucketError("Limit (hrs) must be a number >= 0.");
-                                        return;
-                                      }
-                                      setSavingBucket(rowKey);
-                                      setBucketError(null);
-                                      try {
-                                        const res = await fetch("/api/admin/retainers/bucket-limits", {
-                                          method: "POST",
-                                          headers: { "content-type": "application/json" },
-                                          body: JSON.stringify({
-                                            cycleId: selected.cycleId,
-                                            bucketKey: bl.bucketKey,
-                                            bucketName: bl.bucketName,
-                                            minutesLimit,
-                                          }),
-                                        });
-                                        const data = (await res.json()) as { ok?: boolean; message?: string };
-                                        if (!res.ok || data.ok !== true) {
-                                          setBucketError(data.message ?? "Failed to save restriction.");
-                                          return;
-                                        }
-                                        await loadDetail({
-                                          clientId: selected.clientId,
-                                          cycleId: selected.cycleId,
-                                          startISO: selected.startISO,
-                                          endISO: selected.endISO,
-                                        });
-                                      } catch {
-                                        setBucketError("Network error saving restriction.");
-                                      } finally {
-                                        setSavingBucket(null);
-                                      }
-                                    }}
-                                  >
-                                    {savingBucket === rowKey ? "Saving…" : "Save"}
-                                  </button>
-
-                                  <button
-                                    type="button"
-                                    disabled={!selected.cycleId || savingBucket === rowKey}
-                                    className="h-9 rounded-md border border-zinc-300 bg-white px-2 text-xs hover:bg-zinc-50 disabled:opacity-50"
-                                    onClick={async () => {
-                                      const id = bl.id;
-                                      if (!id) {
-                                        setBucketError("Can’t delete: bucket limit id missing. Refresh cycles/detail and try again.");
-                                        return;
-                                      }
-                                      if (!confirm(`Delete restriction for ${bl.bucketName}?`)) return;
-                                      setSavingBucket(rowKey);
-                                      setBucketError(null);
-                                      try {
-                                        const res = await fetch(`/api/admin/retainers/bucket-limits?id=${encodeURIComponent(id)}`, {
-                                          method: "DELETE",
-                                        });
-                                        const data = (await res.json()) as { ok?: boolean; message?: string };
-                                        if (!res.ok || data.ok !== true) {
-                                          setBucketError(data.message ?? "Failed to delete restriction.");
-                                          return;
-                                        }
-                                        await loadDetail({
-                                          clientId: selected.clientId,
-                                          cycleId: selected.cycleId,
-                                          startISO: selected.startISO,
-                                          endISO: selected.endISO,
-                                        });
-                                      } catch {
-                                        setBucketError("Network error deleting restriction.");
-                                      } finally {
-                                        setSavingBucket(null);
-                                      }
-                                    }}
-                                  >
-                                    Delete
-                                  </button>
-                                </div>
-                              </div>
-                            );
-                          })
-                        )}
-                      </div>
-                    </div>
                   </div>
+                </div>
                 </div>
               ) : null}
             </div>

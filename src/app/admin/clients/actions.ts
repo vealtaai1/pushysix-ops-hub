@@ -12,9 +12,6 @@ export type CreateClientState = {
     name?: string;
     clientBillingEmail?: string;
     billingCycleStartDay?: string;
-    monthlyRetainerHours?: string;
-    maxShootsPerCycle?: string;
-    maxCaptureHoursPerCycle?: string;
   };
 };
 
@@ -22,43 +19,24 @@ function asString(v: FormDataEntryValue | null) {
   return typeof v === "string" ? v : "";
 }
 
-function parseOptionalInt(raw: string): number | null {
-  const s = raw.trim();
-  if (!s) return null;
-  const n = Number(s);
-  if (!Number.isFinite(n)) return null;
-  if (!Number.isInteger(n)) return null;
-  return n;
-}
-
 function isEmail(s: string) {
   // Minimal sanity check (we can tighten later if needed)
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s);
 }
 
-export async function createClient(
-  _prevState: CreateClientState,
-  formData: FormData
-): Promise<CreateClientState> {
+export async function createClient(_prevState: CreateClientState, formData: FormData): Promise<CreateClientState> {
   try {
     await requireAdminOrThrow({ message: "Unauthorized: admin access required to create a client." });
   } catch (e) {
     return {
       ok: false,
-      message:
-        e instanceof Error
-          ? e.message
-          : "Unauthorized: admin access required to create a client.",
+      message: e instanceof Error ? e.message : "Unauthorized: admin access required to create a client.",
     };
   }
+
   const name = asString(formData.get("name")).trim();
   const clientBillingEmail = asString(formData.get("clientBillingEmail")).trim();
   const billingCycleStartDayRaw = asString(formData.get("billingCycleStartDay")).trim();
-  const monthlyRetainerHoursRaw = asString(formData.get("monthlyRetainerHours")).trim();
-  const maxShootsPerCycleRaw = asString(formData.get("maxShootsPerCycle")).trim();
-  const maxCaptureHoursPerCycleRaw = asString(
-    formData.get("maxCaptureHoursPerCycle")
-  ).trim();
 
   const fieldErrors: NonNullable<CreateClientState["fieldErrors"]> = {};
 
@@ -73,27 +51,6 @@ export async function createClient(
     fieldErrors.billingCycleStartDay = "Choose a valid cycle start day.";
   }
 
-  const monthlyRetainerHours = parseOptionalInt(monthlyRetainerHoursRaw);
-  if (monthlyRetainerHours === null) {
-    fieldErrors.monthlyRetainerHours = "Monthly retainer hours is required (whole number).";
-  } else if (monthlyRetainerHours < 0) {
-    fieldErrors.monthlyRetainerHours = "Must be 0 or greater.";
-  }
-
-  const maxShootsPerCycle = parseOptionalInt(maxShootsPerCycleRaw);
-  if (maxShootsPerCycleRaw && maxShootsPerCycle === null) {
-    fieldErrors.maxShootsPerCycle = "Must be a whole number.";
-  } else if (maxShootsPerCycle !== null && maxShootsPerCycle < 0) {
-    fieldErrors.maxShootsPerCycle = "Must be 0 or greater.";
-  }
-
-  const maxCaptureHoursPerCycle = parseOptionalInt(maxCaptureHoursPerCycleRaw);
-  if (maxCaptureHoursPerCycleRaw && maxCaptureHoursPerCycle === null) {
-    fieldErrors.maxCaptureHoursPerCycle = "Must be a whole number.";
-  } else if (maxCaptureHoursPerCycle !== null && maxCaptureHoursPerCycle < 0) {
-    fieldErrors.maxCaptureHoursPerCycle = "Must be 0 or greater.";
-  }
-
   const emailToSave = clientBillingEmail ? clientBillingEmail : null;
   if (clientBillingEmail && !isEmail(clientBillingEmail)) {
     fieldErrors.clientBillingEmail = "Enter a valid email address.";
@@ -103,18 +60,86 @@ export async function createClient(
     return { ok: false, fieldErrors };
   }
 
+  // Important: creating a client should NOT implicitly create a retainer.
+  // Retainers/caps can be configured later.
   await prisma.client.create({
     data: {
       name,
       billingCycleStartDay: billingCycleStartDay!,
       clientBillingEmail: emailToSave,
-      monthlyRetainerHours: monthlyRetainerHours!,
-      maxShootsPerCycle,
-      maxCaptureHoursPerCycle,
+      monthlyRetainerHours: 0,
+      maxShootsPerCycle: null,
+      maxCaptureHoursPerCycle: null,
     },
   });
 
   revalidatePath("/admin/clients");
 
   return { ok: true, message: "Client created." };
+}
+
+export type DeleteClientState = {
+  ok: boolean;
+  message?: string;
+};
+
+export async function deleteClient(_prevState: DeleteClientState, formData: FormData): Promise<DeleteClientState> {
+  try {
+    await requireAdminOrThrow({ message: "Unauthorized: admin access required to delete a client." });
+  } catch (e) {
+    return {
+      ok: false,
+      message: e instanceof Error ? e.message : "Unauthorized: admin access required to delete a client.",
+    };
+  }
+
+  const clientId = asString(formData.get("clientId")).trim();
+  const confirmWord = asString(formData.get("confirmWord")).trim();
+  const confirmName = asString(formData.get("confirmName")).trim();
+
+  if (!clientId) return { ok: false, message: "clientId is required" };
+
+  if (confirmWord !== "DELETE") {
+    return { ok: false, message: "Confirmation required: type DELETE." };
+  }
+
+  const client = await prisma.client.findUnique({ where: { id: clientId }, select: { id: true, name: true } });
+  if (!client) return { ok: false, message: "Client not found." };
+
+  if (confirmName !== client.name) {
+    return { ok: false, message: `Confirmation required: type the exact client name (${client.name}).` };
+  }
+
+  // Hard-delete is allowed even when history exists; we remove client-linked history first.
+  await prisma.$transaction(async (tx) => {
+    const [entryLinks, mileageLinks] = await Promise.all([
+      tx.worklogEntry.findMany({ where: { clientId }, select: { worklogId: true } }),
+      tx.mileageEntry.findMany({ where: { clientId }, select: { worklogId: true } }),
+    ]);
+
+    const touchedWorklogIds = Array.from(
+      new Set<string>([...entryLinks.map((r) => r.worklogId), ...mileageLinks.map((r) => r.worklogId)])
+    );
+
+    await Promise.all([tx.worklogEntry.deleteMany({ where: { clientId } }), tx.mileageEntry.deleteMany({ where: { clientId } })]);
+
+    // Cleanup: if any worklogs are now empty (no entries + no mileage), delete them.
+    if (touchedWorklogIds.length > 0) {
+      const worklogs = await tx.worklog.findMany({
+        where: { id: { in: touchedWorklogIds } },
+        select: { id: true, _count: { select: { entries: true, mileage: true } } },
+      });
+      const emptyIds = worklogs.filter((w) => w._count.entries === 0 && w._count.mileage === 0).map((w) => w.id);
+      if (emptyIds.length > 0) {
+        await tx.worklog.deleteMany({ where: { id: { in: emptyIds } } });
+      }
+    }
+
+    await tx.client.delete({ where: { id: clientId } });
+  });
+
+  revalidatePath("/admin/clients");
+  revalidatePath("/admin/retainers");
+
+  return { ok: true, message: "Client deleted." };
 }

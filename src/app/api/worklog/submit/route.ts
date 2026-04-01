@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { calgaryLocalStamp, getWorklogWindowStamps, parseISODateOnly } from "@/lib/calgaryTime";
-import { ApprovalStatus, ApprovalType, Prisma } from "@prisma/client";
+import { assertValidBucketKey } from "@/lib/buckets";
+import { ApprovalStatus, ApprovalType, Prisma, WorklogEngagementType } from "@prisma/client";
 
 type SubmitWorklogBody = {
   email: string;
@@ -11,6 +12,7 @@ type SubmitWorklogBody = {
   tasks: Array<{
     clientId: string | null;
     clientName?: string;
+    engagementType?: "RETAINER" | "MISC_PROJECT";
     bucketKey: string;
     bucketName?: string;
     hours: number;
@@ -20,13 +22,37 @@ type SubmitWorklogBody = {
   mileage: Array<{
     clientId: string | null;
     clientName?: string;
+    engagementType?: "RETAINER" | "MISC_PROJECT";
+    projectId?: string | null;
     kilometers: number;
     notes?: string;
+  }>;
+  expenses?: Array<{
+    clientId: string | null;
+    engagementType?: "RETAINER" | "MISC_PROJECT";
+    projectId?: string | null;
+    vendor?: string;
+    description: string;
+    amount: string;
+    receiptUrl?: string;
+    reimburseToEmployee?: boolean;
   }>;
 };
 
 function nearlyEqual(a: number, b: number, eps = 0.0001) {
   return Math.abs(a - b) <= eps;
+}
+
+function parseAmountToCents(amount: string): number {
+  const normalized = String(amount || "").trim();
+  if (!normalized) return 0;
+  if (!/^[0-9]+(\.[0-9]{1,2})?$/.test(normalized)) {
+    throw new Error("Invalid amount format. Use e.g. 123.45");
+  }
+  const [whole, frac = ""] = normalized.split(".");
+  const cents = Number(whole) * 100 + Number((frac + "00").slice(0, 2));
+  if (!Number.isFinite(cents) || cents < 0) throw new Error("Invalid amount.");
+  return cents;
 }
 
 function badRequest(message: string, details?: unknown) {
@@ -39,6 +65,17 @@ function asEmail(s: unknown): string | null {
   if (!t) return null;
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(t)) return null;
   return t;
+}
+
+function calgaryTodayISO(): string {
+  const now = new Date();
+  // en-CA gives YYYY-MM-DD
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Edmonton",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(now);
 }
 
 export async function POST(req: Request) {
@@ -54,6 +91,11 @@ export async function POST(req: Request) {
 
   const parsed = parseISODateOnly(body.workDate);
   if (!parsed) return badRequest("workDate must be YYYY-MM-DD.");
+
+  const todayISO = calgaryTodayISO();
+  if (body.workDate > todayISO) {
+    return badRequest("You can’t submit a worklog for a future date.", { workDate: body.workDate, today: todayISO });
+  }
 
   const targetHours = Number(body.targetHours);
   if (!Number.isFinite(targetHours) || targetHours <= 0) return badRequest("targetHours must be a number > 0.");
@@ -141,24 +183,9 @@ export async function POST(req: Request) {
 
   await prisma.worklogEntry.deleteMany({ where: { worklogId: worklog.id } });
   await prisma.mileageEntry.deleteMany({ where: { worklogId: worklog.id } });
+  await prisma.expenseEntry.deleteMany({ where: { worklogId: worklog.id } });
 
   try {
-    const quotaIds = Array.from(
-      new Set(
-        body.tasks
-          .map((t) => (typeof t.quotaItemId === "string" ? t.quotaItemId.trim() : ""))
-          .filter(Boolean)
-      )
-    );
-
-    const quotaItemsById = new Map<string, { id: string; clientId: string }>();
-    if (quotaIds.length > 0) {
-      const quotaItems = await prisma.clientQuotaItem.findMany({
-        where: { id: { in: quotaIds } },
-        select: { id: true, clientId: true },
-      });
-      for (const qi of quotaItems) quotaItemsById.set(qi.id, qi);
-    }
 
     const entryCreates = body.tasks
       .filter((t) => Number(t.hours) > 0)
@@ -170,21 +197,19 @@ export async function POST(req: Request) {
         const notes = String(t.notes ?? "").trim();
         if (!notes) throw new Error("Notes are required for task hours > 0.");
 
-        const quotaItemIdRaw = typeof t.quotaItemId === "string" ? t.quotaItemId.trim() : "";
-        const quotaItemId = quotaItemIdRaw ? quotaItemIdRaw : null;
-        if (quotaItemId) {
-          const qi = quotaItemsById.get(quotaItemId);
-          if (!qi) throw new Error("Invalid quota item.");
-          if (qi.clientId !== t.clientId) throw new Error("Quota item does not belong to selected client.");
-        }
-
         const minutes = Math.round(hours * 60);
+
+        const engagementType: WorklogEngagementType =
+          t.engagementType === "MISC_PROJECT" ? WorklogEngagementType.MISC_PROJECT : WorklogEngagementType.RETAINER;
+
+        const { bucketKey, bucketName } = assertValidBucketKey(t.bucketKey);
+
         return {
           worklogId: worklog.id,
           clientId: t.clientId,
-          bucketKey: t.bucketKey,
-          bucketName: t.bucketName ?? t.bucketKey,
-          quotaItemId,
+          engagementType,
+          bucketKey,
+          bucketName,
           minutes,
           notes,
         };
@@ -200,9 +225,20 @@ export async function POST(req: Request) {
         const km = Number(m.kilometers);
         if (!Number.isFinite(km) || km <= 0) throw new Error("Invalid kilometers.");
         if (!m.clientId) throw new Error("Client is required for mileage > 0.");
+
+        const engagementType: WorklogEngagementType =
+          m.engagementType === "MISC_PROJECT" ? WorklogEngagementType.MISC_PROJECT : WorklogEngagementType.RETAINER;
+
+        const projectId = m.projectId ? String(m.projectId) : null;
+        if (engagementType === WorklogEngagementType.MISC_PROJECT && !projectId) {
+          throw new Error("Project is required for misc project mileage.");
+        }
+
         return {
           worklogId: worklog.id,
           clientId: m.clientId,
+          engagementType,
+          projectId,
           kilometers: km,
           notes: m.notes ? String(m.notes) : null,
         };
@@ -211,8 +247,62 @@ export async function POST(req: Request) {
     if (mileageCreates.length > 0) {
       await prisma.mileageEntry.createMany({ data: mileageCreates });
     }
+
+    const expenses = Array.isArray(body.expenses) ? body.expenses : [];
+
+    const expenseCreates = expenses
+      .map((ex) => {
+        const amountCents = parseAmountToCents(String((ex as any)?.amount ?? ""));
+        if (amountCents <= 0) return null;
+
+        const clientId = (ex as any)?.clientId ? String((ex as any).clientId) : "";
+        if (!clientId) throw new Error("Client is required for expenses with amount > 0.");
+
+        const description = String((ex as any)?.description ?? "").trim();
+        if (!description) throw new Error("Description is required for expenses with amount > 0.");
+
+        const receiptUrl = String((ex as any)?.receiptUrl ?? "").trim();
+        if (!receiptUrl) throw new Error("Receipt URL is required for expenses with amount > 0.");
+
+        const engagementType: WorklogEngagementType =
+          (ex as any)?.engagementType === "MISC_PROJECT" ? WorklogEngagementType.MISC_PROJECT : WorklogEngagementType.RETAINER;
+
+        const projectId = (ex as any)?.projectId ? String((ex as any).projectId) : null;
+        if (engagementType === WorklogEngagementType.MISC_PROJECT && !projectId) {
+          throw new Error("Project is required for misc project expenses.");
+        }
+
+        const vendor = (ex as any)?.vendor ? String((ex as any).vendor).trim() : null;
+        const category = String((ex as any)?.category ?? "OTHER").trim() || "OTHER";
+
+        return {
+          kind: "EMPLOYEE_SUBMISSION" as const,
+          status: "SUBMITTED" as const,
+          clientId,
+          engagementType,
+          projectId,
+          expenseDate: workDate,
+          vendor,
+          category: category as any,
+          description,
+          notes: null,
+          amountCents,
+          currency: "CAD",
+          reimburseToEmployee: true,
+          receiptUrl,
+          submittedByUserId: user.id,
+          employeeId: user.id,
+          worklogId: worklog.id,
+        };
+      })
+      .filter(Boolean) as any[];
+
+    if (expenseCreates.length > 0) {
+      await prisma.expenseEntry.createMany({ data: expenseCreates });
+    }
   } catch (e) {
-    return badRequest("Invalid worklog payload.", { error: String(e) });
+    const error = String(e);
+    return badRequest(`Invalid worklog payload: ${error}`, { error });
   }
 
   // Create a pending approval request if needed

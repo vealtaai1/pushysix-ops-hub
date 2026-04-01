@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { addDays, format } from "date-fns";
+import { format } from "date-fns";
 
 import { CALGARY_TZ, hourInTimeZone, isoDateInTimeZone, parseISODateAsUTC } from "@/lib/time";
 
@@ -14,7 +14,7 @@ export type DayState =
   | { kind: "PURPLE"; label?: string }
   | { kind: "NEUTRAL"; label?: string };
 
-export type PortalMonth = {
+export type ScheduleMonth = {
   yyyy: number;
   monthIndex0: number;
   days: Array<{
@@ -24,6 +24,14 @@ export type PortalMonth = {
     state: DayState;
   }>;
 };
+
+function addDaysUTC(d: Date, n: number): Date {
+  return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate() + n, 0, 0, 0, 0));
+}
+
+function utcNoon(d: Date): Date {
+  return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate(), 12, 0, 0, 0));
+}
 
 function classForState(state: DayState) {
   switch (state.kind) {
@@ -73,10 +81,9 @@ function Dialog(props: { open: boolean; title: string; children: React.ReactNode
   );
 }
 
-export function PortalCalendar({ months }: { months: PortalMonth[] }) {
+export function ScheduleCalendar({ months }: { months: ScheduleMonth[] }) {
   const router = useRouter();
 
-  const [email, setEmail] = React.useState("");
   const [selectedIso, setSelectedIso] = React.useState<string | null>(null);
   const [submitting, setSubmitting] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
@@ -116,7 +123,7 @@ export function PortalCalendar({ months }: { months: PortalMonth[] }) {
     const todayIso = isoDateInTimeZone(now, CALGARY_TZ);
 
     const today = parseISODateAsUTC(todayIso);
-    const target = hh >= 10 ? today : addDays(today, -1);
+    const target = hh >= 10 ? today : addDaysUTC(today, -1);
 
     const yyyy = target.getUTCFullYear();
     const mm = String(target.getUTCMonth() + 1).padStart(2, "0");
@@ -124,9 +131,23 @@ export function PortalCalendar({ months }: { months: PortalMonth[] }) {
     return `${yyyy}-${mm}-${dd}`;
   }, [now]);
 
-  function monthTitle(m: PortalMonth) {
-    const d = new Date(Date.UTC(m.yyyy, m.monthIndex0, 1));
-    return format(d, "MMMM yyyy");
+  function monthTitle(m: ScheduleMonth) {
+    // Avoid timezone edge cases by generating titles from numbers.
+    const monthNames = [
+      "January",
+      "February",
+      "March",
+      "April",
+      "May",
+      "June",
+      "July",
+      "August",
+      "September",
+      "October",
+      "November",
+      "December",
+    ];
+    return `${monthNames[m.monthIndex0] ?? ""} ${m.yyyy}`.trim();
   }
 
   const activeMonth = months[activeMonthIndex] ?? months[0];
@@ -138,9 +159,11 @@ export function PortalCalendar({ months }: { months: PortalMonth[] }) {
 
   const selectedLabel = React.useMemo(() => {
     if (!selectedIso) return "";
-    const d = parseISODateAsUTC(selectedIso);
+    const d = utcNoon(parseISODateAsUTC(selectedIso));
     return format(d, "EEE, MMM d, yyyy");
   }, [selectedIso]);
+
+  const selectedIsFuture = Boolean(selectedIso && selectedIso > currentLogIso);
 
   async function submitDayOff(isoDate: string) {
     setSubmitting(true);
@@ -200,31 +223,10 @@ export function PortalCalendar({ months }: { months: PortalMonth[] }) {
 
   return (
     <div className="space-y-5">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="space-y-2">
-          <div className="rounded-md border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm text-zinc-800">
-            All logging times are based on Calgary ({CALGARY_TZ}) time — this does not change with your device timezone.
-          </div>
-
-          <div className="flex items-center gap-2">
-            <label className="text-xs font-semibold text-zinc-700" htmlFor="portal-email">
-              Email
-            </label>
-            <input
-              id="portal-email"
-              className="h-9 w-64 max-w-full rounded-md border border-zinc-300 bg-white px-3 text-sm"
-              placeholder="you@company.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              autoComplete="email"
-              inputMode="email"
-            />
-          </div>
-        </div>
-
+      <div className="flex justify-center">
         <button
           type="button"
-          className="h-10 rounded-md bg-[#2EA3F2] px-4 text-sm font-semibold text-white hover:opacity-90"
+          className="h-10 rounded-md bg-[#2EA3F2] px-6 text-sm font-semibold text-white hover:opacity-90"
           onClick={() => router.push(`/worklog?date=${currentLogIso}`)}
         >
           Log Current Day
@@ -287,36 +289,52 @@ export function PortalCalendar({ months }: { months: PortalMonth[] }) {
         </div>
 
         {activeMonth ? (
-          <section key={`${activeMonth.yyyy}-${activeMonth.monthIndex0}`} className="overflow-hidden rounded-lg border border-zinc-200">
-            <div className="grid grid-cols-7 gap-px bg-zinc-200">
+          <section
+            key={`${activeMonth.yyyy}-${activeMonth.monthIndex0}`}
+            className="overflow-x-auto rounded-lg border border-zinc-200"
+          >
+            <div className="grid min-w-[420px] grid-cols-7 gap-px bg-zinc-200 sm:min-w-0">
               {weekdayLabels.map((w) => (
                 <div key={w} className="bg-white px-2 py-2 text-center text-xs font-semibold text-zinc-600">
                   {w}
                 </div>
               ))}
 
-              {activeMonth.days.map((d) => (
-                <button
-                  key={d.isoDate}
-                  type="button"
-                  className={
-                    "relative min-h-14 bg-white p-2 text-left text-sm outline-none focus:ring-2 focus:ring-[#2EA3F2] " +
-                    (d.inMonth ? "" : "opacity-50 ")
-                  }
-                  onClick={() => setSelectedIso(d.isoDate)}
-                >
-                  <div className={"inline-flex items-center gap-2 rounded-md border px-2 py-1 " + classForState(d.state)}>
-                    <span className="text-xs font-semibold">{d.dayNumber}</span>
-                    {d.state.label ? <span className="text-[11px] text-zinc-700">{d.state.label}</span> : null}
-                  </div>
-                </button>
-              ))}
+              {activeMonth.days.map((d) => {
+                const isFuture = d.isoDate > currentLogIso;
+
+                return (
+                  <button
+                    key={d.isoDate}
+                    type="button"
+                    disabled={isFuture}
+                    className={
+                      "relative min-h-12 bg-white p-1 text-left text-sm outline-none focus:ring-2 focus:ring-[#2EA3F2] disabled:cursor-not-allowed disabled:opacity-40 sm:min-h-14 sm:p-2 " +
+                      (d.inMonth ? "" : "opacity-50 ")
+                    }
+                    onClick={() => {
+                      if (isFuture) return;
+                      setSelectedIso(d.isoDate);
+                    }}
+                    title={isFuture ? "Future dates can’t be logged yet." : undefined}
+                  >
+                    <div className={"flex min-w-0 items-center gap-2 rounded-md border px-1 py-1 sm:px-2 " + classForState(d.state)}>
+                      <span className="shrink-0 text-xs font-semibold">{d.dayNumber}</span>
+                      {d.state.label ? (
+                        <span className="hidden truncate text-[11px] text-zinc-700 sm:inline">{d.state.label}</span>
+                      ) : null}
+                    </div>
+                  </button>
+                );
+              })}
             </div>
           </section>
         ) : null}
 
-        <div className="text-xs text-zinc-500">
-          Showing a 13-month window (6 months back/forward). Use arrows to navigate.
+        <div className="text-xs text-zinc-500">Showing a 13-month window (6 months back/forward). Use arrows to navigate.</div>
+
+        <div className="rounded-md border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm text-zinc-800">
+          All logging times are based on Calgary ({CALGARY_TZ}) time — this does not change with your device timezone.
         </div>
       </div>
 
@@ -329,9 +347,7 @@ export function PortalCalendar({ months }: { months: PortalMonth[] }) {
           setError(null);
         }}
       >
-        {error ? (
-          <div className="mb-3 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-900">{error}</div>
-        ) : null}
+        {error ? <div className="mb-3 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-900">{error}</div> : null}
 
         <div className="flex items-center justify-end gap-2">
           <button
@@ -349,13 +365,11 @@ export function PortalCalendar({ months }: { months: PortalMonth[] }) {
           <button
             type="button"
             className="h-10 rounded-md bg-zinc-900 px-4 text-sm font-semibold text-white hover:opacity-90 disabled:bg-zinc-300"
-            disabled={!selectedIso || submitting || email.trim().length === 0 || (selectedIso ? isWeekend(selectedIso) : false)}
+            disabled={!selectedIso || submitting || (selectedIso ? isWeekend(selectedIso) : false)}
             title={
-              email.trim().length === 0
-                ? "Email is required"
-                : selectedIso && isWeekend(selectedIso)
-                  ? "Weekends are not eligible for day-off requests"
-                  : "Submit a day-off request"
+              selectedIso && isWeekend(selectedIso)
+                ? "Weekends are not eligible for day-off requests"
+                : "Submit a day-off request"
             }
             onClick={async () => {
               if (!selectedIso) return;

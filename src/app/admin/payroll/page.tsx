@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db";
 import { getBiweeklyPayPeriods, isoDay, parseISODateOnlyToUTCNoon, type PayrollConfig } from "@/lib/payroll";
 import { computePayrollForRange } from "@/lib/payrollServer";
 import { checkNoPendingApprovalsInRange } from "@/lib/payrollGuards";
+import { requireAdminOrThrow } from "@/lib/adminAuth";
 
 export const dynamic = "force-dynamic";
 
@@ -23,6 +24,8 @@ export default async function AdminPayrollPage({
 }: {
   searchParams?: Promise<Record<string, string | string[] | undefined>>;
 }) {
+  await requireAdminOrThrow({ message: "Forbidden: admin access required." });
+
   const sp = (searchParams ? await searchParams : {}) as Record<string, unknown>;
   const startISO = typeof sp.start === "string" ? sp.start : undefined;
   const endISO = typeof sp.end === "string" ? sp.end : undefined;
@@ -159,7 +162,7 @@ export default async function AdminPayrollPage({
         <section className="space-y-3">
           <h2 className="text-sm font-semibold">Summary</h2>
           <div className="overflow-auto rounded-lg border border-zinc-200">
-            <table className="w-full min-w-[920px] border-separate border-spacing-0">
+            <table className="w-full table-fixed border-separate border-spacing-0">
               <thead>
                 <tr className="text-left text-xs text-zinc-600">
                   <th className="border-b border-zinc-200 px-3 py-2">Pay Period</th>
@@ -189,7 +192,7 @@ export default async function AdminPayrollPage({
 
           <h2 className="pt-2 text-sm font-semibold">Employees</h2>
           <div className="overflow-auto rounded-lg border border-zinc-200">
-            <table className="w-full min-w-[980px] border-separate border-spacing-0">
+            <table className="w-full min-w-[760px] table-auto border-separate border-spacing-0">
               <thead>
                 <tr className="text-left text-xs text-zinc-600">
                   <th className="border-b border-zinc-200 px-3 py-2">Employee</th>
@@ -203,7 +206,7 @@ export default async function AdminPayrollPage({
                 {payroll?.employees.map((e) => (
                   <tr key={e.userId}>
                     <td className="border-b border-zinc-100 px-3 py-2 text-sm">
-                      <div className="font-medium">{e.email}</div>
+                      <div className="font-medium break-all">{e.email}</div>
                       {e.name ? <div className="text-xs text-zinc-600">{e.name}</div> : null}
                     </td>
                     <td className="border-b border-zinc-100 px-3 py-2 text-sm">{fmt(e.hours)}</td>

@@ -15,7 +15,7 @@ export async function AuthButtons() {
 
   return (
     <div className="flex items-center gap-3 text-sm">
-      <span className="hidden text-zinc-600 sm:inline">{session.user.email ?? session.user.name}</span>
+      <span className="hidden text-zinc-600 sm:inline">Signed in as {session.user.email ?? session.user.name}</span>
       <form
         action={async () => {
           "use server";

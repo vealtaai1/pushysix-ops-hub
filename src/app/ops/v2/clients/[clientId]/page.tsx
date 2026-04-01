@@ -1,0 +1,201 @@
+import Link from "next/link";
+import { notFound } from "next/navigation";
+import { prisma } from "@/lib/db";
+import { auth } from "@/auth";
+import { ClientHubClient } from "./ClientHubClient";
+import { RetainersSection } from "./RetainersSection";
+
+export const dynamic = "force-dynamic";
+
+const OPS_V2_ANALYTICS_ENABLED =
+  process.env.OPS_V2_ANALYTICS_ENABLED === "true" || process.env.OPS_V2_ANALYTICS_ENABLED === "1";
+
+export default async function OpsV2ClientHubPage({ params }: { params: Promise<{ clientId: string }> }) {
+  const { clientId } = await params;
+
+  const client = await prisma.client.findUnique({
+    where: { id: clientId },
+    select: {
+      id: true,
+      name: true,
+      status: true,
+      clientBillingEmail: true,
+      billingCycleStartDay: true,
+      monthlyRetainerHours: true,
+      monthlyRetainerFeeCents: true,
+      monthlyRetainerFeeCurrency: true,
+      maxShootsPerCycle: true,
+      maxCaptureHoursPerCycle: true,
+    },
+  });
+
+  if (!client) notFound();
+
+  const session = await auth();
+  const canCloseProjects = session?.user?.role === "ADMIN";
+
+  const [projects, quotaItems, recentExpenses] = await Promise.all([
+    prisma.project.findMany({
+      where: { clientId },
+      orderBy: [{ createdAt: "desc" }],
+      select: {
+        id: true,
+        code: true,
+        shortCode: true,
+        name: true,
+        status: true,
+        createdAt: true,
+        closedAt: true,
+      },
+    }),
+    prisma.clientQuotaItem.findMany({
+      where: { clientId },
+      orderBy: [{ name: "asc" }],
+      select: {
+        id: true,
+        name: true,
+        usageMode: true,
+        limitPerCycleDays: true,
+        limitPerCycleMinutes: true,
+      },
+    }),
+    prisma.expenseEntry.findMany({
+      where: { clientId },
+      orderBy: [{ expenseDate: "desc" }, { createdAt: "desc" }],
+      take: 50,
+      select: {
+        id: true,
+        kind: true,
+        status: true,
+        expenseDate: true,
+        vendor: true,
+        description: true,
+        amountCents: true,
+        currency: true,
+        receiptUrl: true,
+        reimburseToEmployee: true,
+        worklogId: true,
+        submittedByUser: { select: { name: true, email: true } },
+        employee: { select: { name: true, email: true } },
+      },
+    }),
+  ]);
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="text-xs text-zinc-600">
+            <Link href="/ops" className="hover:underline">
+              Management
+            </Link>
+            <span className="px-2 text-zinc-400">/</span>
+            <Link href="/ops/clients" className="hover:underline">
+              Clients
+            </Link>
+          </div>
+          <h1 className="mt-1 truncate text-xl font-semibold">{client.name}</h1>
+          <div className="mt-1 text-sm text-zinc-600">
+            <span className="font-medium text-zinc-800">{client.status}</span>
+            {client.clientBillingEmail ? (
+              <>
+                <span className="px-2 text-zinc-300">·</span>
+                <span className="truncate">Billing: {client.clientBillingEmail}</span>
+              </>
+            ) : null}
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <Link
+            href={`/ops/retainers/${client.id}`}
+            className="inline-flex h-9 items-center rounded-md border border-zinc-300 bg-white px-3 text-sm font-semibold text-zinc-800 hover:bg-zinc-50"
+          >
+            Ad spend
+          </Link>
+        </div>
+      </div>
+
+      <RetainersSection
+        client={{
+          id: client.id,
+          name: client.name,
+          billingCycleStartDay: client.billingCycleStartDay,
+          monthlyRetainerHours: client.monthlyRetainerHours,
+          monthlyRetainerFeeCents: client.monthlyRetainerFeeCents,
+          monthlyRetainerFeeCurrency: client.monthlyRetainerFeeCurrency,
+          maxShootsPerCycle: client.maxShootsPerCycle,
+          maxCaptureHoursPerCycle: client.maxCaptureHoursPerCycle,
+        }}
+        quotaItems={quotaItems}
+      />
+
+      <section className="rounded-lg border border-zinc-200 bg-white p-4">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <div className="text-sm font-semibold text-zinc-900">Recent expenses</div>
+            <div className="mt-1 text-xs text-zinc-500">Expenses are submitted via Worklog and surfaced here for client review.</div>
+          </div>
+          <Link
+            href="/admin/approvals"
+            className="inline-flex h-9 items-center rounded-md border border-zinc-300 bg-white px-3 text-sm font-semibold text-zinc-800 hover:bg-zinc-50"
+          >
+            Go to approvals
+          </Link>
+        </div>
+
+        {recentExpenses.length === 0 ? (
+          <div className="mt-3 text-sm text-zinc-600">No expenses found.</div>
+        ) : (
+          <div className="mt-3 overflow-x-auto">
+            <table className="min-w-full border-separate border-spacing-y-1 text-sm">
+              <thead>
+                <tr className="text-left text-xs font-semibold uppercase tracking-wide text-zinc-500">
+                  <th className="pr-4">Date</th>
+                  <th className="pr-4">Description</th>
+                  <th className="pr-4">Vendor</th>
+                  <th className="pr-4">Amount</th>
+                  <th className="pr-4">Receipt</th>
+                  <th className="pr-4">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {recentExpenses.map((e) => (
+                  <tr key={e.id} className="rounded-md bg-zinc-50">
+                    <td className="whitespace-nowrap px-2 py-2 pr-4 font-medium text-zinc-900">
+                      {e.expenseDate.toISOString().slice(0, 10)}
+                    </td>
+                    <td className="px-2 py-2 pr-4 text-zinc-800">
+                      <div className="line-clamp-2">{e.description}</div>
+                      <div className="mt-0.5 text-xs text-zinc-500">
+                        {e.employee?.name ?? e.employee?.email ?? ""}
+                        {e.reimburseToEmployee ? " · reimbursable" : ""}
+                        {e.worklogId ? " · worklog" : ""}
+                      </div>
+                    </td>
+                    <td className="px-2 py-2 pr-4 text-zinc-700">{e.vendor ?? "—"}</td>
+                    <td className="whitespace-nowrap px-2 py-2 pr-4 text-zinc-900">
+                      {(e.amountCents / 100).toFixed(2)} {e.currency}
+                    </td>
+                    <td className="whitespace-nowrap px-2 py-2 pr-4">
+                      {e.receiptUrl ? (
+                        <a className="text-blue-600 hover:underline" href={e.receiptUrl} target="_blank" rel="noreferrer">
+                          View
+                        </a>
+                      ) : (
+                        <span className="text-zinc-500">—</span>
+                      )}
+                    </td>
+                    <td className="whitespace-nowrap px-2 py-2 pr-4 text-zinc-700">{e.status}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
+
+      <ClientHubClient client={client} initialProjects={projects} canCloseProjects={canCloseProjects} />
+    </div>
+  );
+}

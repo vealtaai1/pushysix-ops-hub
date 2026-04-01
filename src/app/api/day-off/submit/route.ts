@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { auth } from "@/auth";
 import {
   calgaryLocalStamp,
   getWorklogWindowStamps,
@@ -9,7 +10,6 @@ import {
 import { ApprovalStatus, ApprovalType, Prisma } from "@prisma/client";
 
 type SubmitDayOffBody = {
-  email: string;
   dayDate: string; // YYYY-MM-DD
   reason?: string;
 };
@@ -27,15 +27,18 @@ function asEmail(s: unknown): string | null {
 }
 
 export async function POST(req: Request) {
+  const session = await auth();
+  const email = asEmail(session?.user?.email);
+  if (!email) {
+    return NextResponse.json({ ok: false, message: "Unauthorized: sign-in required." }, { status: 401 });
+  }
+
   let body: SubmitDayOffBody;
   try {
     body = (await req.json()) as SubmitDayOffBody;
   } catch {
     return badRequest("Invalid JSON.");
   }
-
-  const email = asEmail(body.email);
-  if (!email) return badRequest("A valid email is required.");
 
   if (!isWeekdayISODate(body.dayDate)) {
     return badRequest("Day-off requests are only allowed for weekdays (Mon–Fri).", { rule: "WEEKDAY_ONLY" });
@@ -95,6 +98,20 @@ export async function POST(req: Request) {
   });
 
   if (!withinWindow) {
+    // Ensure at most one PENDING approval request per day-off.
+    await prisma.approvalRequest.updateMany({
+      where: {
+        dayOffId: dayOff.id,
+        status: ApprovalStatus.PENDING,
+      },
+      data: {
+        status: ApprovalStatus.SUPERSEDED,
+        reviewedAt: new Date(),
+        reviewedByUserId: null,
+        reviewNote: "Superseded by a newer submission.",
+      },
+    });
+
     await prisma.approvalRequest.create({
       data: {
         type: ApprovalType.DAY_OFF,

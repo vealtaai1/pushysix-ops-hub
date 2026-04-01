@@ -10,8 +10,10 @@
     "lint": "eslint",
     "format": "prettier --write .",
     "prisma:generate": "npx prisma generate",
-    "prisma:migrate:deploy": "node -e \"if(process.env.PRISMA_MIGRATE_DEPLOY==='true'){require('child_process').execSync('npx prisma migrate deploy',{stdio:'inherit'})}else{console.log('Skipping prisma migrate deploy (set PRISMA_MIGRATE_DEPLOY=true to enable)')}\"",
+    "prisma:migrate:deploy": "node scripts/prismaMigrateDeploy.js",
+    "prisma:snapshot-to-migrations": "node scripts/prismaSnapshotToMigrations.js",
     "assert:retainers": "node scripts/retainers.assert.mjs",
+    "backfill:retainer-fees": "node scripts/backfillMonthlyRetainerFeeCents.js",
     "prisma:seed": "npx prisma db seed"
   },
   "prisma": {
@@ -29,7 +31,9 @@
     "react": "19.2.3",
     "react-dom": "19.2.3",
     "recharts": "^3.7.0",
-    "resend": "^6.9.1"
+    "resend": "^6.9.1",
+    "bcryptjs": "^2.4.3",
+    "@vercel/blob": "^0.27.0"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.3.3",
@@ -37,6 +41,7 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@types/bcryptjs": "^2.4.6",
     "eslint": "8.57.0",
     "eslint-config-next": "15.1.12",
     "prisma": "^6.19.2",

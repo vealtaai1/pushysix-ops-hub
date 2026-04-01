@@ -1,16 +1,20 @@
 "use client";
 
 import * as React from "react";
+import { createPortal } from "react-dom";
 import { BUCKETS } from "@/lib/buckets";
+import { ReceiptUploader } from "@/app/ops/v2/expenses/_components/ReceiptUploader";
 
 type Client = { id: string; name: string };
+
+type Project = { id: string; clientId: string; code: string; name: string };
 
 type TaskLine = {
   id: string;
   clientId: string | null;
   clientName: string;
+  engagementType: "RETAINER" | "MISC_PROJECT";
   bucketKey: string;
-  quotaItemId: string | null;
   hoursText: string; // kept as text so the field can be cleared
   notes: string;
 };
@@ -19,7 +23,30 @@ type MileageLine = {
   id: string;
   clientId: string | null;
   clientName: string;
+  engagementType: "RETAINER" | "MISC_PROJECT";
+  projectId: string | null;
   kilometersText: string; // kept as text so the field can be cleared
+};
+
+type ExpenseCategory =
+  | "MILEAGE"
+  | "HOTEL_ACCOMMODATION"
+  | "MEAL"
+  | "PROP"
+  | "CAMERA_GEAR_EQUIPMENT"
+  | "OTHER";
+
+type ExpenseLine = {
+  id: string;
+  clientId: string | null;
+  clientName: string;
+  engagementType: "RETAINER" | "MISC_PROJECT";
+  projectId: string | null;
+  category: ExpenseCategory;
+  description: string;
+  amountText: string;
+  // Receipt is uploaded (or captured via camera) and stored as a URL; we don't allow manual entry.
+  receiptUrl: string;
 };
 
 function uid() {
@@ -37,9 +64,14 @@ function quarterIncrementValid(n: number) {
 }
 
 function parseNumberText(text: string) {
+  // Keep parsing permissive because our inputs are stored as raw text.
+  // - Accept commas as decimal separators ("1,5")
+  // - Avoid HTML <input type="number"> browser coercion/rounding quirks by parsing ourselves.
   const t = text.trim();
   if (t === "") return 0;
-  const n = Number(t);
+  const normalized = t.replace(/,/g, ".");
+  // parseFloat is more forgiving than Number for partial user input like "100.".
+  const n = Number.parseFloat(normalized);
   return Number.isFinite(n) ? n : NaN;
 }
 
@@ -59,8 +91,10 @@ function ClientTypeahead(props: {
 }) {
   const { clients, valueName, onSelect, placeholder } = props;
 
+  const inputRef = React.useRef<HTMLInputElement | null>(null);
   const [open, setOpen] = React.useState(false);
   const [query, setQuery] = React.useState(valueName);
+  const [menuBox, setMenuBox] = React.useState<null | { left: number; top: number; width: number }>(null);
 
   React.useEffect(() => {
     setQuery(valueName);
@@ -72,69 +106,125 @@ function ClientTypeahead(props: {
     return clients.filter((c) => c.name.toLowerCase().includes(q)).slice(0, 10);
   }, [clients, query]);
 
+  const updateMenuBox = React.useCallback(() => {
+    const el = inputRef.current;
+    if (!el) return;
+    const r = el.getBoundingClientRect();
+    setMenuBox({ left: r.left, top: r.bottom, width: r.width });
+  }, []);
+
+  React.useEffect(() => {
+    if (!open) return;
+    updateMenuBox();
+
+    const onScroll = () => updateMenuBox();
+    const onResize = () => updateMenuBox();
+    window.addEventListener("scroll", onScroll, true);
+    window.addEventListener("resize", onResize);
+    return () => {
+      window.removeEventListener("scroll", onScroll, true);
+      window.removeEventListener("resize", onResize);
+    };
+  }, [open, updateMenuBox]);
+
   return (
     <div className="relative">
       <input
+        ref={inputRef}
         value={query}
         onChange={(e) => {
           setQuery(e.target.value);
           setOpen(true);
         }}
-        onFocus={() => setOpen(true)}
+        onFocus={() => {
+          setOpen(true);
+          // Next tick so layout is stable
+          window.setTimeout(() => updateMenuBox(), 0);
+        }}
         onBlur={() => {
-          window.setTimeout(() => setOpen(false), 100);
+          window.setTimeout(() => setOpen(false), 120);
         }}
         placeholder={placeholder ?? "Search client…"}
         className="h-10 w-full rounded-md border border-zinc-300 bg-white px-3"
       />
 
-      {open ? (
-        <div className="absolute z-10 mt-1 max-h-64 w-full overflow-auto rounded-md border border-zinc-200 bg-white shadow">
-          {matches.length === 0 ? (
-            <div className="px-3 py-2 text-sm text-zinc-500">No matches</div>
-          ) : (
-            matches.map((c) => (
-              <button
-                key={c.id}
-                type="button"
-                className="block w-full px-3 py-2 text-left text-sm hover:bg-zinc-50"
-                onMouseDown={(e) => e.preventDefault()}
-                onClick={() => {
-                  onSelect(c);
-                  setOpen(false);
-                }}
-              >
-                {c.name}
-              </button>
-            ))
-          )}
-        </div>
-      ) : null}
+      {open && menuBox
+        ? createPortal(
+            <div
+              style={{ left: menuBox.left, top: menuBox.top + 4, width: menuBox.width, position: "fixed", zIndex: 1000 }}
+              className="max-h-64 overflow-auto rounded-md border border-zinc-200 bg-white shadow"
+            >
+              {matches.length === 0 ? (
+                <div className="px-3 py-2 text-sm text-zinc-500">No matches</div>
+              ) : (
+                matches.map((c) => (
+                  <button
+                    key={c.id}
+                    type="button"
+                    className="block w-full px-3 py-2 text-left text-sm hover:bg-zinc-50"
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => {
+                      onSelect(c);
+                      setOpen(false);
+                    }}
+                  >
+                    {c.name}
+                  </button>
+                ))
+              )}
+            </div>,
+            document.body,
+          )
+        : null}
     </div>
   );
 }
 
 export function WorklogForm({
   clients,
+  projects,
   initialDate,
   initialEmail,
 }: {
   clients: Client[];
+  projects: Project[];
   initialDate?: string | null;
   initialEmail?: string | null;
 }) {
   const today = React.useMemo(() => todayISODate(), []);
 
-  const normalizedInitial = React.useMemo(() => {
+  const projectsByClient = React.useMemo(() => {
+    const map = new Map<string, Project[]>();
+    for (const p of projects ?? []) {
+      const arr = map.get(p.clientId) ?? [];
+      arr.push(p);
+      map.set(p.clientId, arr);
+    }
+    // stable sort
+    for (const [k, arr] of map.entries()) {
+      arr.sort((a, b) => a.code.localeCompare(b.code));
+      map.set(k, arr);
+    }
+    return map;
+  }, [projects]);
+
+  const normalizedInitialDate = React.useMemo(() => {
     if (!initialDate) return null;
     return /^\d{4}-\d{2}-\d{2}$/.test(initialDate) ? initialDate : null;
   }, [initialDate]);
 
-  const [workDate, setWorkDate] = React.useState(() => normalizedInitial ?? todayISODate());
+  const email = React.useMemo(() => {
+    const t = (initialEmail ?? "").trim().toLowerCase();
+    return t;
+  }, [initialEmail]);
 
-  const [email, setEmail] = React.useState<string>(initialEmail?.trim().toLowerCase() ?? "");
+  const emailOk = React.useMemo(() => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email), [email]);
+
+  const [workDate, setWorkDate] = React.useState(() => normalizedInitialDate ?? todayISODate());
+
   const [submitState, setSubmitState] = React.useState<{ ok: boolean; message: string } | null>(null);
   const [submitting, setSubmitting] = React.useState(false);
+  const [showValidation, setShowValidation] = React.useState(false);
 
   const [existingWorklog, setExistingWorklog] = React.useState<
     | null
@@ -148,32 +238,16 @@ export function WorklogForm({
   const [resubmitReason, setResubmitReason] = React.useState("");
 
   React.useEffect(() => {
-    // Keep portal + worklog email aligned for "view as" workflows.
-    if (initialEmail && typeof initialEmail === "string") {
-      try {
-        window.localStorage.setItem("opsHubEmail", initialEmail.trim().toLowerCase());
-      } catch {
-        // ignore
-      }
-    }
-  }, [initialEmail]);
+    if (normalizedInitialDate) setWorkDate(normalizedInitialDate);
+  }, [normalizedInitialDate]);
+
+  const isFutureDate = React.useMemo(() => {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(workDate)) return false;
+    return workDate > today;
+  }, [workDate, today]);
 
   React.useEffect(() => {
-    try {
-      window.localStorage.setItem("opsHubEmail", email);
-    } catch {
-      // ignore
-    }
-  }, [email]);
-
-  React.useEffect(() => {
-    if (normalizedInitial) setWorkDate(normalizedInitial);
-  }, [normalizedInitial]);
-
-  React.useEffect(() => {
-    const trimmedEmail = email.trim().toLowerCase();
     const dateOk = /^\d{4}-\d{2}-\d{2}$/.test(workDate);
-    const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail);
 
     if (!dateOk || !emailOk) {
       setExistingWorklog(null);
@@ -189,7 +263,7 @@ export function WorklogForm({
         const res = await fetch("/api/worklog/status", {
           method: "POST",
           headers: { "content-type": "application/json" },
-          body: JSON.stringify({ email: trimmedEmail, workDate }),
+          body: JSON.stringify({ email, workDate }),
           signal: ctrl.signal,
         });
 
@@ -220,11 +294,11 @@ export function WorklogForm({
     })();
 
     return () => ctrl.abort();
-  }, [email, workDate]);
+  }, [email, emailOk, workDate]);
 
   // Totals as text so 0 is deletable (no stuck placeholder)
-  const [targetHoursText, setTargetHoursText] = React.useState<string>("0");
-  const [totalKmText, setTotalKmText] = React.useState<string>("0");
+  const [targetHoursText, setTargetHoursText] = React.useState<string>("");
+  const [totalKmText, setTotalKmText] = React.useState<string>("");
 
   const targetHours = React.useMemo(() => parseNumberText(targetHoursText), [targetHoursText]);
   const totalKm = React.useMemo(() => parseNumberText(totalKmText), [totalKmText]);
@@ -234,41 +308,16 @@ export function WorklogForm({
       id: uid(),
       clientId: null,
       clientName: "",
+      engagementType: "RETAINER",
       bucketKey: "",
-      quotaItemId: null,
-      hoursText: "0",
+      hoursText: "",
       notes: "",
     },
   ]);
 
-  const [quotaItemsByClientId, setQuotaItemsByClientId] = React.useState<
-    Record<
-      string,
-      Array<{ id: string; name: string; usageMode: "PER_DAY" | "PER_HOUR"; limitPerCycleDays: number; limitPerCycleMinutes: number }> | undefined
-    >
-  >({});
-
-  async function ensureQuotaItemsLoaded(clientId: string) {
-    if (!clientId) return;
-    if (quotaItemsByClientId[clientId]) return;
-
-    try {
-      const res = await fetch(`/api/worklog/quota-items?clientId=${encodeURIComponent(clientId)}`);
-      const data = (await res.json()) as {
-        ok?: boolean;
-        items?: Array<{ id: string; name: string; usageMode: "PER_DAY" | "PER_HOUR"; limitPerCycleDays: number; limitPerCycleMinutes: number }>;
-      };
-      if (!res.ok || data.ok !== true || !Array.isArray(data.items)) {
-        setQuotaItemsByClientId((prev) => ({ ...prev, [clientId]: [] }));
-        return;
-      }
-      setQuotaItemsByClientId((prev) => ({ ...prev, [clientId]: data.items! }));
-    } catch {
-      setQuotaItemsByClientId((prev) => ({ ...prev, [clientId]: [] }));
-    }
-  }
-
   const [mileage, setMileage] = React.useState<MileageLine[]>(() => []);
+
+  const [expenses, setExpenses] = React.useState<ExpenseLine[]>(() => []);
 
   const taskHoursInvalid = React.useMemo(() => {
     return tasks.map((t) => {
@@ -292,6 +341,14 @@ export function WorklogForm({
   }, [tasks]);
 
   const hoursMatch = React.useMemo(() => nearlyEqual(allocatedHours, targetHours), [allocatedHours, targetHours]);
+
+  const hoursCounterClass = React.useMemo(() => {
+    // Don't flash red by default; only show red once the user attempts to submit.
+    const targetValid = Number.isFinite(targetHours) && targetHours > 0;
+    if (!targetValid) return "text-zinc-900";
+    if (hoursMatch) return "text-emerald-700";
+    return showValidation ? "text-red-700" : "text-zinc-900";
+  }, [hoursMatch, showValidation, targetHours]);
 
   const hasNotesViolations = React.useMemo(() => {
     return tasks.some((t) => {
@@ -329,7 +386,11 @@ export function WorklogForm({
     const linesValid = mileage.every((m) => {
       const km = parseNumberText(m.kilometersText);
       if (!Number.isFinite(km)) return false;
-      return (km > 0 ? Boolean(m.clientId) : true) && km >= 0;
+      if (km < 0) return false;
+      if (km === 0) return true;
+      if (!m.clientId) return false;
+      if (m.engagementType === "MISC_PROJECT" && !m.projectId) return false;
+      return true;
     });
     if (!linesValid) return false;
     return nearlyEqual(allocatedKm, totalKm);
@@ -338,6 +399,8 @@ export function WorklogForm({
   const targetHoursValid = Number.isFinite(targetHours) && targetHours > 0;
 
   const canSubmit =
+    emailOk &&
+    !isFutureDate &&
     targetHoursValid &&
     hoursMatch &&
     !hasTaskHoursViolations &&
@@ -352,17 +415,15 @@ export function WorklogForm({
 
   return (
     <div className="space-y-6">
-      <div className="rounded-lg border border-zinc-200 p-4">
+      <div className="sticky top-2 z-20 rounded-lg border border-zinc-200 bg-white/95 p-4 backdrop-blur">
         <div className="grid gap-3 md:grid-cols-4">
-          <label className="grid gap-1">
+          <div className="grid gap-1">
             <span className="text-sm font-medium">Email</span>
-            <input
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="you@pushysix.com"
-              className="h-10 rounded-md border border-zinc-300 bg-white px-3"
-            />
-          </label>
+            <div className="h-10 rounded-md border border-zinc-200 bg-zinc-50 px-3 flex items-center text-sm text-zinc-800">
+              {emailOk ? email : "(missing email)"}
+            </div>
+            {showValidation && !emailOk ? <div className="text-xs text-red-700">Email is required (provided by portal/session).</div> : null}
+          </div>
 
           <label className="grid gap-1">
             <span className="text-sm font-medium">
@@ -372,13 +433,15 @@ export function WorklogForm({
             <input
               type="date"
               value={workDate}
+              max={today}
               onChange={(e) => setWorkDate(e.target.value)}
               className="h-10 rounded-md border border-zinc-300 bg-white px-3"
             />
+            {isFutureDate ? <div className="text-xs text-red-700">Future dates aren’t allowed.</div> : null}
           </label>
 
           <label className="grid gap-1">
-            <span className="text-sm font-medium">Total hours (target)</span>
+            <span className="text-sm font-medium">Total hours</span>
             <input
               type="number"
               min={0}
@@ -390,12 +453,18 @@ export function WorklogForm({
           </label>
 
           <label className="grid gap-1">
-            <span className="text-sm font-medium">Total km (optional)</span>
+            <span className="text-sm font-medium">Total km (If applicable)</span>
             <input
-              type="number"
-              min={0}
-              step={0.1}
+              // NOTE: We intentionally use text+inputMode instead of type=number.
+              // Some browsers coerce/round number inputs based on step/min, which caused reports like 100 → 99.5.
+              type="text"
+              inputMode="decimal"
+              placeholder="0"
               value={totalKmText}
+              onWheel={(e) => {
+                // Prevent accidental scroll-wheel changes (common with numeric fields).
+                (e.currentTarget as HTMLInputElement).blur();
+              }}
               onChange={(e) => {
                 const nextText = e.target.value;
                 setTotalKmText(nextText);
@@ -408,33 +477,40 @@ export function WorklogForm({
         </div>
 
         <div className="mt-4 flex flex-wrap items-center gap-3 text-sm">
-          <div>
-            <span className="text-zinc-600">Allocated hours:</span>{" "}
-            <span className={hoursMatch ? "font-semibold text-emerald-700" : "font-semibold text-red-700"}>
-              {allocatedHours.toFixed(2)} / {(Number.isFinite(targetHours) ? targetHours : 0).toFixed(2)}
-            </span>
-          </div>
-          {hasTaskHoursViolations ? (
+          {showValidation && !targetHoursValid ? <div className="text-red-700">Total hours must be greater than 0.</div> : null}
+          {showValidation && hasTaskHoursViolations ? (
             <div className="text-red-700">Task hours must be 0 or 0.25–20.00 in 0.25 increments.</div>
           ) : null}
-          {!targetHoursValid ? <div className="text-red-700">Total hours must be greater than 0.</div> : null}
-          {hasClientViolations ? <div className="text-red-700">Client is required for any task with hours &gt; 0.</div> : null}
-          {hasBucketViolations ? <div className="text-red-700">Task category is required for any task with hours &gt; 0.</div> : null}
-          {hasNotesViolations ? <div className="text-red-700">Notes are required for any task with hours &gt; 0.</div> : null}
-          {mileageRequired ? (
-            <div>
-              <span className="text-zinc-600">Mileage allocated:</span>{" "}
-              <span className={mileageComplete ? "font-semibold text-emerald-700" : "font-semibold text-red-700"}>
-                {allocatedKm.toFixed(1)} / {(Number.isFinite(totalKm) ? totalKm : 0).toFixed(1)} km
-              </span>
-            </div>
+          {showValidation && hasClientViolations ? (
+            <div className="text-red-700">Client is required for any task with hours &gt; 0.</div>
+          ) : null}
+          {showValidation && hasBucketViolations ? (
+            <div className="text-red-700">Task category is required for any task with hours &gt; 0.</div>
+          ) : null}
+          {showValidation && hasNotesViolations ? <div className="text-red-700">Notes are required for any task with hours &gt; 0.</div> : null}
+          {showValidation && mileageRequired && !mileageComplete ? (
+            <div className="text-red-700">Mileage must be allocated to match Total km.</div>
           ) : null}
         </div>
       </div>
 
       <div className="rounded-lg border border-zinc-200 p-4">
         <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-sm font-semibold">Tasks</h2>
+          <div className="flex items-center gap-3">
+            <h2 className="text-sm font-semibold">Tasks</h2>
+            <span
+              className={
+                "text-xs font-semibold " +
+                (allocatedHours === 0 && targetHours === 0
+                  ? "text-zinc-500"
+                  : targetHours > 0 && hoursMatch
+                    ? "text-emerald-700"
+                    : "text-red-700")
+              }
+            >
+              Allocated {allocatedHours.toFixed(2)} / {Number.isFinite(targetHours) ? targetHours.toFixed(2) : "—"} hrs
+            </span>
+          </div>
           <button
             type="button"
             className="h-9 rounded-md border border-zinc-300 bg-white px-3 text-sm hover:bg-zinc-50"
@@ -445,9 +521,9 @@ export function WorklogForm({
                   id: uid(),
                   clientId: null,
                   clientName: "",
+                  engagementType: "RETAINER",
                   bucketKey: "",
-                  quotaItemId: null,
-                  hoursText: "0",
+                  hoursText: "",
                   notes: "",
                 },
               ])
@@ -457,13 +533,13 @@ export function WorklogForm({
           </button>
         </div>
 
-        <div className="overflow-auto">
-          <table className="w-full min-w-[900px] border-separate border-spacing-0">
+        <div className="overflow-x-auto overflow-y-visible">
+          <table className="w-full min-w-[820px] border-separate border-spacing-0">
             <thead>
               <tr className="text-left text-xs text-zinc-600">
                 <th className="border-b border-zinc-200 px-3 py-2">Client</th>
+                <th className="border-b border-zinc-200 px-3 py-2">Engagement</th>
                 <th className="border-b border-zinc-200 px-3 py-2">Task category</th>
-                <th className="border-b border-zinc-200 px-3 py-2">Quota item (optional)</th>
                 <th className="border-b border-zinc-200 px-3 py-2">Hours</th>
                 <th className="border-b border-zinc-200 px-3 py-2">Notes</th>
                 <th className="border-b border-zinc-200 px-3 py-2"></th>
@@ -483,15 +559,26 @@ export function WorklogForm({
                         valueName={t.clientName}
                         placeholder="Search client…"
                         onSelect={(c) => {
-                          void ensureQuotaItemsLoaded(c.id);
-                          setTasks((prev) =>
-                            prev.map((x) =>
-                              x.id === t.id ? { ...x, clientId: c.id, clientName: c.name, quotaItemId: null } : x
-                            )
-                          );
+                          setTasks((prev) => prev.map((x) => (x.id === t.id ? { ...x, clientId: c.id, clientName: c.name } : x)));
                         }}
                       />
                       {t.clientId ? null : <div className="mt-1 text-xs text-zinc-500">Choose a client</div>}
+                    </td>
+
+                    <td className="border-b border-zinc-100 px-3 py-2">
+                      <select
+                        value={t.engagementType}
+                        onChange={(e) =>
+                          setTasks((prev) =>
+                            prev.map((x) => (x.id === t.id ? { ...x, engagementType: e.target.value as TaskLine["engagementType"] } : x)),
+                          )
+                        }
+                        className="h-10 w-full rounded-md border border-zinc-300 bg-white px-3"
+                      >
+                        <option value="RETAINER">Retainer</option>
+                        <option value="MISC_PROJECT">Misc project</option>
+                      </select>
+                      <div className="mt-1 text-xs text-zinc-500">Retainer time counts toward the client’s retainer cycle.</div>
                     </td>
 
                     <td className="border-b border-zinc-100 px-3 py-2">
@@ -512,51 +599,18 @@ export function WorklogForm({
                     </td>
 
                     <td className="border-b border-zinc-100 px-3 py-2">
-                      <select
-                        value={t.quotaItemId ?? ""}
-                        onFocus={() => {
-                          if (t.clientId) void ensureQuotaItemsLoaded(t.clientId);
-                        }}
-                        onChange={(e) =>
-                          setTasks((prev) =>
-                            prev.map((x) =>
-                              x.id === t.id
-                                ? { ...x, quotaItemId: e.target.value ? e.target.value : null }
-                                : x
-                            )
-                          )
-                        }
-                        className="h-10 w-full rounded-md border border-zinc-300 bg-white px-3"
-                        disabled={!t.clientId}
-                        title={!t.clientId ? "Select a client first" : "Optional: count this line toward a deliverable quota"}
-                      >
-                        <option value="">(none)</option>
-                        {(t.clientId ? quotaItemsByClientId[t.clientId] : [])?.map((qi) => (
-                          <option key={qi.id} value={qi.id}>
-                            {qi.name}
-                          </option>
-                        ))}
-                      </select>
-                      {!t.clientId ? (
-                        <div className="mt-1 text-xs text-zinc-500">Select a client first</div>
-                      ) : quotaItemsByClientId[t.clientId] === undefined ? (
-                        <div className="mt-1 text-xs text-zinc-500">(focus to load)</div>
-                      ) : quotaItemsByClientId[t.clientId]?.length ? (
-                        <div className="mt-1 text-xs text-zinc-500">Counts usage based on quota rule (per-day or hours)</div>
-                      ) : (
-                        <div className="mt-1 text-xs text-zinc-500">No quota items set for this client</div>
-                      )}
-                    </td>
-
-                    <td className="border-b border-zinc-100 px-3 py-2">
                       <input
                         type="number"
                         min={0}
                         step={0.25}
                         inputMode="decimal"
                         value={t.hoursText}
-                        onChange={(e) => setTasks((prev) => prev.map((x) => (x.id === t.id ? { ...x, hoursText: e.target.value } : x)))}
-                        className={"h-10 w-32 rounded-md border bg-white px-3 " + (hoursInvalid ? "border-red-300" : "border-zinc-300")}
+                        onChange={(e) =>
+                          setTasks((prev) => prev.map((x) => (x.id === t.id ? { ...x, hoursText: e.target.value } : x)))
+                        }
+                        className={
+                          "h-10 w-32 rounded-md border bg-white px-3 " + (hoursInvalid ? "border-red-300" : "border-zinc-300")
+                        }
                       />
                       <div className="mt-1 text-xs text-zinc-500">0.25 increments (0.25–20, or 0)</div>
                     </td>
@@ -593,6 +647,19 @@ export function WorklogForm({
         </div>
       </div>
 
+      {/* Sticky hour counter under Tasks (big + obvious) */}
+      <div className="sticky top-2 z-10 rounded-lg border border-zinc-200 bg-white/95 p-4 backdrop-blur">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="text-sm font-semibold text-zinc-900">Allocated hours</div>
+          <div className={"text-2xl font-bold " + hoursCounterClass}>
+            {allocatedHours.toFixed(2)} <span className="text-zinc-400">/</span> {(Number.isFinite(targetHours) ? targetHours : 0).toFixed(2)}
+          </div>
+        </div>
+        <div className="mt-2 text-xs text-zinc-600">
+          Tip: totals must match exactly before submit unlocks.
+        </div>
+      </div>
+
       {mileageRequired ? (
         <div className="rounded-lg border border-zinc-200 p-4">
           <div className="mb-3 flex items-center justify-between">
@@ -600,17 +667,23 @@ export function WorklogForm({
             <button
               type="button"
               className="h-9 rounded-md border border-zinc-300 bg-white px-3 text-sm hover:bg-zinc-50"
-              onClick={() => setMileage((prev) => [...prev, { id: uid(), clientId: null, clientName: "", kilometersText: "0" }])}
+              onClick={() =>
+                setMileage((prev) => [
+                  ...prev,
+                  { id: uid(), clientId: null, clientName: "", engagementType: "RETAINER", projectId: null, kilometersText: "" },
+                ])
+              }
             >
               + Add allocation
             </button>
           </div>
 
-          <div className="overflow-auto">
+          <div className="overflow-x-auto overflow-y-visible">
             <table className="w-full min-w-[700px] border-separate border-spacing-0">
               <thead>
                 <tr className="text-left text-xs text-zinc-600">
                   <th className="border-b border-zinc-200 px-3 py-2">Client</th>
+                  <th className="border-b border-zinc-200 px-3 py-2">Engagement</th>
                   <th className="border-b border-zinc-200 px-3 py-2">Kilometers</th>
                   <th className="border-b border-zinc-200 px-3 py-2"></th>
                 </tr>
@@ -623,19 +696,77 @@ export function WorklogForm({
                         clients={clients}
                         valueName={m.clientName}
                         placeholder="Search client…"
-                        onSelect={(c) => setMileage((prev) => prev.map((x) => (x.id === m.id ? { ...x, clientId: c.id, clientName: c.name } : x)))}
+                        onSelect={(c) =>
+                          setMileage((prev) =>
+                            prev.map((x) =>
+                              x.id === m.id
+                                ? {
+                                    ...x,
+                                    clientId: c.id,
+                                    clientName: c.name,
+                                    // If changing client, clear project selection
+                                    projectId: x.clientId !== c.id ? null : x.projectId,
+                                  }
+                                : x,
+                            ),
+                          )
+                        }
                       />
                     </td>
+
+                    <td className="border-b border-zinc-100 px-3 py-2">
+                      <select
+                        value={m.engagementType === "RETAINER" ? "RETAINER" : m.projectId ? `PROJECT:${m.projectId}` : ""}
+                        onChange={(e) => {
+                          const v = e.target.value;
+                          if (v === "RETAINER") {
+                            setMileage((prev) =>
+                              prev.map((x) => (x.id === m.id ? { ...x, engagementType: "RETAINER", projectId: null } : x)),
+                            );
+                            return;
+                          }
+
+                          if (v.startsWith("PROJECT:")) {
+                            const pid = v.slice("PROJECT:".length) || null;
+                            setMileage((prev) =>
+                              prev.map((x) =>
+                                x.id === m.id ? { ...x, engagementType: "MISC_PROJECT", projectId: pid } : x,
+                              ),
+                            );
+                          }
+                        }}
+                        disabled={!m.clientId}
+                        className="h-10 w-72 rounded-md border border-zinc-300 bg-white px-3 disabled:bg-zinc-50"
+                      >
+                        <option value="RETAINER">Retainer</option>
+                        <option value="" disabled>
+                          Project…
+                        </option>
+                        {(m.clientId ? projectsByClient.get(m.clientId) ?? [] : []).map((p) => (
+                          <option key={p.id} value={`PROJECT:${p.id}`}>
+                            {p.code}
+                          </option>
+                        ))}
+                      </select>
+                      <div className="mt-1 text-xs text-zinc-500">Choose retainer or a specific project number.</div>
+                    </td>
+
                     <td className="border-b border-zinc-100 px-3 py-2">
                       <input
-                        type="number"
-                        min={0}
-                        step={0.1}
+                        type="text"
+                        inputMode="decimal"
+                        placeholder="0"
                         value={m.kilometersText}
-                        onChange={(e) => setMileage((prev) => prev.map((x) => (x.id === m.id ? { ...x, kilometersText: e.target.value } : x)))}
+                        onWheel={(e) => {
+                          (e.currentTarget as HTMLInputElement).blur();
+                        }}
+                        onChange={(e) =>
+                          setMileage((prev) => prev.map((x) => (x.id === m.id ? { ...x, kilometersText: e.target.value } : x)))
+                        }
                         className="h-10 w-40 rounded-md border border-zinc-300 bg-white px-3"
                       />
                     </td>
+
                     <td className="border-b border-zinc-100 px-3 py-2">
                       <button
                         type="button"
@@ -658,6 +789,201 @@ export function WorklogForm({
           ) : null}
         </div>
       ) : null}
+
+      <div className="rounded-lg border border-zinc-200 p-4">
+        <div className="mb-3 flex items-center justify-between">
+          <div>
+            <h2 className="text-sm font-semibold">Expenses (optional)</h2>
+            <div className="mt-0.5 text-xs text-zinc-600">Add expenses related to this work day. Amounts are CAD. A receipt upload is required for any amount &gt; 0.</div>
+          </div>
+          <button
+            type="button"
+            className="h-9 rounded-md border border-zinc-300 bg-white px-3 text-sm hover:bg-zinc-50"
+            onClick={() =>
+              setExpenses((prev) => [
+                ...prev,
+                {
+                  id: uid(),
+                  clientId: null,
+                  clientName: "",
+                  engagementType: "RETAINER",
+                  projectId: null,
+                  category: "OTHER",
+                  description: "",
+                  amountText: "",
+                  receiptUrl: "",
+                },
+              ])
+            }
+          >
+            + Add expense
+          </button>
+        </div>
+
+        {expenses.length === 0 ? (
+          <div className="text-sm text-zinc-600">No expenses.</div>
+        ) : (
+          <div className="overflow-x-auto overflow-y-visible">
+            <table className="w-full min-w-[980px] border-separate border-spacing-0">
+              <thead>
+                <tr className="text-left text-xs text-zinc-600">
+                  <th className="border-b border-zinc-200 px-3 py-2">Client</th>
+                  <th className="border-b border-zinc-200 px-3 py-2">Engagement</th>
+                  <th className="border-b border-zinc-200 px-3 py-2">Category</th>
+                  <th className="border-b border-zinc-200 px-3 py-2">Description</th>
+                  <th className="border-b border-zinc-200 px-3 py-2">Amount (CAD)</th>
+                  <th className="border-b border-zinc-200 px-3 py-2">Receipt</th>
+                  <th className="border-b border-zinc-200 px-3 py-2"></th>
+                </tr>
+              </thead>
+              <tbody>
+                {expenses.map((ex) => {
+                  const amt = parseNumberText(ex.amountText);
+                  const amountInvalid = ex.amountText.trim() !== "" && (!Number.isFinite(amt) || amt < 0);
+                  const needsReceipt = Number.isFinite(amt) && amt > 0;
+                  const receiptMissing = needsReceipt && ex.receiptUrl.trim().length === 0;
+
+                  return (
+                    <tr key={ex.id} className="align-top">
+                      <td className="border-b border-zinc-100 px-3 py-2">
+                        <ClientTypeahead
+                          clients={clients}
+                          valueName={ex.clientName}
+                          placeholder="Search client…"
+                          onSelect={(c) =>
+                            setExpenses((prev) =>
+                              prev.map((x) =>
+                                x.id === ex.id
+                                  ? {
+                                      ...x,
+                                      clientId: c.id,
+                                      clientName: c.name,
+                                      // If changing client, clear project selection
+                                      projectId: x.clientId !== c.id ? null : x.projectId,
+                                    }
+                                  : x,
+                              ),
+                            )
+                          }
+                        />
+                        {showValidation && needsReceipt && !ex.clientId ? (
+                          <div className="mt-1 text-xs text-red-700">Client required.</div>
+                        ) : null}
+                      </td>
+
+                      <td className="border-b border-zinc-100 px-3 py-2">
+                        <select
+                          value={ex.engagementType === "RETAINER" ? "RETAINER" : ex.projectId ? `PROJECT:${ex.projectId}` : ""}
+                          onChange={(e) => {
+                            const v = e.target.value;
+                            if (v === "RETAINER") {
+                              setExpenses((prev) =>
+                                prev.map((x) => (x.id === ex.id ? { ...x, engagementType: "RETAINER", projectId: null } : x)),
+                              );
+                              return;
+                            }
+
+                            if (v.startsWith("PROJECT:")) {
+                              const pid = v.slice("PROJECT:".length) || null;
+                              setExpenses((prev) =>
+                                prev.map((x) =>
+                                  x.id === ex.id ? { ...x, engagementType: "MISC_PROJECT", projectId: pid } : x,
+                                ),
+                              );
+                            }
+                          }}
+                          disabled={!ex.clientId}
+                          className="h-10 w-72 rounded-md border border-zinc-300 bg-white px-3 disabled:bg-zinc-50"
+                        >
+                          <option value="RETAINER">Retainer</option>
+                          <option value="" disabled>
+                            Project…
+                          </option>
+                          {(ex.clientId ? projectsByClient.get(ex.clientId) ?? [] : []).map((p) => (
+                            <option key={p.id} value={`PROJECT:${p.id}`}>
+                              {p.code}
+                            </option>
+                          ))}
+                        </select>
+                        {showValidation && needsReceipt && ex.engagementType === "MISC_PROJECT" && !ex.projectId ? (
+                          <div className="mt-1 text-xs text-red-700">Project is required when logging to a project engagement.</div>
+                        ) : null}
+                      </td>
+
+                      <td className="border-b border-zinc-100 px-3 py-2">
+                        <select
+                          value={ex.category}
+                          onChange={(e) =>
+                            setExpenses((prev) => prev.map((x) => (x.id === ex.id ? { ...x, category: e.target.value as any } : x)))
+                          }
+                          className="h-10 w-56 rounded-md border border-zinc-300 bg-white px-3"
+                        >
+                          <option value="MILEAGE">Mileage</option>
+                          <option value="HOTEL_ACCOMMODATION">Hotel/Accommodation</option>
+                          <option value="MEAL">Meal</option>
+                          <option value="PROP">Prop</option>
+                          <option value="CAMERA_GEAR_EQUIPMENT">Camera Gear/Equipment</option>
+                          <option value="OTHER">Other</option>
+                        </select>
+                      </td>
+
+                      <td className="border-b border-zinc-100 px-3 py-2">
+                        <input
+                          value={ex.description}
+                          onChange={(e) =>
+                            setExpenses((prev) => prev.map((x) => (x.id === ex.id ? { ...x, description: e.target.value } : x)))
+                          }
+                          className={
+                            "h-10 w-72 rounded-md border bg-white px-3 " +
+                            (showValidation && needsReceipt && ex.description.trim().length === 0 ? "border-red-300" : "border-zinc-300")
+                          }
+                          placeholder="What was this for?"
+                        />
+                      </td>
+
+                      <td className="border-b border-zinc-100 px-3 py-2">
+                        <input
+                          inputMode="decimal"
+                          value={ex.amountText}
+                          onChange={(e) => setExpenses((prev) => prev.map((x) => (x.id === ex.id ? { ...x, amountText: e.target.value } : x)))}
+                          className={
+                            "h-10 w-36 rounded-md border bg-white px-3 " + (amountInvalid ? "border-red-300" : "border-zinc-300")
+                          }
+                          placeholder="0.00"
+                        />
+                      </td>
+
+                      <td className="border-b border-zinc-100 px-3 py-2">
+                        <div className={showValidation && receiptMissing ? "rounded-md border border-red-300" : ""}>
+                          <ReceiptUploader
+                            clientId={ex.clientId ?? undefined}
+                            expenseEntryId={ex.id}
+                            initialUrl={ex.receiptUrl || null}
+                            capture
+                            onUploaded={(url) =>
+                              setExpenses((prev) => prev.map((x) => (x.id === ex.id ? { ...x, receiptUrl: url } : x)))
+                            }
+                          />
+                        </div>
+                        {showValidation && receiptMissing ? <div className="mt-1 text-xs text-red-700">Receipt upload required.</div> : null}
+                      </td>
+                      <td className="border-b border-zinc-100 px-3 py-2">
+                        <button
+                          type="button"
+                          className="h-10 rounded-md px-3 text-sm text-zinc-700 hover:bg-zinc-50"
+                          onClick={() => setExpenses((prev) => prev.filter((x) => x.id !== ex.id))}
+                        >
+                          Remove
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
 
       {isResubmission ? (
         <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950">
@@ -691,7 +1017,9 @@ export function WorklogForm({
           <div
             className={
               "rounded-md px-3 py-2 text-sm " +
-              (submitState.ok ? "border border-emerald-200 bg-emerald-50 text-emerald-900" : "border border-red-200 bg-red-50 text-red-900")
+              (submitState.ok
+                ? "border border-emerald-200 bg-emerald-50 text-emerald-900"
+                : "border border-red-200 bg-red-50 text-red-900")
             }
           >
             {submitState.message}
@@ -700,47 +1028,89 @@ export function WorklogForm({
 
         <button
           type="button"
-          disabled={!canSubmitWithResubmitRules || submitting || email.trim().length === 0}
+          disabled={submitting}
           className={
             "h-10 rounded-md px-4 text-sm font-semibold text-white " +
-            (!canSubmitWithResubmitRules || submitting || email.trim().length === 0 ? "bg-zinc-300" : "bg-[#2EA3F2] hover:opacity-90")
+            (submitting ? "bg-zinc-300" : "bg-[#2EA3F2] hover:opacity-90")
           }
           title={
-            email.trim().length === 0
-              ? "Email is required"
-              : !resubmitReasonOk
-                ? "Resubmission reason is required"
-                : canSubmit
-                  ? isResubmission
-                    ? "Ready to resubmit (admin approval required)"
-                    : "Ready to submit"
-                  : "Hours must match target exactly; task hour values must be valid; client + notes required for non-zero hours; and mileage must be allocated if entered"
+            canSubmitWithResubmitRules
+              ? isResubmission
+                ? "Ready to resubmit (admin approval required)"
+                : "Ready to submit"
+              : "Click to see what needs fixing"
           }
           onClick={async () => {
-            setSubmitting(true);
+            setShowValidation(true);
             setSubmitState(null);
 
-            const trimmedEmail = email.trim().toLowerCase();
+            if (!canSubmitWithResubmitRules) {
+              // Keep button clickable; block submit and show validation + a single summary message.
+              const msg =
+                !emailOk
+                  ? "Missing email (must be provided by portal/session)."
+                  : isFutureDate
+                    ? "Future dates aren’t allowed."
+                    : !targetHoursValid
+                      ? "Total hours must be greater than 0."
+                      : !hoursMatch
+                        ? "Allocated task hours must add up to Total hours."
+                        : mileageRequired && !mileageComplete
+                          ? "Mileage must be allocated to match Total km."
+                          : !resubmitReasonOk
+                            ? "Resubmission requires a reason."
+                            : "Please fix the highlighted items before submitting.";
+              setSubmitState({ ok: false, message: msg });
+              return;
+            }
+
+            setSubmitting(true);
+
+            if (!emailOk) {
+              setSubmitState({ ok: false, message: "Missing email (must be provided by portal/session)." });
+              setSubmitting(false);
+              return;
+            }
+
+            if (isFutureDate) {
+              setSubmitState({ ok: false, message: "Future dates aren’t allowed." });
+              setSubmitting(false);
+              return;
+            }
+
+            const safeTargetHours = Number.isFinite(targetHours) ? targetHours : 0;
+            const safeTotalKm = Number.isFinite(totalKm) ? totalKm : 0;
 
             const basePayload = {
-              email: trimmedEmail,
+              email,
               workDate,
-              targetHours,
-              totalKm,
+              targetHours: safeTargetHours,
+              totalKm: safeTotalKm,
               tasks: tasks.map((t) => {
                 const bucket = BUCKETS.find((b) => b.key === t.bucketKey);
                 return {
                   clientId: t.clientId,
+                  engagementType: t.engagementType,
                   bucketKey: t.bucketKey,
                   bucketName: bucket?.name ?? t.bucketKey,
-                  quotaItemId: t.quotaItemId,
                   hours: parseNumberText(t.hoursText),
                   notes: t.notes,
                 };
               }),
               mileage: mileage.map((m) => ({
                 clientId: m.clientId,
+                engagementType: m.engagementType,
+                projectId: m.projectId,
                 kilometers: parseNumberText(m.kilometersText),
+              })),
+              expenses: expenses.map((ex) => ({
+                clientId: ex.clientId,
+                engagementType: ex.engagementType,
+                projectId: ex.projectId,
+                category: ex.category,
+                description: ex.description,
+                amount: ex.amountText,
+                receiptUrl: ex.receiptUrl,
               })),
             };
 
@@ -754,7 +1124,7 @@ export function WorklogForm({
                 const res = await fetch("/api/worklog/status", {
                   method: "POST",
                   headers: { "content-type": "application/json" },
-                  body: JSON.stringify({ email: trimmedEmail, workDate }),
+                  body: JSON.stringify({ email, workDate }),
                 });
                 const data = (await res.json()) as { ok?: boolean; exists?: boolean };
                 if (res.ok && data?.ok === true && data.exists === true) shouldResubmit = true;
@@ -783,9 +1153,22 @@ export function WorklogForm({
                 headers: { "content-type": "application/json" },
                 body: JSON.stringify(payload),
               });
-              const data = (await res.json()) as { ok: boolean; message?: string };
-              if (!res.ok || !data.ok) {
-                setSubmitState({ ok: false, message: data.message ?? "Submit failed." });
+              const data = (await res.json()) as { ok?: boolean; message?: string; details?: unknown };
+
+              if (!res.ok || data.ok !== true) {
+                const detailsError =
+                  data.details && typeof data.details === "object" && data.details !== null && "error" in data.details
+                    ? String((data.details as any).error)
+                    : null;
+
+                const msg =
+                  data.message && typeof data.message === "string"
+                    ? data.message
+                    : detailsError
+                      ? detailsError
+                      : "Submit failed.";
+
+                setSubmitState({ ok: false, message: msg });
               } else {
                 setSubmitState({ ok: true, message: data.message ?? "Submitted." });
               }

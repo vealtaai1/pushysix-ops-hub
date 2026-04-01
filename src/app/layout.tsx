@@ -1,7 +1,11 @@
 import type { Metadata } from "next";
+import Link from "next/link";
+import Image from "next/image";
 import { Open_Sans } from "next/font/google";
 import "./globals.css";
 import { AuthButtons } from "@/app/_components/AuthButtons";
+import { ModeSwitcherServer } from "@/app/_components/ModeSwitcherServer";
+import { auth } from "@/auth";
 
 const openSans = Open_Sans({
   subsets: ["latin"],
@@ -9,49 +13,43 @@ const openSans = Open_Sans({
 });
 
 export const metadata: Metadata = {
-  title: "PushySix Operations Hub",
+  title: "Pushysix Operations Hub",
   description: "Daily worklogs, retainers, and billing enforcement.",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const session = await auth();
+  const homeHref = session?.user ? "/dashboard" : "/login";
+
   return (
     <html lang="en">
       <body className={`${openSans.variable} font-sans antialiased`}>
-        {/* Default: employee-facing dark theme */}
-        <div className="theme-dark min-h-dvh" style={{ background: "var(--background)", color: "var(--foreground)" }}>
-          <header className="border-b" style={{ borderColor: "var(--border)" }}>
+        {/* Default: light theme */}
+        <div className="min-h-dvh bg-zinc-50 text-zinc-950">
+          <header className="border-b border-zinc-200 bg-white">
             <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3">
-              <div className="flex items-center gap-3">
-                {/* Placeholder emblem */}
-                <div
-                  className="h-9 w-9 rounded-md"
-                  style={{
-                    background: "radial-gradient(60% 60% at 50% 40%, var(--brand-gold-2), var(--brand-gold))",
-                    boxShadow: "0 0 0 1px rgba(244,179,26,0.25), 0 10px 30px rgba(0,0,0,0.35)",
-                  }}
-                  title="PushySix"
+              <Link href={homeHref} className="flex items-center gap-3" aria-label="Pushysix Ops Hub">
+                <Image
+                  src="/brand/pushysix-hex.png"
+                  alt="Pushysix"
+                  width={36}
+                  height={36}
+                  priority
+                  className="h-9 w-9"
                 />
 
                 <div className="leading-tight">
                   <div className="text-sm font-semibold tracking-wide">PUSHYSIX</div>
                   <div className="text-xs ui-muted">Operations Hub</div>
                 </div>
-              </div>
+              </Link>
 
-              <nav className="flex items-center gap-4 text-sm">
-                <a className="hover:opacity-90" style={{ color: "var(--muted)" }} href="/portal">
-                  Shift Log
-                </a>
-                <a className="hover:opacity-90" style={{ color: "var(--muted)" }} href="/equipment">
-                  Equipment
-                </a>
-                <a className="hover:opacity-90" style={{ color: "var(--muted)" }} href="/admin/clients">
-                  Admin
-                </a>
+              <nav className="flex items-center gap-3 text-sm">
+                <ModeSwitcherServer />
                 <AuthButtons />
               </nav>
             </div>

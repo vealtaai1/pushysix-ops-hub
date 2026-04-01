@@ -4,15 +4,9 @@ This file tracks spawned worker agents, what they’re doing, and their current 
 
 ## Active
 
-- **worklog-data** (agent: `worker-data`)
-  - Task: Update Prisma schema for worklog totals + mileage allocations + migrations (SQLite)
-  - Status: running
-  - Last update: 2026-02-04 17:02
+- (none)
 
-- **postmark-email** (agent: `worker-email`)
-  - Task: Add Postmark module scaffolding + test-send route (no secrets)
-  - Status: running
-  - Last update: 2026-02-04 17:02
+_Last audited by main: 2026-04-01 04:23 MDT — no OpenClaw subagents currently running for this project._
 
 ## Completed
 

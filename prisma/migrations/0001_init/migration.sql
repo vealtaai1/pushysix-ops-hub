@@ -1,3 +1,5 @@
+-- prisma:transaction false
+
 -- CreateSchema
 CREATE SCHEMA IF NOT EXISTS "public";
 

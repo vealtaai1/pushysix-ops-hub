@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db";
 import { isoDay, parseISODateOnlyToUTCNoon, type PayrollConfig } from "@/lib/payroll";
 import { computePayrollForRange } from "@/lib/payrollServer";
 import { checkNoPendingApprovalsInRange } from "@/lib/payrollGuards";
+import { requireAdminOrThrow } from "@/lib/adminAuth";
 
 export const dynamic = "force-dynamic";
 
@@ -20,6 +21,8 @@ function csvCell(v: string | number | null | undefined): string {
 }
 
 export async function GET(req: NextRequest) {
+  await requireAdminOrThrow({ message: "Forbidden: admin access required." });
+
   const url = new URL(req.url);
   const startISO = url.searchParams.get("start") ?? "";
   const endISO = url.searchParams.get("end") ?? "";

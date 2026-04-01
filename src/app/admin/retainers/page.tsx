@@ -27,6 +27,7 @@ export default async function AdminRetainersPage() {
       monthlyRetainerHours: true,
       maxShootsPerCycle: true,
       maxCaptureHoursPerCycle: true,
+      clientBillingEmail: true,
     },
   });
 
@@ -69,53 +70,11 @@ export default async function AdminRetainersPage() {
         timeZone: CALGARY_TZ,
       });
 
-      // Category (bucketKey) restrictions are defined by BucketLimit rows on the cycle.
-      const cycle = await prisma.retainerCycle.findFirst({
-        where: {
-          clientId: c.id,
-          startDate: startUTC,
-          endDate: endUTC,
-        },
-        select: {
-          id: true,
-          bucketLimits: { select: { id: true, bucketKey: true, bucketName: true, minutesLimit: true } },
-        },
-      });
-
-      const usedMinutesByBucketKey: Record<string, number> = {};
-      for (const e of entries) {
-        const key = e.bucketKey;
-        usedMinutesByBucketKey[key] = (usedMinutesByBucketKey[key] ?? 0) + (e.minutes ?? 0);
-      }
-
-      let categoryOverAny = false;
-      let categoryOverCount = 0;
-      let categoryWorstPercentUsed: number | null = null;
-      let categoryOverScore = 0;
-
-      const bucketLimits = cycle?.bucketLimits ?? [];
-      for (const bl of bucketLimits) {
-        const used = usedMinutesByBucketKey[bl.bucketKey] ?? 0;
-        const limit = bl.minutesLimit ?? 0;
-
-        const isOver = used > limit;
-        if (isOver) {
-          categoryOverAny = true;
-          categoryOverCount += 1;
-        }
-
-        const pct = limit === 0 ? (used === 0 ? 0 : 100) : (used / limit) * 100;
-        categoryWorstPercentUsed = categoryWorstPercentUsed == null ? pct : Math.max(categoryWorstPercentUsed, pct);
-
-        // Sum normalized overage ratios (only when limit is > 0)
-        if (limit > 0 && used > limit) categoryOverScore += (used - limit) / limit;
-      }
 
       const totalLimitHours = minutesToHours(computeCycleRetainerMinutesLimit(c.monthlyRetainerHours));
       const totalPercentUsed = usage.caps.totalMinutes.percentUsed;
 
-      const overAny =
-        usage.caps.totalMinutes.isOver || usage.caps.captureMinutes.isOver || usage.caps.shoots.isOver || categoryOverAny;
+      const overAny = usage.caps.totalMinutes.isOver || usage.caps.captureMinutes.isOver || usage.caps.shoots.isOver;
 
       return {
         client: c,
@@ -126,11 +85,6 @@ export default async function AdminRetainersPage() {
         overAny,
         shoots: usage.shoots,
         shootsLimit: usage.caps.shoots.limit,
-
-        categoryOverAny,
-        categoryOverCount,
-        categoryWorstPercentUsed,
-        categoryOverScore,
       };
     })
   );

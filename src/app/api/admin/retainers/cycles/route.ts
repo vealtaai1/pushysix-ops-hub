@@ -89,13 +89,13 @@ export async function GET(req: Request) {
 }
 
 export async function PATCH(req: Request) {
+  // Policy: Account Managers may view retainers, but editing cycle date ranges is Admin-only.
   try {
     await requireAdminOrThrow({ message: "Unauthorized" });
   } catch (e) {
-    return NextResponse.json(
-      { ok: false, message: e instanceof Error ? e.message : "Unauthorized" },
-      { status: 401 }
-    );
+    const message = e instanceof Error ? e.message : "Unauthorized";
+    const status = message.startsWith("Forbidden") ? 403 : 401;
+    return NextResponse.json({ ok: false, message }, { status });
   }
 
   let body: { id?: string; startISO?: string; endISO?: string };

@@ -2,8 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db";
-import { requireAdminOrThrow } from "@/lib/adminAuth";
-import { requireAdminReviewerUserId } from "@/lib/actor";
+import { requireAdminOrThrow, requireAdminUserIdOrThrow } from "@/lib/adminAuth";
 import { ApprovalStatus } from "@prisma/client";
 
 function asString(v: FormDataEntryValue | null) {
@@ -16,7 +15,7 @@ export async function approveRequest(formData: FormData) {
   const note = asString(formData.get("note")).trim();
   if (!id) return;
 
-  const reviewerId = await requireAdminReviewerUserId();
+  const reviewerId = await requireAdminUserIdOrThrow();
   const now = new Date();
 
   const req = await prisma.approvalRequest.update({
@@ -27,7 +26,7 @@ export async function approveRequest(formData: FormData) {
       reviewedByUserId: reviewerId,
       reviewNote: note || null,
     },
-    select: { worklogId: true, dayOffId: true },
+    select: { id: true, worklogId: true, dayOffId: true },
   });
 
   if (req.worklogId) {
@@ -50,6 +49,23 @@ export async function approveRequest(formData: FormData) {
         approvalReason: null,
         approvedAt: now,
         approvedByUserId: reviewerId,
+      },
+    });
+  }
+
+  if (req.worklogId || req.dayOffId) {
+    await prisma.approvalRequest.updateMany({
+      where: {
+        id: { not: req.id },
+        status: ApprovalStatus.PENDING,
+        ...(req.worklogId ? { worklogId: req.worklogId } : {}),
+        ...(req.dayOffId ? { dayOffId: req.dayOffId } : {}),
+      },
+      data: {
+        status: ApprovalStatus.SUPERSEDED,
+        reviewedAt: now,
+        reviewedByUserId: reviewerId,
+        reviewNote: `Superseded by approval of request ${req.id}.`,
       },
     });
   }
@@ -63,7 +79,7 @@ export async function rejectRequest(formData: FormData) {
   const note = asString(formData.get("note")).trim();
   if (!id) return;
 
-  const reviewerId = await requireAdminReviewerUserId();
+  const reviewerId = await requireAdminUserIdOrThrow();
   const now = new Date();
 
   const req = await prisma.approvalRequest.update({
@@ -74,7 +90,7 @@ export async function rejectRequest(formData: FormData) {
       reviewedByUserId: reviewerId,
       reviewNote: note || "Rejected",
     },
-    select: { worklogId: true, dayOffId: true },
+    select: { id: true, worklogId: true, dayOffId: true },
   });
 
   if (req.worklogId) {
@@ -97,6 +113,23 @@ export async function rejectRequest(formData: FormData) {
         approvalReason: note || "Rejected",
         approvedAt: now,
         approvedByUserId: reviewerId,
+      },
+    });
+  }
+
+  if (req.worklogId || req.dayOffId) {
+    await prisma.approvalRequest.updateMany({
+      where: {
+        id: { not: req.id },
+        status: ApprovalStatus.PENDING,
+        ...(req.worklogId ? { worklogId: req.worklogId } : {}),
+        ...(req.dayOffId ? { dayOffId: req.dayOffId } : {}),
+      },
+      data: {
+        status: ApprovalStatus.SUPERSEDED,
+        reviewedAt: now,
+        reviewedByUserId: reviewerId,
+        reviewNote: `Superseded by rejection of request ${req.id}.`,
       },
     });
   }

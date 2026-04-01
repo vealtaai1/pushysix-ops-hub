@@ -69,6 +69,10 @@ export async function updateClientRetainerBasics(formData: FormData): Promise<vo
   const maxShootsPerCycleRaw = asString(formData.get("maxShootsPerCycle")).trim();
   const maxCaptureHoursPerCycleRaw = asString(formData.get("maxCaptureHoursPerCycle")).trim();
 
+  const billingCycleStartDayRaw = asString(formData.get("billingCycleStartDay")).trim();
+  const statusRaw = asString(formData.get("status")).trim();
+  const clientBillingEmailRaw = asString(formData.get("clientBillingEmail")).trim();
+
   const maxShootsPerCycle = maxShootsPerCycleRaw ? parseIntStrict(maxShootsPerCycleRaw) : null;
   const maxCaptureHoursPerCycle = maxCaptureHoursPerCycleRaw ? parseIntStrict(maxCaptureHoursPerCycleRaw) : null;
 
@@ -83,14 +87,36 @@ export async function updateClientRetainerBasics(formData: FormData): Promise<vo
     throw new Error("maxCaptureHoursPerCycle must be a whole number >= 0");
   }
 
+  const billingCycleStartDay =
+    billingCycleStartDayRaw === "FIFTEENTH" ? ("FIFTEENTH" as const) : billingCycleStartDayRaw === "FIRST" ? ("FIRST" as const) : null;
+  if (billingCycleStartDayRaw && !billingCycleStartDay) {
+    throw new Error("billingCycleStartDay must be FIRST or FIFTEENTH");
+  }
+
+  const status = statusRaw === "ON_HOLD" ? ("ON_HOLD" as const) : statusRaw === "ACTIVE" ? ("ACTIVE" as const) : null;
+  if (statusRaw && !status) {
+    throw new Error("status must be ACTIVE or ON_HOLD");
+  }
+
+  const clientBillingEmail = clientBillingEmailRaw ? clientBillingEmailRaw : null;
+  if (clientBillingEmail && !/^\S+@\S+\.\S+$/.test(clientBillingEmail)) {
+    throw new Error("clientBillingEmail must be a valid email");
+  }
+
   await prisma.client.update({
     where: { id: clientId },
     data: {
       monthlyRetainerHours,
       maxShootsPerCycle,
       maxCaptureHoursPerCycle,
+      ...(billingCycleStartDay ? { billingCycleStartDay } : {}),
+      ...(status ? { status } : {}),
+      clientBillingEmail,
     },
   });
 
   revalidatePath("/admin/retainers");
+  revalidatePath("/admin/clients");
+  revalidatePath("/management/retainers");
+  revalidatePath("/management/clients");
 }

@@ -66,7 +66,7 @@ export default async function AdminWorklogsPage({
           <button className="h-9 rounded-md border border-zinc-300 bg-white px-3 text-sm hover:bg-zinc-50">Filter</button>
         </form>
 
-        <form className="flex items-center gap-2" action="/portal">
+        <form className="flex items-center gap-2" action="/schedule">
           <label className="text-sm text-zinc-700">View as</label>
           <select name="email" defaultValue="" className="h-9 rounded-md border border-zinc-300 bg-white px-3 text-sm">
             <option value="">(pick employee)</option>
@@ -76,7 +76,7 @@ export default async function AdminWorklogsPage({
               </option>
             ))}
           </select>
-          <button className="h-9 rounded-md border border-zinc-300 bg-white px-3 text-sm hover:bg-zinc-50">Open portal</button>
+          <button className="h-9 rounded-md border border-zinc-300 bg-white px-3 text-sm hover:bg-zinc-50">Open schedule</button>
         </form>
 
         <form className="flex items-center gap-2" action="/worklog">

@@ -5,13 +5,16 @@ import Link from "next/link";
 import { auth } from "@/auth";
 
 const ADMIN_LINKS: Array<{ href: string; label: string }> = [
-  { href: "/admin/retainers", label: "Retainers" },
+  { href: "/admin/retainers", label: "Retainer Logs" },
   { href: "/admin/clients", label: "Clients" },
   { href: "/admin/worklogs", label: "Worklogs" },
   { href: "/admin/approvals", label: "Approvals" },
   { href: "/admin/equipment", label: "Equipment" },
   { href: "/admin/payroll", label: "Payroll" },
+  { href: "/admin/finance", label: "Finance" },
+  { href: "/admin/users", label: "Users" },
 ];
+
 
 export default async function AdminLayout({ children }: { children: ReactNode }) {
   const session = await auth();
@@ -26,7 +29,10 @@ export default async function AdminLayout({ children }: { children: ReactNode })
     );
   }
 
-  if (session.user.role !== "ADMIN") {
+  const role = session.user.role;
+  const isAdmin = role === "ADMIN";
+
+  if (!isAdmin) {
     return (
       <main style={{ maxWidth: 720, margin: "40px auto", padding: 16 }}>
         <h1 style={{ fontSize: 22, fontWeight: 700 }}>Forbidden</h1>
@@ -36,32 +42,41 @@ export default async function AdminLayout({ children }: { children: ReactNode })
   }
 
   // Admin stays light theme regardless of global employee theme.
+  // NOTE: RootLayout already renders the global app header. To avoid a duplicated header
+  // on /admin routes, keep admin navigation in-page (not in a second <header>).
+  const links = ADMIN_LINKS;
+
   return (
-    <div className="theme-light min-h-screen bg-zinc-50">
-      <header className="border-b border-zinc-200 bg-white">
-        <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-3">
-          <div className="flex items-center gap-3">
-            <Link href="/admin/retainers" className="text-sm font-semibold text-zinc-900">
-              Ops Hub — Admin
-            </Link>
-            <span className="hidden text-xs text-zinc-400 sm:inline">{session.user.email}</span>
-          </div>
-
-          <nav className="flex flex-wrap items-center gap-2">
-            {ADMIN_LINKS.map((l) => (
-              <Link
-                key={l.href}
-                href={l.href}
-                className="rounded-md border border-zinc-200 bg-white px-3 py-1.5 text-sm text-zinc-700 hover:bg-zinc-50"
-              >
-                {l.label}
-              </Link>
-            ))}
-          </nav>
+    <div className="theme-light space-y-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <span
+            className={
+              "rounded-md bg-zinc-900 px-2 py-1 text-xs font-semibold tracking-wide text-white "
+            }
+          >
+            ADMIN MODE
+          </span>
+          <Link href="/admin" className="text-sm font-semibold text-zinc-900">
+            Admin
+          </Link>
+          <span className="hidden text-xs text-zinc-500 sm:inline">Signed in as {session.user.email}</span>
         </div>
-      </header>
 
-      <main className="mx-auto max-w-6xl px-4 py-6">{children}</main>
+        <nav className="flex flex-wrap items-center gap-2">
+          {links.map((l) => (
+            <Link
+              key={l.href}
+              href={l.href}
+              className="rounded-md border border-zinc-200 bg-white px-3 py-1.5 text-sm text-zinc-700 hover:bg-zinc-50"
+            >
+              {l.label}
+            </Link>
+          ))}
+        </nav>
+      </div>
+
+      {children}
     </div>
   );
 }
