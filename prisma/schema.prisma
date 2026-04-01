@@ -147,6 +147,13 @@ model Client {
   status               ClientStatus         @default(ACTIVE)
   billingCycleStartDay BillingCycleStartDay @default(FIRST)
 
+  // Contacts
+  mainContactName  String?
+  mainContactEmail String?
+
+  billingContactName  String?
+  billingContactEmail String?
+
   // Contract basics
   monthlyRetainerHours Int @default(0)
 
@@ -190,7 +197,9 @@ model Project {
   id       String @id @default(cuid())
   clientId String
 
-  name      String
+  name             String
+  shortDescription String?
+
   code      String
   shortCode String @unique
 

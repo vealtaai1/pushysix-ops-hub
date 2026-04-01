@@ -66,6 +66,8 @@ export async function createProject(prev: CreateProjectState, formData: FormData
   const clientId = String(formData.get("clientId") || "");
   const name = String(formData.get("name") || "").trim();
   const shortName = String(formData.get("shortCode") || "").trim();
+  const shortDescriptionRaw = String(formData.get("shortDescription") || "").trim();
+  const shortDescription = shortDescriptionRaw ? shortDescriptionRaw.slice(0, 500) : null;
 
   if (!clientId) return { ok: false, message: "Missing clientId." };
   if (!name) return { ok: false, message: "Project name is required." };
@@ -97,6 +99,7 @@ export async function createProject(prev: CreateProjectState, formData: FormData
       data: {
         clientId,
         name,
+        shortDescription,
         code,
         shortCode,
         status: "OPEN",
@@ -158,6 +161,7 @@ export async function closeProject(prev: CloseProjectState, formData: FormData):
         select: {
           id: true,
           name: true,
+          billingContactEmail: true,
           clientBillingEmail: true,
         },
       },
@@ -171,7 +175,7 @@ export async function closeProject(prev: CloseProjectState, formData: FormData):
     return { ok: true, message: "Project closed." };
   }
 
-  const toEmail = project.client.clientBillingEmail?.trim();
+  const toEmail = (project.client.billingContactEmail ?? project.client.clientBillingEmail)?.trim();
   if (!toEmail) {
     return { ok: true, message: "Project closed. (No client billing email on file — email not sent.)" };
   }

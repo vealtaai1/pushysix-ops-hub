@@ -10,6 +10,7 @@ export type AdminClientRow = {
   monthlyRetainerHours: number;
   maxShootsPerCycle: number | null;
   maxCaptureHoursPerCycle: number | null;
+  billingContactEmail: string | null;
   clientBillingEmail: string | null;
 };
 
@@ -22,7 +23,7 @@ export function AdminClientsClient({ initialClients }: { initialClients: AdminCl
         <div className="col-span-1">Cycle</div>
         <div className="col-span-2">Retainer (hrs)</div>
         <div className="col-span-2">Caps</div>
-        <div className="col-span-2">Billing email</div>
+        <div className="col-span-2">Billing contact email</div>
         <div className="col-span-1 text-right">Open</div>
       </div>
 
@@ -46,7 +47,7 @@ export function AdminClientsClient({ initialClients }: { initialClients: AdminCl
                 "—"
               )}
             </div>
-            <div className="col-span-2 truncate text-zinc-600">{c.clientBillingEmail ?? "—"}</div>
+            <div className="col-span-2 truncate text-zinc-600">{c.billingContactEmail ?? c.clientBillingEmail ?? "—"}</div>
             <div className="col-span-1 text-right">
               <Link
                 href={`/ops/clients/${c.id}`}
