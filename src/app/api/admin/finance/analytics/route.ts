@@ -169,20 +169,16 @@ export async function GET(req: Request) {
     },
   });
 
-  // NOTE: MileageEntry.engagementType is not guaranteed to exist in all deployed DBs.
-  // Infer engagement from projectId presence (same policy as expenses):
-  // - RETAINER: projectId == null
-  // - MISC_PROJECT: projectId != null
+  // NOTE: MileageEntry.engagementType and MileageEntry.projectId are not guaranteed to exist in all deployed DBs.
+  // To avoid breaking Admin Finance, we query without those columns.
   const mileageEntries = await prisma.mileageEntry.findMany({
     where: {
       clientId: { in: clients.map((c) => c.id) },
       worklog: { workDate: { gte: fromDate, lt: toDateExclusive } },
-      ...(projectId ? { projectId } : {}),
     },
     select: {
       clientId: true,
       kilometers: true,
-      projectId: true,
       worklog: { select: { workDate: true } },
     },
   });
@@ -308,20 +304,23 @@ export async function GET(req: Request) {
     expenseByCategoryCents.set(cat, (expenseByCategoryCents.get(cat) ?? 0) + ex.amountCents);
   }
 
-  for (const m of mileageEntries) {
-    // Infer engagement for mileage based on projectId presence.
-    if (engagementTypeParam) {
-      if (engagementTypeParam === "RETAINER" && m.projectId != null) continue;
-      if (engagementTypeParam === "MISC_PROJECT" && m.projectId == null) continue;
-    }
-    const cycle = cycleByClientId.get(m.clientId ?? "");
-    if (!cycle) continue;
-    const iso = m.worklog.workDate.toISOString().slice(0, 10);
-    if (iso < cycle.startISO || iso > cycle.endISO) continue;
+  // Mileage attribution note:
+  // If the user filters finance analytics to a specific project/misc engagement, we currently cannot
+  // attribute mileage to a specific project in DB (projectId/engagementType columns may be absent).
+  // In that case, we omit mileage from the filtered view to avoid misleading numbers.
+  const includeMileage = engagementTypeParam !== "MISC_PROJECT" && !projectId;
 
-    const agg = aggByClientId.get(m.clientId ?? "");
-    if (!agg) continue;
-    agg.mileageKm += m.kilometers;
+  if (includeMileage) {
+    for (const m of mileageEntries) {
+      const cycle = cycleByClientId.get(m.clientId ?? "");
+      if (!cycle) continue;
+      const iso = m.worklog.workDate.toISOString().slice(0, 10);
+      if (iso < cycle.startISO || iso > cycle.endISO) continue;
+
+      const agg = aggByClientId.get(m.clientId ?? "");
+      if (!agg) continue;
+      agg.mileageKm += m.kilometers;
+    }
   }
 
   // Convert km -> cents using configured reimbursement rate
@@ -375,6 +374,14 @@ export async function GET(req: Request) {
     });
   }
 
+  if (!includeMileage) {
+    warnings.push({
+      code: "MILEAGE_UNATTRIBUTED",
+      message: "Mileage cannot currently be attributed to a specific project/misc engagement; mileage is omitted from this filtered view.",
+      details: { engagementType: engagementTypeParam, projectId },
+    });
+  }
+
   // Build a daily time-series across the overall window (inclusive).
   // Note: Retainer revenue is a cycle-level figure; for graphing we show it as a constant reference line.
   const dailyPayrollByISO = new Map<string, number>();
@@ -413,19 +420,16 @@ export async function GET(req: Request) {
     dailyExpenseCentsByISO.set(iso, (dailyExpenseCentsByISO.get(iso) ?? 0) + ex.amountCents);
   }
 
-  for (const m of mileageEntries) {
-    // Infer engagement for mileage based on projectId presence.
-    if (engagementTypeParam) {
-      if (engagementTypeParam === "RETAINER" && m.projectId != null) continue;
-      if (engagementTypeParam === "MISC_PROJECT" && m.projectId == null) continue;
+  if (includeMileage) {
+    for (const m of mileageEntries) {
+      const cycle = cycleByClientId.get(m.clientId ?? "");
+      if (!cycle) continue;
+
+      const iso = m.worklog.workDate.toISOString().slice(0, 10);
+      if (iso < cycle.startISO || iso > cycle.endISO) continue;
+
+      dailyMileageKmByISO.set(iso, (dailyMileageKmByISO.get(iso) ?? 0) + m.kilometers);
     }
-    const cycle = cycleByClientId.get(m.clientId ?? "");
-    if (!cycle) continue;
-
-    const iso = m.worklog.workDate.toISOString().slice(0, 10);
-    if (iso < cycle.startISO || iso > cycle.endISO) continue;
-
-    dailyMileageKmByISO.set(iso, (dailyMileageKmByISO.get(iso) ?? 0) + m.kilometers);
   }
 
   const daily: Array<{
