@@ -196,6 +196,8 @@ export function WorklogForm({
 }) {
   const today = React.useMemo(() => todayISODate(), []);
 
+  const cad = React.useMemo(() => new Intl.NumberFormat("en-CA", { style: "currency", currency: "CAD" }), []);
+
   const projectsByClient = React.useMemo(() => {
     const map = new Map<string, Project[]>();
     for (const p of projects ?? []) {
@@ -327,6 +329,39 @@ export function WorklogForm({
 
   const [expenses, setExpenses] = React.useState<ExpenseLine[]>(() => []);
 
+  const expenseLineIsActive = React.useCallback((ex: ExpenseLine) => {
+    // Treat a line as “in use” if any meaningful field has been touched.
+    // This avoids blocking submit when the user clicked “Add expense” but left the row blank.
+    return (
+      (ex.amountText ?? "").trim() !== "" ||
+      (ex.description ?? "").trim() !== "" ||
+      (ex.receiptUrl ?? "").trim() !== "" ||
+      Boolean(ex.clientId)
+    );
+  }, []);
+
+  const expenseTotalCad = React.useMemo(() => {
+    return expenses.reduce((sum, ex) => {
+      const amt = parseNumberText(ex.amountText);
+      return sum + (Number.isFinite(amt) ? amt : 0);
+    }, 0);
+  }, [expenses]);
+
+  const expensesComplete = React.useMemo(() => {
+    return expenses.every((ex) => {
+      if (!expenseLineIsActive(ex)) return true;
+
+      const amt = parseNumberText(ex.amountText);
+      if (ex.amountText.trim() === "") return false;
+      if (!Number.isFinite(amt) || amt <= 0) return false;
+      if (!ex.clientId) return false;
+      if (ex.engagementType === "MISC_PROJECT" && !ex.projectId) return false;
+      if (ex.description.trim().length === 0) return false;
+      if (ex.receiptUrl.trim().length === 0) return false;
+      return true;
+    });
+  }, [expenses, expenseLineIsActive]);
+
   const taskHoursInvalid = React.useMemo(() => {
     return tasks.map((t) => {
       const n = parseNumberText(t.hoursText);
@@ -429,7 +464,8 @@ export function WorklogForm({
     !hasNotesViolations &&
     !hasClientViolations &&
     !hasBucketViolations &&
-    mileageComplete;
+    mileageComplete &&
+    expensesComplete;
 
   const isResubmission = existingWorklog?.exists === true;
   const resubmitReasonOk = !isResubmission || resubmitReason.trim().length > 0;
@@ -840,7 +876,10 @@ export function WorklogForm({
         <div className="mb-3 flex items-center justify-between">
           <div>
             <h2 className="text-sm font-semibold">Expenses (optional)</h2>
-            <div className="mt-0.5 text-xs text-zinc-600">Add expenses related to this work day. Amounts are CAD. A receipt upload is required for any amount &gt; 0.</div>
+            <div className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-zinc-600">
+              <span>Add expenses related to this work day. Each expense row requires: client/engagement, description, amount (CAD), and receipt.</span>
+              <span className="font-medium text-zinc-800">Total: {cad.format(expenseTotalCad)}</span>
+            </div>
           </div>
           <button
             type="button"
@@ -884,10 +923,11 @@ export function WorklogForm({
               </thead>
               <tbody>
                 {expenses.map((ex) => {
+                  const isActive = expenseLineIsActive(ex);
                   const amt = parseNumberText(ex.amountText);
-                  const amountInvalid = ex.amountText.trim() !== "" && (!Number.isFinite(amt) || amt < 0);
-                  const needsReceipt = Number.isFinite(amt) && amt > 0;
-                  const receiptMissing = needsReceipt && ex.receiptUrl.trim().length === 0;
+                  const amountMissing = isActive && ex.amountText.trim() === "";
+                  const amountInvalid = ex.amountText.trim() !== "" && (!Number.isFinite(amt) || amt <= 0);
+                  const receiptMissing = isActive && ex.receiptUrl.trim().length === 0;
 
                   return (
                     <tr key={ex.id} className="align-top">
@@ -913,8 +953,8 @@ export function WorklogForm({
                             );
                           }}
                         />
-                        {showValidation && needsReceipt && !ex.clientId ? (
-                          <div className="mt-1 text-xs text-red-700">Client required.</div>
+                        {showValidation && isActive && !ex.clientId ? (
+                          <div className="mt-1 text-xs text-red-700">Client is required for an expense line.</div>
                         ) : null}
                       </td>
 
@@ -971,7 +1011,7 @@ export function WorklogForm({
                             </option>
                           )}
                         </select>
-                        {showValidation && needsReceipt && ex.engagementType === "MISC_PROJECT" && !ex.projectId ? (
+                        {showValidation && isActive && ex.engagementType === "MISC_PROJECT" && !ex.projectId ? (
                           <div className="mt-1 text-xs text-red-700">Project is required when logging to a project engagement.</div>
                         ) : null}
                       </td>
@@ -984,7 +1024,9 @@ export function WorklogForm({
                           }
                           className="h-10 w-56 rounded-md border border-zinc-300 bg-white px-3"
                         >
-                          <option value="MILEAGE">Mileage</option>
+                          <option value="MILEAGE" disabled>
+                            Mileage (use the Mileage section above)
+                          </option>
                           <option value="HOTEL_ACCOMMODATION">Hotel/Accommodation</option>
                           <option value="MEAL">Meal</option>
                           <option value="PROP">Prop</option>
@@ -1001,7 +1043,7 @@ export function WorklogForm({
                           }
                           className={
                             "h-10 w-72 rounded-md border bg-white px-3 " +
-                            (showValidation && needsReceipt && ex.description.trim().length === 0 ? "border-red-300" : "border-zinc-300")
+                            (showValidation && isActive && ex.description.trim().length === 0 ? "border-red-300" : "border-zinc-300")
                           }
                           placeholder="What was this for?"
                         />
@@ -1011,27 +1053,39 @@ export function WorklogForm({
                         <input
                           inputMode="decimal"
                           value={ex.amountText}
-                          onChange={(e) => setExpenses((prev) => prev.map((x) => (x.id === ex.id ? { ...x, amountText: e.target.value } : x)))}
+                          onChange={(e) =>
+                            setExpenses((prev) => prev.map((x) => (x.id === ex.id ? { ...x, amountText: e.target.value } : x)))
+                          }
                           className={
-                            "h-10 w-36 rounded-md border bg-white px-3 " + (amountInvalid ? "border-red-300" : "border-zinc-300")
+                            "h-10 w-36 rounded-md border bg-white px-3 " +
+                            (amountInvalid || (showValidation && amountMissing) ? "border-red-300" : "border-zinc-300")
                           }
                           placeholder="0.00"
                         />
+                        {showValidation && amountMissing ? <div className="mt-1 text-xs text-red-700">Amount is required.</div> : null}
+                        {showValidation && !amountMissing && amountInvalid ? (
+                          <div className="mt-1 text-xs text-red-700">Amount must be a number greater than 0.</div>
+                        ) : null}
                       </td>
 
                       <td className="border-b border-zinc-100 px-3 py-2">
                         <div className={showValidation && receiptMissing ? "rounded-md border border-red-300" : ""}>
-                          <ReceiptUploader
-                            clientId={ex.clientId ?? undefined}
-                            expenseEntryId={ex.id}
-                            initialUrl={ex.receiptUrl || null}
-                            capture
-                            onUploaded={(url) =>
-                              setExpenses((prev) => prev.map((x) => (x.id === ex.id ? { ...x, receiptUrl: url } : x)))
-                            }
-                          />
+                          {!ex.clientId ? (
+                            <div className="mb-2 text-xs text-zinc-600">Select a client to upload a receipt.</div>
+                          ) : null}
+                          <div className={!ex.clientId ? "pointer-events-none opacity-50" : ""}>
+                            <ReceiptUploader
+                              clientId={ex.clientId ?? undefined}
+                              expenseEntryId={ex.id}
+                              initialUrl={ex.receiptUrl || null}
+                              capture
+                              onUploaded={(url) =>
+                                setExpenses((prev) => prev.map((x) => (x.id === ex.id ? { ...x, receiptUrl: url } : x)))
+                              }
+                            />
+                          </div>
                         </div>
-                        {showValidation && receiptMissing ? <div className="mt-1 text-xs text-red-700">Receipt upload required.</div> : null}
+                        {showValidation && receiptMissing ? <div className="mt-1 text-xs text-red-700">Receipt is required.</div> : null}
                       </td>
                       <td className="border-b border-zinc-100 px-3 py-2">
                         <button
@@ -1123,9 +1177,11 @@ export function WorklogForm({
                         ? "Allocated task hours must add up to Total hours."
                         : mileageRequired && !mileageComplete
                           ? "Mileage must be allocated to match Total km."
-                          : !resubmitReasonOk
-                            ? "Resubmission requires a reason."
-                            : "Please fix the highlighted items before submitting.";
+                          : !expensesComplete
+                            ? "Expenses have missing fields (amount, client/engagement, description, and receipt). Complete them or remove the row(s)."
+                            : !resubmitReasonOk
+                              ? "Resubmission requires a reason."
+                              : "Please fix the highlighted items before submitting.";
               setSubmitState({ ok: false, message: msg });
               return;
             }
