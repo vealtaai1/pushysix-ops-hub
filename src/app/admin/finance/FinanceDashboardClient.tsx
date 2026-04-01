@@ -162,6 +162,8 @@ export function FinanceDashboardClient({ clients }: { clients: ClientOption[] })
   const [clientId, setClientId] = useState<string>("");
   const [engagementKey, setEngagementKey] = useState<string>("RETAINER");
 
+  const isProjectOnlyView = Boolean(clientId) && engagementKey.startsWith("PROJECT:");
+
   const selectedClient = useMemo(() => (clientId ? clients.find((c) => c.id === clientId) ?? null : null), [clientId, clients]);
 
   const [loading, setLoading] = useState(false);
@@ -277,7 +279,7 @@ export function FinanceDashboardClient({ clients }: { clients: ClientOption[] })
             <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
             <Stat label="Clients" value={String(data.totals.clients)} />
             <Stat label="Logged" value={fmtHours(data.totals.loggedMinutes / 60)} />
-            <Stat label="Revenue (retainers)" value={fmtMoneyFromCents(data.totals.retainerRevenueCents, "CAD")} />
+            {isProjectOnlyView ? null : <Stat label="Revenue (retainers)" value={fmtMoneyFromCents(data.totals.retainerRevenueCents, "CAD")} />}
             <Stat label="Payroll" value={fmtMoneyFromCents(data.totals.payrollCostCents, "CAD")} />
             <Stat label="Mileage" value={fmtMoneyFromCents(data.totals.mileageCostCents, "CAD")} />
             <Stat label="Other expenses" value={fmtMoneyFromCents(data.totals.expenseCents, "CAD")} />
@@ -314,9 +316,9 @@ export function FinanceDashboardClient({ clients }: { clients: ClientOption[] })
         <section className="rounded-lg border border-zinc-200 bg-white p-4">
           <h2 className="text-sm font-semibold text-zinc-900">Charts</h2>
 
-          <div className="mt-3 grid gap-4 lg:grid-cols-4">
+          <div className="mt-3 grid gap-4 lg:grid-cols-2">
             <div className="rounded-md border border-zinc-200 p-3">
-              <div className="mb-2 text-xs font-medium text-zinc-700">By client — Revenue vs Total Expenses vs Margin (cycle)</div>
+              <div className="mb-2 text-xs font-medium text-zinc-700">{isProjectOnlyView ? "By client — Total Expenses (cycle)" : "By client — Revenue vs Total Expenses vs Margin (cycle)"}</div>
               <div className="h-[320px]">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart
@@ -340,14 +342,16 @@ export function FinanceDashboardClient({ clients }: { clients: ClientOption[] })
                         return [String(value), n];
                       }}
                     />
-                    <Legend
-                      formatter={(v) =>
-                        v === "revenueCents" ? "Revenue" : v === "totalExpenseCents" ? "Total expenses" : v === "marginCents" ? "Margin" : String(v)
-                      }
-                    />
-                    <Bar dataKey="revenueCents" fill="#0ea5e9" radius={[4, 4, 0, 0]} />
+                    {isProjectOnlyView ? null : (
+                      <Legend
+                        formatter={(v) =>
+                          v === "revenueCents" ? "Revenue" : v === "totalExpenseCents" ? "Total expenses" : v === "marginCents" ? "Margin" : String(v)
+                        }
+                      />
+                    )}
+                    {isProjectOnlyView ? null : <Bar dataKey="revenueCents" fill="#0ea5e9" radius={[4, 4, 0, 0]} />}
                     <Bar dataKey="totalExpenseCents" fill="#f97316" radius={[4, 4, 0, 0]} />
-                    <Bar dataKey="marginCents" fill="#22c55e" radius={[4, 4, 0, 0]} />
+                    {isProjectOnlyView ? null : <Bar dataKey="marginCents" fill="#22c55e" radius={[4, 4, 0, 0]} />}
                   </BarChart>
                 </ResponsiveContainer>
               </div>
@@ -355,7 +359,7 @@ export function FinanceDashboardClient({ clients }: { clients: ClientOption[] })
             </div>
 
             <div className="rounded-md border border-zinc-200 p-3">
-              <div className="mb-2 text-xs font-medium text-zinc-700">Over time — Cumulative Total Expenses vs Revenue (within cycle)</div>
+              <div className="mb-2 text-xs font-medium text-zinc-700">{isProjectOnlyView ? "Over time — Cumulative Total Expenses (within cycle)" : "Over time — Cumulative Total Expenses vs Revenue (within cycle)"}</div>
               <div className="h-[320px]">
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={data.daily} margin={{ top: 8, right: 12, left: 0, bottom: 8 }}>
@@ -372,20 +376,22 @@ export function FinanceDashboardClient({ clients }: { clients: ClientOption[] })
                         return [String(value), n];
                       }}
                     />
-                    <Legend
-                      formatter={(v) =>
-                        v === "retainerRevenueCents"
-                          ? "Revenue"
-                          : v === "cumulativeTotalExpenseCostCents"
-                            ? "Cumulative total expenses"
-                            : v === "grossMarginCents"
-                              ? "Gross margin"
-                              : String(v)
-                      }
-                    />
-                    <Line type="monotone" dataKey="retainerRevenueCents" stroke="#0ea5e9" strokeWidth={2} dot={false} />
+                    {isProjectOnlyView ? null : (
+                      <Legend
+                        formatter={(v) =>
+                          v === "retainerRevenueCents"
+                            ? "Revenue"
+                            : v === "cumulativeTotalExpenseCostCents"
+                              ? "Cumulative total expenses"
+                              : v === "grossMarginCents"
+                                ? "Gross margin"
+                                : String(v)
+                        }
+                      />
+                    )}
+                    {isProjectOnlyView ? null : <Line type="monotone" dataKey="retainerRevenueCents" stroke="#0ea5e9" strokeWidth={2} dot={false} />}
                     <Line type="monotone" dataKey="cumulativeTotalExpenseCostCents" stroke="#f97316" strokeWidth={2} dot={false} />
-                    <Line type="monotone" dataKey="grossMarginCents" stroke="#22c55e" strokeWidth={2} dot={false} />
+                    {isProjectOnlyView ? null : <Line type="monotone" dataKey="grossMarginCents" stroke="#22c55e" strokeWidth={2} dot={false} />}
                   </LineChart>
                 </ResponsiveContainer>
               </div>
@@ -458,12 +464,12 @@ export function FinanceDashboardClient({ clients }: { clients: ClientOption[] })
                 <th className="py-2 pr-3">Client</th>
                 <th className="py-2 pr-3">Cycle</th>
                 <th className="py-2 pr-3">Logged</th>
-                <th className="py-2 pr-3">Retainer fee</th>
+                {isProjectOnlyView ? null : <th className="py-2 pr-3">Retainer fee</th>}
                 <th className="py-2 pr-3">Payroll</th>
                 <th className="py-2 pr-3">Mileage</th>
                 <th className="py-2 pr-3">Expenses</th>
                 <th className="py-2 pr-3">Total costs</th>
-                <th className="py-2 pr-3">Margin</th>
+                {isProjectOnlyView ? null : <th className="py-2 pr-3">Margin</th>}
               </tr>
             </thead>
             <tbody>
@@ -474,22 +480,26 @@ export function FinanceDashboardClient({ clients }: { clients: ClientOption[] })
                     {c.cycle.startISO} → {c.cycle.endISO}
                   </td>
                   <td className="py-2 pr-3 text-zinc-700">{fmtHours(c.loggedHours)}</td>
-                  <td className="py-2 pr-3 text-zinc-700">
-                    {c.monthlyRetainerFeeCents == null ? "—" : fmtMoneyFromCents(c.monthlyRetainerFeeCents, c.monthlyRetainerFeeCurrency)}
-                  </td>
+                  {isProjectOnlyView ? null : (
+                    <td className="py-2 pr-3 text-zinc-700">
+                      {c.monthlyRetainerFeeCents == null ? "—" : fmtMoneyFromCents(c.monthlyRetainerFeeCents, c.monthlyRetainerFeeCurrency)}
+                    </td>
+                  )}
                   <td className="py-2 pr-3 text-zinc-700">{fmtMoneyFromCents(c.payrollCostCents, c.payrollCurrency)}</td>
                   <td className="py-2 pr-3 text-zinc-700">{fmtMoneyFromCents(c.mileageCostCents, "CAD")}</td>
                   <td className="py-2 pr-3 text-zinc-700">{fmtMoneyFromCents(c.expenseCents, "CAD")}</td>
                   <td className="py-2 pr-3 text-zinc-700">{fmtMoneyFromCents(c.totalExpenseCostCents, "CAD")}</td>
-                  <td className="py-2 pr-3 text-zinc-700">
-                    {c.grossMarginCents == null ? "—" : fmtMoneyFromCents(c.grossMarginCents, c.monthlyRetainerFeeCurrency)}
-                  </td>
+                  {isProjectOnlyView ? null : (
+                    <td className="py-2 pr-3 text-zinc-700">
+                      {c.grossMarginCents == null ? "—" : fmtMoneyFromCents(c.grossMarginCents, c.monthlyRetainerFeeCurrency)}
+                    </td>
+                  )}
                 </tr>
               ))}
 
               {!data?.clients?.length ? (
                 <tr>
-                  <td colSpan={9} className="py-6 text-center text-zinc-500">
+                  <td colSpan={isProjectOnlyView ? 7 : 9} className="py-6 text-center text-zinc-500">
                     No data
                   </td>
                 </tr>

@@ -57,7 +57,8 @@ function mileageRateCentsPerKm(): { rateCentsPerKm: number; isEnvConfigured: boo
   if (Number.isFinite(n) && n > 0) {
     return { rateCentsPerKm: Math.round(n), isEnvConfigured: true };
   }
-  return { rateCentsPerKm: 70, isEnvConfigured: false };
+  // Default changed per Finance PDF spec.
+  return { rateCentsPerKm: 60, isEnvConfigured: false };
 }
 
 export async function GET(req: Request) {
@@ -158,7 +159,9 @@ export async function GET(req: Request) {
     where: {
       clientId: { in: clients.map((c) => c.id) },
       expenseDate: { gte: fromDate, lt: toDateExclusive },
-      ...(projectId ? { projectId } : {}),
+      // NOTE: We intentionally do NOT filter by projectId at query-time.
+      // Reason: some categories (ex: AD_SPEND) should always be treated as RETAINER-level spend,
+      // even if they are linked to a project in the DB.
     },
     select: {
       clientId: true,
@@ -286,11 +289,23 @@ export async function GET(req: Request) {
   const expenseByCategoryCents = new Map<string, number>();
 
   for (const ex of expenseEntries) {
-    // Infer engagement for expenses based on projectId presence.
+    const cat = String(ex.category || "OTHER");
+    const isAdSpend = cat === "AD_SPEND";
+
+    // Engagement inference for expenses:
+    // - Default: projectId == null → RETAINER; projectId != null → MISC_PROJECT
+    // - Exception: AD_SPEND is always treated as RETAINER-level spend.
+    const isRetainerExpense = isAdSpend || ex.projectId == null;
+    const isProjectExpense = !isAdSpend && ex.projectId != null;
+
     if (engagementTypeParam) {
-      if (engagementTypeParam === "RETAINER" && ex.projectId != null) continue;
-      if (engagementTypeParam === "MISC_PROJECT" && ex.projectId == null) continue;
+      if (engagementTypeParam === "RETAINER" && !isRetainerExpense) continue;
+      if (engagementTypeParam === "MISC_PROJECT") {
+        if (!isProjectExpense) continue;
+        if (projectId && ex.projectId !== projectId) continue;
+      }
     }
+
     const cycle = cycleByClientId.get(ex.clientId);
     if (!cycle) continue;
     const iso = ex.expenseDate.toISOString().slice(0, 10);
@@ -300,7 +315,6 @@ export async function GET(req: Request) {
     if (!agg) continue;
     agg.expenseCents += ex.amountCents;
 
-    const cat = String(ex.category || "OTHER");
     expenseByCategoryCents.set(cat, (expenseByCategoryCents.get(cat) ?? 0) + ex.amountCents);
   }
 
@@ -352,7 +366,7 @@ export async function GET(req: Request) {
   if (!mileageRate.isEnvConfigured) {
     warnings.push({
       code: "MILEAGE_RATE_DEFAULT",
-      message: "Mileage cost is using the default rate (70¢/km). Set env MILEAGE_RATE_CENTS_PER_KM to configure.",
+      message: "Mileage cost is using the default rate (60¢/km). Set env MILEAGE_RATE_CENTS_PER_KM to configure.",
       details: { envVar: "MILEAGE_RATE_CENTS_PER_KM", defaultRateCentsPerKm: mileageRate.rateCentsPerKm },
     });
   }
@@ -406,11 +420,20 @@ export async function GET(req: Request) {
   }
 
   for (const ex of expenseEntries) {
-    // Infer engagement for expenses based on projectId presence.
+    const cat = String(ex.category || "OTHER");
+    const isAdSpend = cat === "AD_SPEND";
+
+    const isRetainerExpense = isAdSpend || ex.projectId == null;
+    const isProjectExpense = !isAdSpend && ex.projectId != null;
+
     if (engagementTypeParam) {
-      if (engagementTypeParam === "RETAINER" && ex.projectId != null) continue;
-      if (engagementTypeParam === "MISC_PROJECT" && ex.projectId == null) continue;
+      if (engagementTypeParam === "RETAINER" && !isRetainerExpense) continue;
+      if (engagementTypeParam === "MISC_PROJECT") {
+        if (!isProjectExpense) continue;
+        if (projectId && ex.projectId !== projectId) continue;
+      }
     }
+
     const cycle = cycleByClientId.get(ex.clientId);
     if (!cycle) continue;
 
