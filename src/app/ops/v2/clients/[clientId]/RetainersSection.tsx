@@ -4,6 +4,7 @@ import { auth } from "@/auth";
 import { AddRetainerClient } from "./AddRetainerClient";
 import { ClearRetainerClient } from "./ClearRetainerClient";
 import { RetainerFeeEditorClient } from "./RetainerFeeEditorClient";
+import { RetainerSettingsEditorClient } from "./RetainerSettingsEditorClient";
 
 type RetainersSectionProps = {
   client: {
@@ -93,7 +94,20 @@ export async function RetainersSection({ client, quotaItems }: RetainersSectionP
             <div className="grid grid-cols-12 gap-2 px-4 py-3 text-sm">
               <div className="col-span-6 font-medium">Base retainer</div>
               <div className="col-span-3">{client.monthlyRetainerHours}h / cycle</div>
-              <div className="col-span-3 text-zinc-600">Cycle start: {client.billingCycleStartDay.toLowerCase()}</div>
+              <div className="col-span-3 flex items-center justify-between gap-2 text-zinc-600">
+                <span>Cycle start: {client.billingCycleStartDay.toLowerCase()}</span>
+                {isAdmin ? (
+                  <RetainerSettingsEditorClient
+                    clientId={client.id}
+                    initial={{
+                      billingCycleStartDay: client.billingCycleStartDay,
+                      monthlyRetainerHours: client.monthlyRetainerHours,
+                      maxShootsPerCycle: client.maxShootsPerCycle,
+                      maxCaptureHoursPerCycle: client.maxCaptureHoursPerCycle,
+                    }}
+                  />
+                ) : null}
+              </div>
             </div>
 
             <div className="grid grid-cols-12 gap-2 px-4 py-3 text-sm border-t border-zinc-200">

@@ -19,6 +19,18 @@ async function getClients() {
   });
 }
 
+async function getClientIdsWithRetainer() {
+  const url = process.env.DATABASE_URL;
+  if (!url || (url.startsWith("file:") && process.env.VERCEL)) return [] as string[];
+
+  const { prisma } = await import("@/lib/db");
+  const rows = await prisma.client.findMany({
+    where: { monthlyRetainerHours: { gt: 0 } },
+    select: { id: true },
+  });
+  return rows.map((r) => r.id);
+}
+
 async function getOpenProjects() {
   const url = process.env.DATABASE_URL;
   if (!url || (url.startsWith("file:") && process.env.VERCEL)) return [] as Array<{ id: string; clientId: string; code: string; name: string }>;
@@ -49,11 +61,13 @@ export default async function WorklogPage({
 
   let clients: Array<{ id: string; name: string }> = [];
   let projects: Array<{ id: string; clientId: string; code: string; name: string }> = [];
+  let clientIdsWithRetainer: string[] = [];
   let dbWarning: string | null = null;
   let dbError: string | null = null;
 
   try {
     clients = await getClients();
+    clientIdsWithRetainer = await getClientIdsWithRetainer();
     projects = await getOpenProjects();
 
     if (clients.length === 0 && process.env.DATABASE_URL?.startsWith("file:")) {
@@ -89,7 +103,13 @@ export default async function WorklogPage({
         <div className="rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">{dbWarning}</div>
       ) : null}
 
-      <WorklogForm clients={clients} projects={projects} initialDate={dateParam} initialEmail={effectiveEmail} />
+      <WorklogForm
+        clients={clients}
+        projects={projects}
+        clientIdsWithRetainer={clientIdsWithRetainer}
+        initialDate={dateParam}
+        initialEmail={effectiveEmail}
+      />
     </div>
   );
 }

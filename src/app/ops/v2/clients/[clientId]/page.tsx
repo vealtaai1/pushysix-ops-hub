@@ -4,6 +4,8 @@ import { prisma } from "@/lib/db";
 import { auth } from "@/auth";
 import { ClientHubClient } from "./ClientHubClient";
 import { RetainersSection } from "./RetainersSection";
+import { ClientContactsCardClient } from "./ClientContactsCardClient";
+import { AdSpendLumpedEditorClient } from "./AdSpendLumpedEditorClient";
 
 export const dynamic = "force-dynamic";
 
@@ -19,6 +21,10 @@ export default async function OpsV2ClientHubPage({ params }: { params: Promise<{
       id: true,
       name: true,
       status: true,
+      mainContactName: true,
+      mainContactEmail: true,
+      billingContactName: true,
+      billingContactEmail: true,
       clientBillingEmail: true,
       billingCycleStartDay: true,
       monthlyRetainerHours: true,
@@ -33,6 +39,7 @@ export default async function OpsV2ClientHubPage({ params }: { params: Promise<{
 
   const session = await auth();
   const canCloseProjects = session?.user?.role === "ADMIN";
+  const canEditClient = session?.user?.role === "ADMIN";
 
   const [projects, quotaItems, recentExpenses] = await Promise.all([
     prisma.project.findMany({
@@ -43,6 +50,7 @@ export default async function OpsV2ClientHubPage({ params }: { params: Promise<{
         code: true,
         shortCode: true,
         name: true,
+        shortDescription: true,
         status: true,
         createdAt: true,
         closedAt: true,
@@ -97,10 +105,10 @@ export default async function OpsV2ClientHubPage({ params }: { params: Promise<{
           <h1 className="mt-1 truncate text-xl font-semibold">{client.name}</h1>
           <div className="mt-1 text-sm text-zinc-600">
             <span className="font-medium text-zinc-800">{client.status}</span>
-            {client.clientBillingEmail ? (
+            {client.billingContactEmail || client.clientBillingEmail ? (
               <>
                 <span className="px-2 text-zinc-300">·</span>
-                <span className="truncate">Billing: {client.clientBillingEmail}</span>
+                <span className="truncate">Billing: {client.billingContactEmail ?? client.clientBillingEmail}</span>
               </>
             ) : null}
           </div>
@@ -116,6 +124,17 @@ export default async function OpsV2ClientHubPage({ params }: { params: Promise<{
         </div>
       </div>
 
+      <ClientContactsCardClient
+        canEdit={canEditClient}
+        client={{
+          id: client.id,
+          mainContactName: client.mainContactName,
+          mainContactEmail: client.mainContactEmail,
+          billingContactName: client.billingContactName,
+          billingContactEmail: client.billingContactEmail,
+        }}
+      />
+
       <RetainersSection
         client={{
           id: client.id,
@@ -129,6 +148,8 @@ export default async function OpsV2ClientHubPage({ params }: { params: Promise<{
         }}
         quotaItems={quotaItems}
       />
+
+      {canEditClient ? <AdSpendLumpedEditorClient clientId={client.id} /> : null}
 
       <section className="rounded-lg border border-zinc-200 bg-white p-4">
         <div>

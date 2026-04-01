@@ -11,6 +11,8 @@ export type CreateClientState = {
   fieldErrors?: {
     name?: string;
     clientBillingEmail?: string;
+    billingContactEmail?: string;
+    mainContactEmail?: string;
     billingCycleStartDay?: string;
   };
 };
@@ -36,14 +38,21 @@ export async function createClient(_prevState: CreateClientState, formData: Form
 
   const name = asString(formData.get("name")).trim();
   const clientBillingEmail = asString(formData.get("clientBillingEmail")).trim();
+  const billingContactEmail = asString(formData.get("billingContactEmail")).trim();
+  const mainContactName = asString(formData.get("mainContactName")).trim();
+  const mainContactEmail = asString(formData.get("mainContactEmail")).trim();
+  const billingContactName = asString(formData.get("billingContactName")).trim();
   const billingCycleStartDayRaw = asString(formData.get("billingCycleStartDay")).trim();
 
   const fieldErrors: NonNullable<CreateClientState["fieldErrors"]> = {};
 
   if (!name) fieldErrors.name = "Client name is required.";
 
+  // Billing cycle start is optional on create; if omitted we let Prisma default apply.
   let billingCycleStartDay: BillingCycleStartDay | null = null;
-  if (billingCycleStartDayRaw === BillingCycleStartDay.FIRST) {
+  if (!billingCycleStartDayRaw) {
+    billingCycleStartDay = null;
+  } else if (billingCycleStartDayRaw === BillingCycleStartDay.FIRST) {
     billingCycleStartDay = BillingCycleStartDay.FIRST;
   } else if (billingCycleStartDayRaw === BillingCycleStartDay.FIFTEENTH) {
     billingCycleStartDay = BillingCycleStartDay.FIFTEENTH;
@@ -56,6 +65,16 @@ export async function createClient(_prevState: CreateClientState, formData: Form
     fieldErrors.clientBillingEmail = "Enter a valid email address.";
   }
 
+  const billingContactEmailToSave = billingContactEmail ? billingContactEmail : null;
+  if (billingContactEmail && !isEmail(billingContactEmail)) {
+    fieldErrors.billingContactEmail = "Enter a valid email address.";
+  }
+
+  const mainContactEmailToSave = mainContactEmail ? mainContactEmail : null;
+  if (mainContactEmail && !isEmail(mainContactEmail)) {
+    fieldErrors.mainContactEmail = "Enter a valid email address.";
+  }
+
   if (Object.keys(fieldErrors).length > 0) {
     return { ok: false, fieldErrors };
   }
@@ -65,8 +84,16 @@ export async function createClient(_prevState: CreateClientState, formData: Form
   await prisma.client.create({
     data: {
       name,
-      billingCycleStartDay: billingCycleStartDay!,
-      clientBillingEmail: emailToSave,
+      ...(billingCycleStartDay ? { billingCycleStartDay } : {}),
+
+      mainContactName: mainContactName || null,
+      mainContactEmail: mainContactEmailToSave,
+      billingContactName: billingContactName || null,
+      billingContactEmail: billingContactEmailToSave,
+
+      // Legacy + downstream behavior
+      clientBillingEmail: billingContactEmailToSave ?? emailToSave,
+
       monthlyRetainerHours: 0,
       maxShootsPerCycle: null,
       maxCaptureHoursPerCycle: null,

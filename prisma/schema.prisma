@@ -147,6 +147,13 @@ model Client {
   status               ClientStatus         @default(ACTIVE)
   billingCycleStartDay BillingCycleStartDay @default(FIRST)
 
+  // Contacts
+  mainContactName  String?
+  mainContactEmail String?
+
+  billingContactName  String?
+  billingContactEmail String?
+
   // Contract basics
   monthlyRetainerHours Int @default(0)
 
@@ -190,7 +197,9 @@ model Project {
   id       String @id @default(cuid())
   clientId String
 
-  name      String
+  name             String
+  shortDescription String?
+
   code      String
   shortCode String @unique
 
@@ -207,6 +216,9 @@ model Project {
 
   // Mileage
   mileageEntries MileageEntry[]
+
+  // Worklogs (task hours)
+  worklogEntries WorklogEntry[]
 
   // Emails
   projectCloseBillingEmails ProjectCloseBillingEmail[]
@@ -442,6 +454,10 @@ model WorklogEntry {
   worklogId String
   clientId  String
 
+  // Optional linkage when engagementType=MISC_PROJECT.
+  // (Employees select a specific open project number in the worklog form.)
+  projectId String?
+
   // Whether this work is counted against the client retainer or billed as an ad-hoc/misc project.
   engagementType WorklogEngagementType @default(RETAINER)
 
@@ -459,10 +475,12 @@ model WorklogEntry {
 
   worklog   Worklog          @relation(fields: [worklogId], references: [id], onDelete: Cascade)
   client    Client           @relation(fields: [clientId], references: [id], onDelete: Restrict)
+  project   Project?         @relation(fields: [projectId], references: [id], onDelete: SetNull)
 
   @@index([worklogId])
   @@index([clientId])
   @@index([engagementType])
+  @@index([projectId])
   @@index([bucketKey])
 }
 
