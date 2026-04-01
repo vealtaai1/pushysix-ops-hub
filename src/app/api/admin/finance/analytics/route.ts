@@ -150,11 +150,14 @@ export async function GET(req: Request) {
     },
   });
 
+  // NOTE: ExpenseEntry.engagementType is not guaranteed to exist in all deployed DBs.
+  // To avoid breaking Admin Finance, we query without that column and infer engagement:
+  // - RETAINER: projectId == null
+  // - MISC_PROJECT: projectId != null (and optionally matches projectId filter)
   const expenseEntries = await prisma.expenseEntry.findMany({
     where: {
       clientId: { in: clients.map((c) => c.id) },
       expenseDate: { gte: fromDate, lt: toDateExclusive },
-      ...(engagementTypeParam ? { engagementType: engagementTypeParam as any } : {}),
       ...(projectId ? { projectId } : {}),
     },
     select: {
@@ -162,7 +165,6 @@ export async function GET(req: Request) {
       amountCents: true,
       category: true,
       expenseDate: true,
-      engagementType: true,
       projectId: true,
     },
   });
@@ -286,6 +288,11 @@ export async function GET(req: Request) {
   const expenseByCategoryCents = new Map<string, number>();
 
   for (const ex of expenseEntries) {
+    // Infer engagement for expenses based on projectId presence.
+    if (engagementTypeParam) {
+      if (engagementTypeParam === "RETAINER" && ex.projectId != null) continue;
+      if (engagementTypeParam === "MISC_PROJECT" && ex.projectId == null) continue;
+    }
     const cycle = cycleByClientId.get(ex.clientId);
     if (!cycle) continue;
     const iso = ex.expenseDate.toISOString().slice(0, 10);
@@ -385,6 +392,11 @@ export async function GET(req: Request) {
   }
 
   for (const ex of expenseEntries) {
+    // Infer engagement for expenses based on projectId presence.
+    if (engagementTypeParam) {
+      if (engagementTypeParam === "RETAINER" && ex.projectId != null) continue;
+      if (engagementTypeParam === "MISC_PROJECT" && ex.projectId == null) continue;
+    }
     const cycle = cycleByClientId.get(ex.clientId);
     if (!cycle) continue;
 
