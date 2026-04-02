@@ -88,6 +88,7 @@ export async function GET(req: Request) {
     return badRequest("projectId requires engagementType=MISC_PROJECT", { engagementType: engagementTypeParam, projectId });
   }
 
+
   const referenceDate = isoToUTCDate(referenceISO);
 
   const clients = await prisma.client.findMany({
