@@ -297,16 +297,7 @@ export function FinanceDashboardClient({ clients }: { clients: ClientOption[] })
           </>
         ) : null}
 
-        {data?.warnings?.length ? (
-          <div className="mt-4 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
-            <div className="font-semibold">Warnings</div>
-            <ul className="mt-1 list-disc pl-5">
-              {data.warnings.map((w, i) => (
-                <li key={i}>{w.message}</li>
-              ))}
-            </ul>
-          </div>
-        ) : null}
+        {/* Warnings box intentionally hidden per master change log item 33. */}
       </section>
 
       {data ? (
