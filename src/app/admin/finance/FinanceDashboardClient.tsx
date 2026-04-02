@@ -401,8 +401,9 @@ export function FinanceDashboardClient({ clients }: { clients: ClientOption[] })
                       ]}
                       dataKey="value"
                       nameKey="name"
-                      outerRadius={110}
-                      label={({ name, value }) => `${name}: ${fmtMoneyFromCents(Number(value ?? 0), "CAD")}`}
+                      outerRadius={100}
+                      labelLine={false}
+                      label={({ value }) => `${fmtMoneyFromCents(Number(value ?? 0), "CAD")}`}
                     >
                       <Cell fill="#f97316" />
                       <Cell fill="#a855f7" />
@@ -427,8 +428,9 @@ export function FinanceDashboardClient({ clients }: { clients: ClientOption[] })
                       data={expenseCategoryPieData}
                       dataKey="value"
                       nameKey="name"
-                      outerRadius={110}
-                      label={({ name, value }) => `${name}: ${fmtMoneyFromCents(Number(value ?? 0), "CAD")}`}
+                      outerRadius={100}
+                      labelLine={false}
+                      label={({ value }) => `${fmtMoneyFromCents(Number(value ?? 0), "CAD")}`}
                     >
                       {expenseCategoryPieData.map((x, i) => (
                         <Cell
