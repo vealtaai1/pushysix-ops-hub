@@ -259,18 +259,15 @@ export async function POST(req: Request) {
 
         const vendor = (ex as any)?.vendor ? String((ex as any).vendor).trim() : null;
         const category = String((ex as any)?.category ?? "OTHER").trim() || "OTHER";
-        const isAdSpend = category === "AD_SPEND";
 
         // Engagement policy:
         // - Default: use selected engagementType/projectId.
-        // - Exception: AD_SPEND is always treated as RETAINER-level spend (even if a project was selected).
-        const engagementType: WorklogEngagementType = isAdSpend
-          ? WorklogEngagementType.RETAINER
-          : (ex as any)?.engagementType === "MISC_PROJECT"
-            ? WorklogEngagementType.MISC_PROJECT
-            : WorklogEngagementType.RETAINER;
+        // - Note: AD_SPEND may be logged against a misc project.
+        const engagementType: WorklogEngagementType = (ex as any)?.engagementType === "MISC_PROJECT"
+          ? WorklogEngagementType.MISC_PROJECT
+          : WorklogEngagementType.RETAINER;
 
-        const projectId = isAdSpend ? null : (ex as any)?.projectId ? String((ex as any).projectId) : null;
+        const projectId = (ex as any)?.projectId ? String((ex as any).projectId) : null;
         if (engagementType === WorklogEngagementType.MISC_PROJECT && !projectId) {
           throw new Error("Project is required for misc project expenses.");
         }
