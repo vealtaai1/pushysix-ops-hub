@@ -88,6 +88,7 @@ export async function GET(req: Request) {
     return badRequest("projectId requires engagementType=MISC_PROJECT", { engagementType: engagementTypeParam, projectId });
   }
 
+
   const referenceDate = isoToUTCDate(referenceISO);
 
   const clients = await prisma.client.findMany({
@@ -318,23 +319,15 @@ export async function GET(req: Request) {
     expenseByCategoryCents.set(cat, (expenseByCategoryCents.get(cat) ?? 0) + ex.amountCents);
   }
 
-  // Mileage attribution note:
-  // If the user filters finance analytics to a specific project/misc engagement, we currently cannot
-  // attribute mileage to a specific project in DB (projectId/engagementType columns may be absent).
-  // In that case, we omit mileage from the filtered view to avoid misleading numbers.
-  const includeMileage = engagementTypeParam !== "MISC_PROJECT" && !projectId;
+  for (const m of mileageEntries) {
+    const cycle = cycleByClientId.get(m.clientId ?? "");
+    if (!cycle) continue;
+    const iso = m.worklog.workDate.toISOString().slice(0, 10);
+    if (iso < cycle.startISO || iso > cycle.endISO) continue;
 
-  if (includeMileage) {
-    for (const m of mileageEntries) {
-      const cycle = cycleByClientId.get(m.clientId ?? "");
-      if (!cycle) continue;
-      const iso = m.worklog.workDate.toISOString().slice(0, 10);
-      if (iso < cycle.startISO || iso > cycle.endISO) continue;
-
-      const agg = aggByClientId.get(m.clientId ?? "");
-      if (!agg) continue;
-      agg.mileageKm += m.kilometers;
-    }
+    const agg = aggByClientId.get(m.clientId ?? "");
+    if (!agg) continue;
+    agg.mileageKm += m.kilometers;
   }
 
   // Convert km -> cents using configured reimbursement rate
@@ -380,21 +373,6 @@ export async function GET(req: Request) {
     });
   }
 
-  if (projectId) {
-    warnings.push({
-      code: "PROJECT_PAYROLL_UNATTRIBUTED",
-      message: "Time entries are not currently attributable to specific projects; payroll shown includes all misc-project time for the client within the cycle.",
-      details: { clientId, projectId },
-    });
-  }
-
-  if (!includeMileage) {
-    warnings.push({
-      code: "MILEAGE_UNATTRIBUTED",
-      message: "Mileage cannot currently be attributed to a specific project/misc engagement; mileage is omitted from this filtered view.",
-      details: { engagementType: engagementTypeParam, projectId },
-    });
-  }
 
   // Build a daily time-series across the overall window (inclusive).
   // Note: Retainer revenue is a cycle-level figure; for graphing we show it as a constant reference line.
@@ -443,16 +421,14 @@ export async function GET(req: Request) {
     dailyExpenseCentsByISO.set(iso, (dailyExpenseCentsByISO.get(iso) ?? 0) + ex.amountCents);
   }
 
-  if (includeMileage) {
-    for (const m of mileageEntries) {
-      const cycle = cycleByClientId.get(m.clientId ?? "");
-      if (!cycle) continue;
+  for (const m of mileageEntries) {
+    const cycle = cycleByClientId.get(m.clientId ?? "");
+    if (!cycle) continue;
 
-      const iso = m.worklog.workDate.toISOString().slice(0, 10);
-      if (iso < cycle.startISO || iso > cycle.endISO) continue;
+    const iso = m.worklog.workDate.toISOString().slice(0, 10);
+    if (iso < cycle.startISO || iso > cycle.endISO) continue;
 
-      dailyMileageKmByISO.set(iso, (dailyMileageKmByISO.get(iso) ?? 0) + m.kilometers);
-    }
+    dailyMileageKmByISO.set(iso, (dailyMileageKmByISO.get(iso) ?? 0) + m.kilometers);
   }
 
   const daily: Array<{

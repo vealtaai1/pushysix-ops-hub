@@ -8,6 +8,7 @@ import { ClientHubClient } from "@/app/ops/v2/clients/[clientId]/ClientHubClient
 import { RetainersSection } from "@/app/ops/v2/clients/[clientId]/RetainersSection";
 import { ClientContactsCardClient } from "@/app/ops/v2/clients/[clientId]/ClientContactsCardClient";
 import { AdSpendLumpedEditorClient } from "@/app/ops/v2/clients/[clientId]/AdSpendLumpedEditorClient";
+import { DangerZoneDeleteClientClient } from "./DangerZoneDeleteClientClient";
 
 export const dynamic = "force-dynamic";
 
@@ -219,6 +220,8 @@ export default async function AdminClientHubPage({ params }: { params: Promise<{
           </div>
         )}
       </section>
+
+      {canEditClient ? <DangerZoneDeleteClientClient clientId={client.id} clientName={client.name} /> : null}
     </div>
   );
 }
