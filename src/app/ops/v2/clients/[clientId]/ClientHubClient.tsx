@@ -1,6 +1,8 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
+
 import {
   closeProject,
   createProject,
@@ -143,10 +145,20 @@ export function ClientHubClient({ client, initialProjects, canCloseProjects }: C
         ) : (
           initialProjects.map((p) => (
             <div key={p.id} className="grid grid-cols-12 gap-2 border-t border-zinc-200 px-4 py-3 text-sm">
-              <div className="col-span-2 font-mono text-xs text-zinc-800">{p.code}</div>
-              <div className="col-span-2 font-mono text-xs text-zinc-600">{p.shortCode}</div>
+              <div className="col-span-2">
+                <Link href={`/ops/v2/projects/${p.id}`} className="text-sm font-medium text-zinc-900 hover:underline">
+                  {p.code}
+                </Link>
+              </div>
+              <div className="col-span-2">
+                <Link href={`/ops/v2/projects/${p.id}`} className="text-sm text-zinc-600 hover:underline">
+                  {p.shortCode}
+                </Link>
+              </div>
               <div className="col-span-6">
-                <div className="font-medium">{p.name}</div>
+                <Link href={`/ops/v2/projects/${p.id}`} className="font-medium text-zinc-900 hover:underline">
+                  {p.name}
+                </Link>
                 {p.shortDescription ? <div className="mt-0.5 text-xs text-zinc-500 line-clamp-2">{p.shortDescription}</div> : null}
               </div>
               <div className="col-span-1 text-zinc-700">{p.status}</div>
