@@ -134,14 +134,16 @@ export function ExpenseFormEmployee({
           <FieldRow>
             <Field label="Category">
               <Select value={category} onChange={(e) => setCategory(e.target.value as any)} required>
-                <option value="MILEAGE">Mileage</option>
                 <option value="HOTEL_ACCOMMODATION">Hotel/Accommodation</option>
                 <option value="MEAL">Meal</option>
-                <option value="PROP">Prop</option>
+                <option value="PROP">Filming Prop</option>
                 <option value="CAMERA_GEAR_EQUIPMENT">Camera Gear/Equipment</option>
                 <option value="PARKING">Parking</option>
-                <option value="CAR_RENTAL">Car Rental</option>
-                <option value="FUEL">Fuel</option>
+                <option value="CAR_RENTAL">Rental Car</option>
+                <option value="FUEL">Fuel - Rental Car</option>
+                <option value="FLIGHT_EXPENSE">Flight Expense</option>
+                <option value="GROUND_TRANSPORTATION">Ground Transportation</option>
+                <option value="AD_SPEND">Advertising Spend</option>
                 <option value="OTHER">Other</option>
               </Select>
             </Field>

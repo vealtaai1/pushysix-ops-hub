@@ -133,7 +133,15 @@ function expenseCategoryLabel(key: string): string {
     case "CAMERA_GEAR_EQUIPMENT":
       return "Camera Gear/Equipment";
     case "CAR_RENTAL":
-      return "Car Rental";
+      return "Rental Car";
+    case "FUEL":
+      return "Fuel - Rental Car";
+    case "FLIGHT_EXPENSE":
+      return "Flight Expense";
+    case "GROUND_TRANSPORTATION":
+      return "Ground Transportation";
+    case "AD_SPEND":
+      return "Advertising Spend";
     case "MEAL":
       return "Meal";
     case "MILEAGE":
@@ -141,9 +149,7 @@ function expenseCategoryLabel(key: string): string {
     case "PARKING":
       return "Parking";
     case "PROP":
-      return "Prop";
-    case "FUEL":
-      return "Fuel";
+      return "Filming Prop";
     case "OTHER":
       return "Other";
     default:

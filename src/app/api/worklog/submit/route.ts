@@ -271,16 +271,23 @@ export async function POST(req: Request) {
         const receiptUrl = String((ex as any)?.receiptUrl ?? "").trim();
         if (!receiptUrl) throw new Error("Receipt URL is required for expenses with amount > 0.");
 
-        const engagementType: WorklogEngagementType =
-          (ex as any)?.engagementType === "MISC_PROJECT" ? WorklogEngagementType.MISC_PROJECT : WorklogEngagementType.RETAINER;
+        const vendor = (ex as any)?.vendor ? String((ex as any).vendor).trim() : null;
+        const category = String((ex as any)?.category ?? "OTHER").trim() || "OTHER";
+        const isAdSpend = category === "AD_SPEND";
 
-        const projectId = (ex as any)?.projectId ? String((ex as any).projectId) : null;
+        // Engagement policy:
+        // - Default: use selected engagementType/projectId.
+        // - Exception: AD_SPEND is always treated as RETAINER-level spend (even if a project was selected).
+        const engagementType: WorklogEngagementType = isAdSpend
+          ? WorklogEngagementType.RETAINER
+          : (ex as any)?.engagementType === "MISC_PROJECT"
+            ? WorklogEngagementType.MISC_PROJECT
+            : WorklogEngagementType.RETAINER;
+
+        const projectId = isAdSpend ? null : (ex as any)?.projectId ? String((ex as any).projectId) : null;
         if (engagementType === WorklogEngagementType.MISC_PROJECT && !projectId) {
           throw new Error("Project is required for misc project expenses.");
         }
-
-        const vendor = (ex as any)?.vendor ? String((ex as any).vendor).trim() : null;
-        const category = String((ex as any)?.category ?? "OTHER").trim() || "OTHER";
 
         return {
           kind: "EMPLOYEE_SUBMISSION" as const,
