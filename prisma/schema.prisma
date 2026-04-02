@@ -75,14 +75,31 @@ enum ExpenseEntryKind {
 }
 
 enum ExpenseCategory {
+  // Deprecated: mileage is tracked via MileageEntry, not ExpenseEntry.
+  // Kept for backwards compatibility with any historical rows.
   MILEAGE
+
   HOTEL_ACCOMMODATION
   MEAL
+
+  // Display label: "Filming Prop"
   PROP
+
   CAMERA_GEAR_EQUIPMENT
   PARKING
+
+  // Display label: "Rental Car"
   CAR_RENTAL
+
+  // Display label: "Fuel - Rental Car"
   FUEL
+
+  FLIGHT_EXPENSE
+  GROUND_TRANSPORTATION
+
+  // Display label: "Advertising Spend" (always retainer-level in finance)
+  AD_SPEND
+
   OTHER
 }
 

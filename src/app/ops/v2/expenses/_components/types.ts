@@ -14,6 +14,9 @@ export type ExpenseCategory =
   | "PARKING"
   | "CAR_RENTAL"
   | "FUEL"
+  | "FLIGHT_EXPENSE"
+  | "GROUND_TRANSPORTATION"
+  | "AD_SPEND"
   | "OTHER";
 
 export type ExpenseEntryListItem = {
