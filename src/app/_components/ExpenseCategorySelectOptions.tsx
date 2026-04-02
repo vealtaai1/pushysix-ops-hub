@@ -12,9 +12,6 @@ export function ExpenseCategorySelectOptions() {
         <option value="CAR_RENTAL">Rental Car</option>
         <option value="FUEL">Fuel - Rental Car</option>
         <option value="PARKING">Parking</option>
-      </optgroup>
-
-      <optgroup label="Food">
         <option value="MEAL">Meal</option>
       </optgroup>
 
