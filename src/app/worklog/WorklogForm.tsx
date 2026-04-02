@@ -7,7 +7,7 @@ import { ReceiptUploader } from "@/app/ops/v2/expenses/_components/ReceiptUpload
 
 type Client = { id: string; name: string };
 
-type Project = { id: string; clientId: string; code: string; name: string };
+type Project = { id: string; clientId: string; code: string; shortCode: string; name: string };
 
 type TaskLine = {
   id: string;
@@ -30,11 +30,15 @@ type MileageLine = {
 };
 
 type ExpenseCategory =
-  | "MILEAGE"
   | "HOTEL_ACCOMMODATION"
   | "MEAL"
   | "PROP"
   | "CAMERA_GEAR_EQUIPMENT"
+  | "CAR_RENTAL"
+  | "FUEL"
+  | "FLIGHT_EXPENSE"
+  | "GROUND_TRANSPORTATION"
+  | "AD_SPEND"
   | "OTHER";
 
 type ExpenseLine = {
@@ -601,8 +605,8 @@ export function WorklogForm({
               <tr className="text-left text-xs text-zinc-600">
                 <th className="border-b border-zinc-200 px-3 py-2">Client</th>
                 <th className="border-b border-zinc-200 px-3 py-2">Engagement</th>
-                <th className="border-b border-zinc-200 px-3 py-2">Task category</th>
                 <th className="border-b border-zinc-200 px-3 py-2">Hours</th>
+                <th className="border-b border-zinc-200 px-3 py-2">Task category</th>
                 <th className="border-b border-zinc-200 px-3 py-2">Notes</th>
                 <th className="border-b border-zinc-200 px-3 py-2"></th>
               </tr>
@@ -676,7 +680,7 @@ export function WorklogForm({
                                 ) : null}
                                 {(projectsByClient.get(t.clientId) ?? []).map((p) => (
                                   <option key={p.id} value={`PROJECT:${p.id}`}>
-                                    {p.code}
+                                    {p.code} ({p.shortCode})
                                   </option>
                                 ))}
                               </>
@@ -697,23 +701,6 @@ export function WorklogForm({
                     </td>
 
                     <td className="border-b border-zinc-100 px-3 py-2">
-                      <select
-                        value={t.bucketKey}
-                        onChange={(e) =>
-                          setTasks((prev) => prev.map((x) => (x.id === t.id ? { ...x, bucketKey: e.target.value } : x)))
-                        }
-                        className="h-10 w-full rounded-md border border-zinc-300 bg-white px-3"
-                      >
-                        <option value="">(select)</option>
-                        {BUCKETS.map((b) => (
-                          <option key={b.key} value={b.key}>
-                            {b.name}
-                          </option>
-                        ))}
-                      </select>
-                    </td>
-
-                    <td className="border-b border-zinc-100 px-3 py-2">
                       <input
                         type="number"
                         min={0}
@@ -728,6 +715,23 @@ export function WorklogForm({
                         }
                       />
                       <div className="mt-1 text-xs text-zinc-500">0.25 increments (0.25–20, or 0)</div>
+                    </td>
+
+                    <td className="border-b border-zinc-100 px-3 py-2">
+                      <select
+                        value={t.bucketKey}
+                        onChange={(e) =>
+                          setTasks((prev) => prev.map((x) => (x.id === t.id ? { ...x, bucketKey: e.target.value } : x)))
+                        }
+                        className="h-10 w-full rounded-md border border-zinc-300 bg-white px-3"
+                      >
+                        <option value="">(select)</option>
+                        {BUCKETS.map((b) => (
+                          <option key={b.key} value={b.key}>
+                            {b.name}
+                          </option>
+                        ))}
+                      </select>
                     </td>
 
                     <td className="border-b border-zinc-100 px-3 py-2">
@@ -866,7 +870,7 @@ export function WorklogForm({
                                 ) : null}
                                 {(projectsByClient.get(m.clientId) ?? []).map((p) => (
                                   <option key={p.id} value={`PROJECT:${p.id}`}>
-                                    {p.code}
+                                    {p.code} ({p.shortCode})
                                   </option>
                                 ))}
                               </>
@@ -1048,7 +1052,7 @@ export function WorklogForm({
                                 ) : null}
                                 {(projectsByClient.get(ex.clientId) ?? []).map((p) => (
                                   <option key={p.id} value={`PROJECT:${p.id}`}>
-                                    {p.code}
+                                    {p.code} ({p.shortCode})
                                   </option>
                                 ))}
                               </>
@@ -1079,13 +1083,15 @@ export function WorklogForm({
                         }
                         className="h-10 w-full rounded-md border border-zinc-300 bg-white px-3"
                       >
-                        <option value="MILEAGE" disabled>
-                          Mileage (use the Mileage section above)
-                        </option>
                         <option value="HOTEL_ACCOMMODATION">Hotel/Accommodation</option>
                         <option value="MEAL">Meal</option>
-                        <option value="PROP">Prop</option>
+                        <option value="PROP">Filming Prop</option>
                         <option value="CAMERA_GEAR_EQUIPMENT">Camera Gear/Equipment</option>
+                        <option value="CAR_RENTAL">Rental Car</option>
+                        <option value="FUEL">Fuel - Rental Car</option>
+                        <option value="FLIGHT_EXPENSE">Flight Expense</option>
+                        <option value="GROUND_TRANSPORTATION">Ground Transportation</option>
+                        <option value="AD_SPEND">Advertising Spend</option>
                         <option value="OTHER">Other</option>
                       </select>
                     </div>
@@ -1135,6 +1141,7 @@ export function WorklogForm({
                             expenseEntryId={ex.id}
                             initialUrl={ex.receiptUrl || null}
                             capture
+                            variant="inline"
                             onUploaded={(url) =>
                               setExpenses((prev) => prev.map((x) => (x.id === ex.id ? { ...x, receiptUrl: url } : x)))
                             }
