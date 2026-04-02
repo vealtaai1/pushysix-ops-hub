@@ -288,15 +288,6 @@ export function FinanceDashboardClient({ clients }: { clients: ClientOption[] })
             <Stat label="Total expenses" value={fmtMoneyFromCents(data.totals.totalExpenseCostCents, "CAD")} />
             <Stat label="Mileage km" value={`${data.totals.mileageKm.toFixed(1)}km`} />
           </div>
-          {!data.mileage.isEnvConfigured ? (
-            <div className="mt-2 text-xs text-zinc-500">
-              Mileage rate: using default {data.mileage.rateCentsPerKm}¢/km (set <span className="font-mono">MILEAGE_RATE_CENTS_PER_KM</span> to configure).
-            </div>
-          ) : (
-            <div className="mt-2 text-xs text-zinc-500">
-              Mileage rate: {data.mileage.rateCentsPerKm}¢/km
-            </div>
-          )}
           </>
         ) : null}
 
@@ -414,7 +405,7 @@ export function FinanceDashboardClient({ clients }: { clients: ClientOption[] })
                       dataKey="value"
                       nameKey="name"
                       outerRadius={110}
-                      label
+                      label={({ name, value }) => `${name}: ${fmtMoneyFromCents(Number(value ?? 0), "CAD")}`}
                     >
                       <Cell fill="#f97316" />
                       <Cell fill="#a855f7" />
@@ -435,7 +426,13 @@ export function FinanceDashboardClient({ clients }: { clients: ClientOption[] })
               <div className="h-[320px]">
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
-                    <Pie data={expenseCategoryPieData} dataKey="value" nameKey="name" outerRadius={110} label>
+                    <Pie
+                      data={expenseCategoryPieData}
+                      dataKey="value"
+                      nameKey="name"
+                      outerRadius={110}
+                      label={({ name, value }) => `${name}: ${fmtMoneyFromCents(Number(value ?? 0), "CAD")}`}
+                    >
                       {expenseCategoryPieData.map((x, i) => (
                         <Cell
                           key={x.key}
