@@ -5,7 +5,6 @@ import { auth } from "@/auth";
 import { ClientHubClient } from "./ClientHubClient";
 import { RetainersSection } from "./RetainersSection";
 import { ClientContactsCardClient } from "./ClientContactsCardClient";
-import { AdSpendLumpedEditorClient } from "./AdSpendLumpedEditorClient";
 
 export const dynamic = "force-dynamic";
 
@@ -113,15 +112,6 @@ export default async function OpsV2ClientHubPage({ params }: { params: Promise<{
             ) : null}
           </div>
         </div>
-
-        <div className="flex items-center gap-2">
-          <Link
-            href={`/ops/retainers/${client.id}`}
-            className="inline-flex h-9 items-center rounded-md border border-zinc-300 bg-white px-3 text-sm font-semibold text-zinc-800 hover:bg-zinc-50"
-          >
-            Ad spend
-          </Link>
-        </div>
       </div>
 
       <ClientContactsCardClient
@@ -148,8 +138,6 @@ export default async function OpsV2ClientHubPage({ params }: { params: Promise<{
         }}
         quotaItems={quotaItems}
       />
-
-      {canEditClient ? <AdSpendLumpedEditorClient clientId={client.id} /> : null}
 
       <section className="rounded-lg border border-zinc-200 bg-white p-4">
         <div>
