@@ -38,6 +38,15 @@ export function ApprovalsClient({ initialPending }: { initialPending: PendingRow
   const [submissionError, setSubmissionError] = React.useState<string | null>(null);
   const [submission, setSubmission] = React.useState<any | null>(null);
 
+  React.useEffect(() => {
+    if (!submissionOpen) return;
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") setSubmissionOpen(false);
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [submissionOpen]);
+
   async function loadSubmission(id: string) {
     setSubmissionOpen(true);
     setSubmissionLoading(true);
@@ -179,8 +188,9 @@ export function ApprovalsClient({ initialPending }: { initialPending: PendingRow
       ) : null}
 
       {submissionOpen ? (
-        <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/40 p-4" role="dialog" aria-modal="true">
-          <div className="flex w-full max-w-3xl max-h-[calc(100vh-2rem)] flex-col overflow-hidden rounded-xl bg-white shadow-xl">
+        <div className="fixed inset-0 z-50 bg-black/40" role="dialog" aria-modal="true">
+          <div className="absolute inset-0" onClick={() => setSubmissionOpen(false)} aria-hidden="true" />
+          <div className="absolute inset-y-0 right-0 flex w-full max-w-2xl flex-col overflow-hidden bg-white shadow-2xl">
             <div className="flex items-start justify-between gap-3 border-b border-zinc-200 p-4">
               <div className="min-w-0">
                 <div className="text-lg font-semibold text-zinc-900">Submission details</div>
@@ -331,13 +341,13 @@ export function ApprovalsClient({ initialPending }: { initialPending: PendingRow
         <div className="overflow-auto rounded-lg border border-zinc-200">
           <table className="w-full min-w-[980px] border-separate border-spacing-0">
             <thead>
-              <tr className="text-left text-xs text-zinc-600">
-                <th className="border-b border-zinc-200 px-3 py-2">Created</th>
-                <th className="border-b border-zinc-200 px-3 py-2">Type</th>
-                <th className="border-b border-zinc-200 px-3 py-2">User</th>
-                <th className="border-b border-zinc-200 px-3 py-2">Date</th>
-                <th className="border-b border-zinc-200 px-3 py-2">Reason</th>
-                <th className="border-b border-zinc-200 px-3 py-2">Action</th>
+              <tr className="text-left text-xs font-medium text-zinc-600">
+                <th className="border-b border-zinc-200 px-3 py-2.5">Created</th>
+                <th className="border-b border-zinc-200 px-3 py-2.5">Type</th>
+                <th className="border-b border-zinc-200 px-3 py-2.5">User</th>
+                <th className="border-b border-zinc-200 px-3 py-2.5">Date</th>
+                <th className="border-b border-zinc-200 px-3 py-2.5">Reason</th>
+                <th className="border-b border-zinc-200 px-3 py-2.5">Action</th>
               </tr>
             </thead>
             <tbody>
@@ -346,55 +356,37 @@ export function ApprovalsClient({ initialPending }: { initialPending: PendingRow
                 const dateShort = dateISO ? fmtDateTimeISO(dateISO).slice(0, 10) : "—";
 
                 return (
-                  <tr key={p.id} className="align-top">
-                    <td className="border-b border-zinc-100 px-3 py-2 text-sm text-zinc-700">{fmtDateTimeISO(p.createdAt)}</td>
-                    <td className="border-b border-zinc-100 px-3 py-2 text-sm font-medium">{p.type}</td>
-                    <td className="border-b border-zinc-100 px-3 py-2 text-sm text-zinc-700">
+                  <tr key={p.id} className="align-top hover:bg-zinc-50/60">
+                    <td className="border-b border-zinc-100 px-3 py-3 text-xs text-zinc-600 whitespace-nowrap">{fmtDateTimeISO(p.createdAt)}</td>
+                    <td className="border-b border-zinc-100 px-3 py-3 text-sm font-medium text-zinc-900 whitespace-nowrap">{p.type}</td>
+                    <td className="border-b border-zinc-100 px-3 py-3 text-sm text-zinc-700">
                       <div className="font-medium text-zinc-900">{p.requestedByUser.name ?? "(no name)"}</div>
                       <div className="text-xs text-zinc-600">{p.requestedByUser.email}</div>
                     </td>
-                    <td className="border-b border-zinc-100 px-3 py-2 text-sm text-zinc-700">{dateShort}</td>
-                    <td className="border-b border-zinc-100 px-3 py-2 text-sm text-zinc-700">
-                      <div>{p.reason}</div>
-
-                      <div className="mt-2">
+                    <td className="border-b border-zinc-100 px-3 py-3 text-sm text-zinc-700 whitespace-nowrap">{dateShort}</td>
+                    <td className="border-b border-zinc-100 px-3 py-3 text-sm text-zinc-700">
+                      <div className="whitespace-pre-wrap">{p.reason}</div>
+                      <div className="mt-1 text-xs text-zinc-500">Request ID: {p.id}</div>
+                    </td>
+                    <td className="border-b border-zinc-100 px-3 py-3">
+                      <div className="flex items-center justify-between gap-2 pb-2">
                         <button
                           type="button"
-                          className="h-8 rounded-md border border-zinc-300 bg-white px-2.5 text-xs font-semibold text-zinc-800 hover:bg-zinc-50"
+                          className="inline-flex h-9 items-center gap-1.5 rounded-md border border-zinc-300 bg-white px-2.5 text-sm font-medium text-zinc-800 hover:bg-zinc-50 disabled:opacity-60"
                           onClick={() => loadSubmission(p.id)}
                           disabled={busyId === p.id}
+                          aria-label="View submission"
+                          title="View submission"
                         >
-                          View submission
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-4 w-4">
+                            <path d="M2.5 12s3.5-7 9.5-7 9.5 7 9.5 7-3.5 7-9.5 7-9.5-7-9.5-7Z" />
+                            <path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z" />
+                          </svg>
+                          <span>View</span>
                         </button>
+                        <div className="text-xs text-zinc-500">{busyId === p.id ? "Working…" : null}</div>
                       </div>
 
-                      <details className="mt-2">
-                        <summary className="cursor-pointer text-xs font-medium text-zinc-700 hover:underline">Details</summary>
-                        <div className="mt-2 space-y-2 rounded-md border border-zinc-200 bg-zinc-50 p-2 text-xs text-zinc-800">
-                          <div className="grid gap-1">
-                            <div>
-                              <span className="font-semibold">Request ID:</span> {p.id}
-                            </div>
-                            {p.worklog ? (
-                              <div>
-                                <span className="font-semibold">Worklog:</span> {p.worklog.id} ({fmtDateTimeISO(p.worklog.workDate).slice(0, 10)}) — {p.worklog.status}
-                                {p.worklog.submittedAt ? <> — submitted {fmtDateTimeISO(p.worklog.submittedAt)}</> : null}
-                                {p.worklog.approvalReason ? <> — note: <span className="italic">{p.worklog.approvalReason}</span></> : null}
-                              </div>
-                            ) : null}
-                            {p.dayOff ? (
-                              <div>
-                                <span className="font-semibold">Day off:</span> {p.dayOff.id} ({fmtDateTimeISO(p.dayOff.dayDate).slice(0, 10)}) — {p.dayOff.status}
-                                {p.dayOff.submittedAt ? <> — submitted {fmtDateTimeISO(p.dayOff.submittedAt)}</> : null}
-                                {p.dayOff.approvalReason ? <> — note: <span className="italic">{p.dayOff.approvalReason}</span></> : null}
-                              </div>
-                            ) : null}
-                          </div>
-
-                        </div>
-                      </details>
-                    </td>
-                    <td className="border-b border-zinc-100 px-3 py-2">
                       <div className="flex flex-wrap gap-2">
                         <div className="flex items-center gap-2">
                           <input
