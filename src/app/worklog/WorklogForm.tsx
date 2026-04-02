@@ -4,6 +4,7 @@ import * as React from "react";
 import { createPortal } from "react-dom";
 import { BUCKETS } from "@/lib/buckets";
 import { ReceiptUploader } from "@/app/ops/v2/expenses/_components/ReceiptUploader";
+import { ExpenseCategorySelectOptions } from "@/app/_components/ExpenseCategorySelectOptions";
 
 type Client = { id: string; name: string };
 
@@ -34,6 +35,7 @@ type ExpenseCategory =
   | "MEAL"
   | "PROP"
   | "CAMERA_GEAR_EQUIPMENT"
+  | "PARKING"
   | "CAR_RENTAL"
   | "FUEL"
   | "FLIGHT_EXPENSE"
@@ -479,14 +481,6 @@ export function WorklogForm({
     <div className="space-y-6">
       <div className="sticky top-2 z-20 rounded-lg border border-zinc-200 bg-white/95 p-4 backdrop-blur">
         <div className="grid gap-3 md:grid-cols-4">
-          <div className="grid gap-1">
-            <span className="text-sm font-medium">Email</span>
-            <div className="h-10 rounded-md border border-zinc-200 bg-zinc-50 px-3 flex items-center text-sm text-zinc-800">
-              {emailOk ? email : "(missing email)"}
-            </div>
-            {showValidation && !emailOk ? <div className="text-xs text-red-700">Email is required (provided by portal/session).</div> : null}
-          </div>
-
           <label className="grid gap-1">
             <span className="text-sm font-medium">
               Date
@@ -515,7 +509,7 @@ export function WorklogForm({
           </label>
 
           <label className="grid gap-1">
-            <span className="text-sm font-medium">Total km (If applicable)</span>
+            <span className="text-sm font-medium">Total km (if applicable)</span>
             <input
               // NOTE: We intentionally use text+inputMode instead of type=number.
               // Some browsers coerce/round number inputs based on step/min, which caused reports like 100 → 99.5.
@@ -536,6 +530,14 @@ export function WorklogForm({
               className="h-10 rounded-md border border-zinc-300 bg-white px-3"
             />
           </label>
+
+          <div className="grid gap-1">
+            <span className="text-sm font-medium">Email</span>
+            <div className="flex h-10 items-center rounded-md border border-zinc-200 bg-zinc-50 px-3 text-sm text-zinc-800">
+              {emailOk ? email : "(missing email)"}
+            </div>
+            {showValidation && !emailOk ? <div className="text-xs text-red-700">Email is required (provided by portal/session).</div> : null}
+          </div>
         </div>
 
         <div className="mt-4 flex flex-wrap items-center gap-3 text-sm">
@@ -605,8 +607,8 @@ export function WorklogForm({
               <tr className="text-left text-xs text-zinc-600">
                 <th className="border-b border-zinc-200 px-3 py-2">Client</th>
                 <th className="border-b border-zinc-200 px-3 py-2">Engagement</th>
-                <th className="border-b border-zinc-200 px-3 py-2">Hours</th>
                 <th className="border-b border-zinc-200 px-3 py-2">Task category</th>
+                <th className="border-b border-zinc-200 px-3 py-2">Hours</th>
                 <th className="border-b border-zinc-200 px-3 py-2">Notes</th>
                 <th className="border-b border-zinc-200 px-3 py-2"></th>
               </tr>
@@ -701,23 +703,6 @@ export function WorklogForm({
                     </td>
 
                     <td className="border-b border-zinc-100 px-3 py-2">
-                      <input
-                        type="number"
-                        min={0}
-                        step={0.25}
-                        inputMode="decimal"
-                        value={t.hoursText}
-                        onChange={(e) =>
-                          setTasks((prev) => prev.map((x) => (x.id === t.id ? { ...x, hoursText: e.target.value } : x)))
-                        }
-                        className={
-                          "h-10 w-32 rounded-md border bg-white px-3 " + (hoursInvalid ? "border-red-300" : "border-zinc-300")
-                        }
-                      />
-                      <div className="mt-1 text-xs text-zinc-500">0.25 increments (0.25–20, or 0)</div>
-                    </td>
-
-                    <td className="border-b border-zinc-100 px-3 py-2">
                       <select
                         value={t.bucketKey}
                         onChange={(e) =>
@@ -732,6 +717,23 @@ export function WorklogForm({
                           </option>
                         ))}
                       </select>
+                    </td>
+
+                    <td className="border-b border-zinc-100 px-3 py-2">
+                      <input
+                        type="number"
+                        min={0}
+                        step={0.25}
+                        inputMode="decimal"
+                        value={t.hoursText}
+                        onChange={(e) =>
+                          setTasks((prev) => prev.map((x) => (x.id === t.id ? { ...x, hoursText: e.target.value } : x)))
+                        }
+                        className={
+                          "h-10 w-32 rounded-md border bg-white px-3 " + (hoursInvalid ? "border-red-300" : "border-zinc-300")
+                        }
+                      />
+                      <div className="mt-1 text-xs text-zinc-500">0.25 increments (0.25–20, or 0)</div>
                     </td>
 
                     <td className="border-b border-zinc-100 px-3 py-2">
@@ -1083,16 +1085,7 @@ export function WorklogForm({
                         }
                         className="h-10 w-full rounded-md border border-zinc-300 bg-white px-3"
                       >
-                        <option value="HOTEL_ACCOMMODATION">Hotel/Accommodation</option>
-                        <option value="MEAL">Meal</option>
-                        <option value="PROP">Filming Prop</option>
-                        <option value="CAMERA_GEAR_EQUIPMENT">Camera Gear/Equipment</option>
-                        <option value="CAR_RENTAL">Rental Car</option>
-                        <option value="FUEL">Fuel - Rental Car</option>
-                        <option value="FLIGHT_EXPENSE">Flight Expense</option>
-                        <option value="GROUND_TRANSPORTATION">Ground Transportation</option>
-                        <option value="AD_SPEND">Advertising Spend</option>
-                        <option value="OTHER">Other</option>
+                        <ExpenseCategorySelectOptions />
                       </select>
                     </div>
 

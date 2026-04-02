@@ -79,9 +79,15 @@ export function ReceiptUploader({
   const wrapperClass = variant === "inline" ? "" : "rounded-lg border border-zinc-200 bg-white p-4";
   const captureValue = capture === true ? "environment" : capture;
 
+  // On mobile, including non-image MIME types in `accept` can cause the camera capture flow
+  // to fall back to the generic file picker (making "Take photo" behave like "Upload").
+  const ACCEPT_CAMERA = "image/*";
+  const ACCEPT_UPLOAD = "image/jpeg,image/png,image/webp,application/pdf";
+
   const Trigger = (props: {
     label: string;
     capture?: boolean | "user" | "environment";
+    accept: string;
     testId: string;
     inputTestId?: string;
   }) => (
@@ -93,7 +99,7 @@ export function ReceiptUploader({
         data-testid={props.inputTestId}
         type="file"
         className="hidden"
-        accept="image/jpeg,image/png,image/webp,application/pdf"
+        accept={props.accept}
         capture={props.capture}
         disabled={isUploading}
         onChange={(e) => {
@@ -124,6 +130,7 @@ export function ReceiptUploader({
               inputTestId="receipt-file-input-camera"
               label={url ? "Retake photo" : "Take photo"}
               capture={captureValue}
+              accept={ACCEPT_CAMERA}
             />
           ) : null}
 
@@ -131,6 +138,7 @@ export function ReceiptUploader({
             testId="receipt-upload-trigger"
             inputTestId="receipt-file-input"
             label={url ? (captureValue ? "Upload file" : "Replace") : captureValue ? "Upload file" : "Upload"}
+            accept={ACCEPT_UPLOAD}
           />
         </div>
       </div>

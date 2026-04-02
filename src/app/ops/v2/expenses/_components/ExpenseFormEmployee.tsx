@@ -3,6 +3,7 @@
 import * as React from "react";
 import { ReceiptUploader } from "./ReceiptUploader";
 import { Field, FieldRow, PrimaryButton, SecondaryButton, Select, TextArea, TextInput } from "./ExpenseFormsShared";
+import { ExpenseCategorySelectOptions } from "@/app/_components/ExpenseCategorySelectOptions";
 
 export function ExpenseFormEmployee({
   clients,
@@ -134,17 +135,7 @@ export function ExpenseFormEmployee({
           <FieldRow>
             <Field label="Category">
               <Select value={category} onChange={(e) => setCategory(e.target.value as any)} required>
-                <option value="HOTEL_ACCOMMODATION">Hotel/Accommodation</option>
-                <option value="MEAL">Meal</option>
-                <option value="PROP">Filming Prop</option>
-                <option value="CAMERA_GEAR_EQUIPMENT">Camera Gear/Equipment</option>
-                <option value="PARKING">Parking</option>
-                <option value="CAR_RENTAL">Rental Car</option>
-                <option value="FUEL">Fuel - Rental Car</option>
-                <option value="FLIGHT_EXPENSE">Flight Expense</option>
-                <option value="GROUND_TRANSPORTATION">Ground Transportation</option>
-                <option value="AD_SPEND">Advertising Spend</option>
-                <option value="OTHER">Other</option>
+                <ExpenseCategorySelectOptions />
               </Select>
             </Field>
 

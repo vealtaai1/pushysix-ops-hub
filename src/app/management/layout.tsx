@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import Link from "next/link";
 
 import { auth } from "@/auth";
+import { prisma } from "@/lib/db";
 
 const MANAGEMENT_LINKS: Array<{ href: string; label: string }> = [
   { href: "/management/retainers", label: "Retainer Logs" },
@@ -12,6 +13,8 @@ const MANAGEMENT_LINKS: Array<{ href: string; label: string }> = [
   // Payroll is admin-only (lives under /admin).
   { href: "/management/users", label: "Users" },
 ];
+
+export const dynamic = "force-dynamic";
 
 export default async function ManagementLayout({ children }: { children: ReactNode }) {
   const session = await auth();
@@ -38,6 +41,8 @@ export default async function ManagementLayout({ children }: { children: ReactNo
     );
   }
 
+  const pendingApprovalsCount = await prisma.approvalRequest.count({ where: { status: "PENDING" } });
+
   return (
     <div className="theme-light space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -57,15 +62,30 @@ export default async function ManagementLayout({ children }: { children: ReactNo
         </div>
 
         <nav className="flex flex-wrap items-center gap-2">
-          {MANAGEMENT_LINKS.map((l) => (
-            <Link
-              key={l.href}
-              href={l.href}
-              className="rounded-md border border-zinc-200 bg-white px-3 py-1.5 text-sm text-zinc-700 hover:bg-zinc-50"
-            >
-              {l.label}
-            </Link>
-          ))}
+          {MANAGEMENT_LINKS.map((l) => {
+            const showBadge = l.href === "/management/approvals" && pendingApprovalsCount > 0;
+
+            return (
+              <Link
+                key={l.href}
+                href={l.href}
+                className="rounded-md border border-zinc-200 bg-white px-3 py-1.5 text-sm text-zinc-700 hover:bg-zinc-50"
+              >
+                <span className="flex items-center gap-2">
+                  <span>{l.label}</span>
+                  {showBadge ? (
+                    <span
+                      className="inline-flex min-w-5 items-center justify-center rounded-full bg-red-600 px-1.5 text-[11px] font-semibold leading-5 text-white"
+                      aria-label={`${pendingApprovalsCount} pending approvals`}
+                      title={`${pendingApprovalsCount} pending approvals`}
+                    >
+                      {pendingApprovalsCount}
+                    </span>
+                  ) : null}
+                </span>
+              </Link>
+            );
+          })}
         </nav>
       </div>
 

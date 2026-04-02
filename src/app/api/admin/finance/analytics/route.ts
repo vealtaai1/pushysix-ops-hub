@@ -161,8 +161,7 @@ export async function GET(req: Request) {
       clientId: { in: clients.map((c) => c.id) },
       expenseDate: { gte: fromDate, lt: toDateExclusive },
       // NOTE: We intentionally do NOT filter by projectId at query-time.
-      // Reason: some categories (ex: AD_SPEND) should always be treated as RETAINER-level spend,
-      // even if they are linked to a project in the DB.
+      // Reason: deployed DBs may have drift; filtering in-memory is safer.
     },
     select: {
       clientId: true,
@@ -291,13 +290,13 @@ export async function GET(req: Request) {
 
   for (const ex of expenseEntries) {
     const cat = String(ex.category || "OTHER");
-    const isAdSpend = cat === "AD_SPEND";
 
-    // Engagement inference for expenses:
-    // - Default: projectId == null → RETAINER; projectId != null → MISC_PROJECT
-    // - Exception: AD_SPEND is always treated as RETAINER-level spend.
-    const isRetainerExpense = isAdSpend || ex.projectId == null;
-    const isProjectExpense = !isAdSpend && ex.projectId != null;
+    // Engagement inference for expenses (to tolerate older schemas):
+    // - projectId == null → RETAINER
+    // - projectId != null → MISC_PROJECT
+    // Note: AD_SPEND may be logged against a project.
+    const isRetainerExpense = ex.projectId == null;
+    const isProjectExpense = ex.projectId != null;
 
     if (engagementTypeParam) {
       if (engagementTypeParam === "RETAINER" && !isRetainerExpense) continue;
@@ -399,10 +398,9 @@ export async function GET(req: Request) {
 
   for (const ex of expenseEntries) {
     const cat = String(ex.category || "OTHER");
-    const isAdSpend = cat === "AD_SPEND";
 
-    const isRetainerExpense = isAdSpend || ex.projectId == null;
-    const isProjectExpense = !isAdSpend && ex.projectId != null;
+    const isRetainerExpense = ex.projectId == null;
+    const isProjectExpense = ex.projectId != null;
 
     if (engagementTypeParam) {
       if (engagementTypeParam === "RETAINER" && !isRetainerExpense) continue;
