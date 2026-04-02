@@ -4,6 +4,17 @@ import * as React from "react";
 
 type BillingCycleStartDay = "FIRST" | "FIFTEENTH";
 
+function dollarsToCents(s: string): number {
+  const n = Number(String(s ?? "").replace(/[^0-9.\-]/g, ""));
+  if (!Number.isFinite(n) || n < 0) return 0;
+  return Math.round(n * 100);
+}
+
+function centsToDollars(cents: number): string {
+  if (!Number.isFinite(cents)) return "0.00";
+  return (cents / 100).toFixed(2);
+}
+
 export function RetainerSettingsEditorClient({
   clientId,
   initial,
@@ -24,18 +35,80 @@ export function RetainerSettingsEditorClient({
   const [monthlyRetainerHours, setMonthlyRetainerHours] = React.useState<string>(String(initial.monthlyRetainerHours));
   const [maxShootsPerCycle, setMaxShootsPerCycle] = React.useState<string>(initial.maxShootsPerCycle == null ? "" : String(initial.maxShootsPerCycle));
   const [maxCaptureHoursPerCycle, setMaxCaptureHoursPerCycle] = React.useState<string>(
-    initial.maxCaptureHoursPerCycle == null ? "" : String(initial.maxCaptureHoursPerCycle)
+    initial.maxCaptureHoursPerCycle == null ? "" : String(initial.maxCaptureHoursPerCycle),
   );
 
+  // Ad spend editing is consolidated into Retainer settings.
+  const [adCycleId, setAdCycleId] = React.useState<string | null>(null);
+  const [adCycleLabel, setAdCycleLabel] = React.useState<string | null>(null);
+  const [adQuota, setAdQuota] = React.useState<string>("");
+  const [adActual, setAdActual] = React.useState<string>("");
+  const [adLoading, setAdLoading] = React.useState(false);
+
   React.useEffect(() => {
-    if (open) {
-      setBillingCycleStartDay(initial.billingCycleStartDay);
-      setMonthlyRetainerHours(String(initial.monthlyRetainerHours));
-      setMaxShootsPerCycle(initial.maxShootsPerCycle == null ? "" : String(initial.maxShootsPerCycle));
-      setMaxCaptureHoursPerCycle(initial.maxCaptureHoursPerCycle == null ? "" : String(initial.maxCaptureHoursPerCycle));
-      setError(null);
+    if (!open) return;
+
+    setBillingCycleStartDay(initial.billingCycleStartDay);
+    setMonthlyRetainerHours(String(initial.monthlyRetainerHours));
+    setMaxShootsPerCycle(initial.maxShootsPerCycle == null ? "" : String(initial.maxShootsPerCycle));
+    setMaxCaptureHoursPerCycle(initial.maxCaptureHoursPerCycle == null ? "" : String(initial.maxCaptureHoursPerCycle));
+    setError(null);
+
+    let cancelled = false;
+
+    async function loadAdSpend() {
+      setAdLoading(true);
+      setAdCycleId(null);
+      setAdCycleLabel(null);
+      setAdQuota("");
+      setAdActual("");
+
+      try {
+        const cyclesRes = await fetch(`/api/ops/v2/retainers/${clientId}/cycles?ensureCurrent=true&limit=1`, {
+          cache: "no-store",
+        });
+        const cyclesData = await cyclesRes.json().catch(() => null);
+        if (!cyclesRes.ok || !cyclesData?.ok) {
+          throw new Error(String(cyclesData?.message || `Failed to load cycles (${cyclesRes.status})`));
+        }
+
+        const currentId: string | null = cyclesData?.current?.id ?? null;
+        const startISO: string | null = cyclesData?.current?.range?.startISO ?? null;
+        const endISO: string | null = cyclesData?.current?.range?.endISO ?? null;
+
+        if (!currentId) throw new Error("No current cycle found");
+        if (cancelled) return;
+
+        setAdCycleId(currentId);
+        if (startISO && endISO) setAdCycleLabel(`${startISO} → ${endISO}`);
+
+        const adRes = await fetch(`/api/ops/v2/retainers/${clientId}/adspend?cycleId=${encodeURIComponent(currentId)}`, {
+          cache: "no-store",
+        });
+        const adData = await adRes.json().catch(() => null);
+        if (!adRes.ok || !adData?.ok) {
+          throw new Error(String(adData?.message || `Failed to load ad spend (${adRes.status})`));
+        }
+
+        const lumped =
+          (adData.items as any[] | undefined)?.find((r) => String(r?.platformKey ?? "").toLowerCase() === "lumped") ?? null;
+
+        setAdQuota(centsToDollars(Number(lumped?.quotaCents ?? 0)));
+        setAdActual(centsToDollars(Number(lumped?.actualCents ?? 0)));
+      } catch (err: any) {
+        // Non-fatal: user can still edit normal retainer settings.
+        setError(String(err?.message || err));
+      } finally {
+        if (!cancelled) setAdLoading(false);
+      }
     }
-  }, [open, initial]);
+
+    loadAdSpend();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [open, initial, clientId]);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -62,6 +135,31 @@ export function RetainerSettingsEditorClient({
         return;
       }
 
+      // Ad spend: current cycle only, lumped row.
+      if (adCycleId) {
+        const adRes = await fetch(`/api/ops/v2/retainers/${clientId}/adspend`, {
+          method: "PUT",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            cycleId: adCycleId,
+            items: [
+              {
+                platformKey: "lumped",
+                platformName: "Lumped",
+                quotaCents: dollarsToCents(adQuota),
+                actualCents: dollarsToCents(adActual),
+              },
+            ],
+          }),
+        });
+
+        const adData = await adRes.json().catch(() => null);
+        if (!adRes.ok || !adData?.ok) {
+          setError(String(adData?.message || `Ad spend save failed (${adRes.status})`));
+          return;
+        }
+      }
+
       setOpen(false);
       window.location.reload();
     } catch (err: any) {
@@ -70,6 +168,9 @@ export function RetainerSettingsEditorClient({
       setPending(false);
     }
   }
+
+  const hoursN = Number(monthlyRetainerHours);
+  const hoursInvalid = hoursN < 0 || !Number.isFinite(hoursN);
 
   return (
     <>
@@ -92,6 +193,7 @@ export function RetainerSettingsEditorClient({
                 type="button"
                 className="h-9 rounded-md border border-zinc-300 bg-white px-3 text-sm hover:bg-zinc-50"
                 onClick={() => setOpen(false)}
+                disabled={pending}
               >
                 Close
               </button>
@@ -105,6 +207,7 @@ export function RetainerSettingsEditorClient({
                     value={billingCycleStartDay}
                     onChange={(e) => setBillingCycleStartDay(e.target.value as BillingCycleStartDay)}
                     className="h-10 rounded-md border border-zinc-300 bg-white px-3"
+                    disabled={pending}
                   >
                     <option value="FIRST">First of month</option>
                     <option value="FIFTEENTH">15th of month</option>
@@ -118,6 +221,7 @@ export function RetainerSettingsEditorClient({
                     onChange={(e) => setMonthlyRetainerHours(e.target.value)}
                     className="h-10 rounded-md border border-zinc-300 bg-white px-3"
                     inputMode="numeric"
+                    disabled={pending}
                   />
                 </label>
 
@@ -130,6 +234,7 @@ export function RetainerSettingsEditorClient({
                       className="h-10 rounded-md border border-zinc-300 bg-white px-3"
                       inputMode="numeric"
                       placeholder="(none)"
+                      disabled={pending}
                     />
                   </label>
 
@@ -141,8 +246,44 @@ export function RetainerSettingsEditorClient({
                       className="h-10 rounded-md border border-zinc-300 bg-white px-3"
                       inputMode="numeric"
                       placeholder="(none)"
+                      disabled={pending}
                     />
                   </label>
+                </div>
+
+                <div className="mt-2 border-t border-zinc-200 pt-3">
+                  <div className="text-sm font-semibold text-zinc-900">Ad spend (current cycle)</div>
+                  <div className="mt-1 text-xs text-zinc-500">
+                    {adCycleLabel ? `Cycle: ${adCycleLabel}` : adCycleId ? "Cycle: current" : "Cycle: unavailable"}
+                  </div>
+
+                  <div className="mt-3 grid gap-3 md:grid-cols-2">
+                    <label className="grid gap-1">
+                      <span className="text-xs font-semibold text-zinc-600">Quota ($)</span>
+                      <input
+                        value={adQuota}
+                        onChange={(e) => setAdQuota(e.target.value)}
+                        className="h-10 rounded-md border border-zinc-300 bg-white px-3 disabled:bg-zinc-50"
+                        inputMode="decimal"
+                        placeholder="0.00"
+                        disabled={pending || adLoading || !adCycleId}
+                      />
+                    </label>
+
+                    <label className="grid gap-1">
+                      <span className="text-xs font-semibold text-zinc-600">Actual ($)</span>
+                      <input
+                        value={adActual}
+                        onChange={(e) => setAdActual(e.target.value)}
+                        className="h-10 rounded-md border border-zinc-300 bg-white px-3 disabled:bg-zinc-50"
+                        inputMode="decimal"
+                        placeholder="0.00"
+                        disabled={pending || adLoading || !adCycleId}
+                      />
+                    </label>
+                  </div>
+
+                  {adLoading ? <div className="mt-2 text-xs text-zinc-500">Loading ad spend…</div> : null}
                 </div>
 
                 <div className="flex items-center justify-between gap-3">
@@ -152,12 +293,10 @@ export function RetainerSettingsEditorClient({
 
                   <button
                     type="submit"
-                    disabled={pending || Number(monthlyRetainerHours) < 0 || !Number.isFinite(Number(monthlyRetainerHours))}
+                    disabled={pending || hoursInvalid}
                     className={
                       "h-10 rounded-md px-4 text-sm font-semibold text-white " +
-                      (pending || Number(monthlyRetainerHours) < 0 || !Number.isFinite(Number(monthlyRetainerHours))
-                        ? "bg-zinc-300"
-                        : "bg-zinc-900 hover:opacity-90")
+                      (pending || hoursInvalid ? "bg-zinc-300" : "bg-zinc-900 hover:opacity-90")
                     }
                   >
                     {pending ? "Saving…" : "Save"}

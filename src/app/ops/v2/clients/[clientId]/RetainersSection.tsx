@@ -58,13 +58,6 @@ export async function RetainersSection({ client, quotaItems }: RetainersSectionP
       <div className="flex items-center justify-between gap-3">
         <h2 className="text-lg font-semibold">Retainer</h2>
         <div className="flex items-center gap-2">
-          <Link
-            href={`/ops/retainers/${client.id}`}
-            className="inline-flex h-9 items-center rounded-md border border-zinc-300 bg-white px-3 text-sm font-semibold text-zinc-800 hover:bg-zinc-50"
-          >
-            Ad spend
-          </Link>
-
           {canAddInitialRetainer ? <AddRetainerClient clientId={client.id} clientName={client.name} /> : null}
 
           {isAdmin && hasAny ? <ClearRetainerClient clientId={client.id} /> : null}
