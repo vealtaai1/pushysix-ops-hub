@@ -17,6 +17,12 @@ type ReceiptUploaderProps = {
    * - "user" | "environment" → passed through
    */
   capture?: boolean | "user" | "environment";
+  /**
+   * Visual style.
+   * - "card" (default): bordered card with title + helper text.
+   * - "inline": minimal UI (good for embedding inside other cards/forms).
+   */
+  variant?: "card" | "inline";
 };
 
 export function ReceiptUploader({
@@ -25,6 +31,7 @@ export function ReceiptUploader({
   initialUrl,
   onUploaded,
   capture,
+  variant = "card",
 }: ReceiptUploaderProps) {
   const [isUploading, setIsUploading] = useState(false);
   const [progress, setProgress] = useState<number | null>(null);
@@ -69,39 +76,66 @@ export function ReceiptUploader({
     }
   }
 
-  return (
-    <div className="rounded-lg border border-zinc-200 bg-white p-4">
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <div className="text-sm font-semibold text-zinc-900">Receipt</div>
-          <div className="text-xs text-zinc-500">Upload a JPG/PNG/WebP or PDF (max 15MB).</div>
-        </div>
+  const wrapperClass = variant === "inline" ? "" : "rounded-lg border border-zinc-200 bg-white p-4";
+  const captureValue = capture === true ? "environment" : capture;
 
-        <label
-          data-testid="receipt-upload-trigger"
-          className="inline-flex cursor-pointer items-center gap-2 rounded-md border border-zinc-200 bg-white px-3 py-1.5 text-sm text-zinc-700 hover:bg-zinc-50"
-        >
-          <input
-            data-testid="receipt-file-input"
-            type="file"
-            className="hidden"
-            accept="image/jpeg,image/png,image/webp,application/pdf"
-            capture={capture === true ? "environment" : capture}
-            disabled={isUploading}
-            onChange={(e) => {
-              const f = e.target.files?.[0];
-              if (!f) return;
-              void onPickFile(f);
-              e.currentTarget.value = "";
-            }}
+  const Trigger = (props: {
+    label: string;
+    capture?: boolean | "user" | "environment";
+    testId: string;
+    inputTestId?: string;
+  }) => (
+    <label
+      data-testid={props.testId}
+      className="inline-flex cursor-pointer items-center gap-2 rounded-md border border-zinc-200 bg-white px-3 py-1.5 text-sm text-zinc-700 hover:bg-zinc-50"
+    >
+      <input
+        data-testid={props.inputTestId}
+        type="file"
+        className="hidden"
+        accept="image/jpeg,image/png,image/webp,application/pdf"
+        capture={props.capture}
+        disabled={isUploading}
+        onChange={(e) => {
+          const f = e.target.files?.[0];
+          if (!f) return;
+          void onPickFile(f);
+          e.currentTarget.value = "";
+        }}
+      />
+      {isUploading ? "Uploading…" : props.label}
+    </label>
+  );
+
+  return (
+    <div className={wrapperClass}>
+      <div className="flex items-start justify-between gap-4">
+        {variant === "inline" ? null : (
+          <div>
+            <div className="text-sm font-semibold text-zinc-900">Receipt</div>
+            <div className="text-xs text-zinc-500">Upload a JPG/PNG/WebP or PDF (max 15MB).</div>
+          </div>
+        )}
+
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          {captureValue ? (
+            <Trigger
+              testId="receipt-upload-trigger-camera"
+              inputTestId="receipt-file-input-camera"
+              label={url ? "Retake photo" : "Take photo"}
+              capture={captureValue}
+            />
+          ) : null}
+
+          <Trigger
+            testId="receipt-upload-trigger"
+            inputTestId="receipt-file-input"
+            label={url ? (captureValue ? "Upload file" : "Replace") : captureValue ? "Upload file" : "Upload"}
           />
-          {isUploading ? "Uploading…" : url ? "Replace" : "Upload"}
-        </label>
+        </div>
       </div>
 
-      {isUploading && progress !== null ? (
-        <div className="mt-3 text-xs text-zinc-600">Uploading: {progress}%</div>
-      ) : null}
+      {isUploading && progress !== null ? <div className="mt-3 text-xs text-zinc-600">Uploading: {progress}%</div> : null}
 
       {error ? (
         <div data-testid="receipt-upload-error" className="mt-3 text-xs text-red-600">
@@ -110,7 +144,7 @@ export function ReceiptUploader({
       ) : null}
 
       {url ? (
-        <div className="mt-3">
+        <div className={variant === "inline" ? "mt-2" : "mt-3"}>
           <a
             data-testid="receipt-upload-view"
             className="text-sm text-blue-700 hover:underline"
@@ -122,6 +156,8 @@ export function ReceiptUploader({
           </a>
           <div className="mt-1 break-all text-xs text-zinc-500">{url}</div>
         </div>
+      ) : variant === "inline" ? (
+        <div className="mt-2 text-xs text-zinc-500">No receipt yet.</div>
       ) : (
         <div className="mt-3 text-xs text-zinc-500">No receipt uploaded yet.</div>
       )}

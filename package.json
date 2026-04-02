@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "node scripts/ensureNextBuildManifests.js && next build",
     "prebuild": "npm run prisma:generate && npm run prisma:migrate:deploy",
     "start": "next start",
     "lint": "eslint",
