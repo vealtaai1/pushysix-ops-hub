@@ -8,9 +8,9 @@ Notes:
 - Added “Monthly Ad Spend (optional)” to the Add Retainer modal; it seeds the current cycle lumped ad spend quota.
 
 2. Worklog - when a receipt is uploaded, or a photo taken, we should be able to delete that receipt.
-Status: In progress — UNAPPROVED
+Status: Completed (deployed) — UNAPPROVED
 Notes:
-- Plan: add a clear/remove control in the worklog expense receipt UI to set receiptUrl back to empty.
+- Added a Remove button to clear an uploaded receipt on the worklog expense line (before submit).
 
 3. Project Logs Page - this page should have more info and pie charts similar to the retainer logs page. Breakdown of the project by employees, breakdown of the services logged, breakdown of expenses logged in that project etc. mileage logs should show which employee logged them,
 Status: In progress — UNAPPROVED
