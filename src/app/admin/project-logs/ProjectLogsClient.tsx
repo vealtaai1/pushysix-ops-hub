@@ -130,7 +130,7 @@ export function ProjectLogsClient({ clients, projects }: { clients: ClientRow[];
       {data?.project ? (
         <div className="space-y-4">
           <div className="rounded-lg border border-zinc-200 bg-white p-4">
-            <div className="text-sm font-semibold text-zinc-900">{data.project.code} ({data.project.shortCode}) — {data.project.name}</div>
+            <div className="text-sm font-semibold leading-snug text-zinc-900 break-words">{data.project.code} ({data.project.shortCode}) — {data.project.name}</div>
             <div className="mt-1 text-xs text-zinc-600">Client: {data.project.client.name} · Status: {data.project.status}</div>
 
             <div className="mt-3 grid gap-3 sm:grid-cols-3">
@@ -174,10 +174,10 @@ export function ProjectLogsClient({ clients, projects }: { clients: ClientRow[];
                 {(data.worklogs ?? []).slice(0, 50).map((w, idx) => (
                   <div key={idx} className="rounded-md border border-zinc-200 p-3 text-sm">
                     <div className="flex flex-wrap items-center justify-between gap-2">
-                      <div className="font-medium">{fmtDate(w.workDate)} · {w.bucketName}</div>
+                      <div className="min-w-0 font-medium break-words">{fmtDate(w.workDate)} · {w.bucketName}</div>
                       <div className="text-zinc-700">{(w.minutes / 60).toFixed(2)}h</div>
                     </div>
-                    {w.notes ? <div className="mt-1 text-xs text-zinc-600 whitespace-pre-wrap">{w.notes}</div> : null}
+                    {w.notes ? <div className="mt-1 text-xs text-zinc-600 whitespace-pre-wrap break-words">{w.notes}</div> : null}
                   </div>
                 ))}
               </div>
@@ -193,11 +193,11 @@ export function ProjectLogsClient({ clients, projects }: { clients: ClientRow[];
                 {(data.expenses ?? []).slice(0, 50).map((ex, idx) => (
                   <div key={idx} className="rounded-md border border-zinc-200 p-3 text-sm">
                     <div className="flex flex-wrap items-center justify-between gap-2">
-                      <div className="font-medium">{fmtDate(ex.expenseDate)} · {ex.category}</div>
+                      <div className="min-w-0 font-medium break-words">{fmtDate(ex.expenseDate)} · {ex.category}</div>
                       <div className="whitespace-nowrap">{cad.format(ex.amountCents / 100)}</div>
                     </div>
-                    <div className="mt-1 text-xs text-zinc-700">{ex.description}</div>
-                    {ex.vendor ? <div className="mt-1 text-xs text-zinc-500">Vendor: {ex.vendor}</div> : null}
+                    <div className="mt-1 text-xs text-zinc-700 break-words">{ex.description}</div>
+                    {ex.vendor ? <div className="mt-1 text-xs text-zinc-500 break-words">Vendor: {ex.vendor}</div> : null}
                   </div>
                 ))}
               </div>
@@ -216,7 +216,7 @@ export function ProjectLogsClient({ clients, projects }: { clients: ClientRow[];
                       <div className="font-medium">{fmtDate(m.workDate)}</div>
                       <div className="whitespace-nowrap">{m.kilometers.toFixed(1)} km</div>
                     </div>
-                    {m.notes ? <div className="mt-1 text-xs text-zinc-600 whitespace-pre-wrap">{m.notes}</div> : null}
+                    {m.notes ? <div className="mt-1 text-xs text-zinc-600 whitespace-pre-wrap break-words">{m.notes}</div> : null}
                   </div>
                 ))}
               </div>
