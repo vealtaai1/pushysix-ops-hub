@@ -13,10 +13,10 @@ Notes:
 - Added a Remove button to clear an uploaded receipt on the worklog expense line (before submit).
 
 3. Project Logs Page - this page should have more info and pie charts similar to the retainer logs page. Breakdown of the project by employees, breakdown of the services logged, breakdown of expenses logged in that project etc. mileage logs should show which employee logged them,
-Status: In progress — UNAPPROVED
+Status: Completed (deployed) — UNAPPROVED
 Notes:
-- Current: Project Logs page exists with client/project select + breakdown lists.
-- Next: add employee/service/expense aggregations + charts; include employee on mileage.
+- Added breakdowns + pie charts (services/buckets, employees, expenses by category).
+- Mileage rows now include the employee who logged them.
 
 4. Need a way to click on the projects within the client > open page and see a full summary of the project, total specs, all worklog/expense entries relating to that project, etc. (THIS SHOULD GO TO THE PROJECT LOGS PAGE AND DEFAULT TO THE EXACT PROJECT THEY CLICKED ON)
 Status: In progress — UNAPPROVED
