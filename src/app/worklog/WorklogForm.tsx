@@ -858,7 +858,7 @@ export function WorklogForm({
                           }
                         }}
                         disabled={!m.clientId}
-                        className="h-10 w-72 rounded-md border border-zinc-300 bg-white px-3 disabled:bg-zinc-50"
+                        className="h-10 w-full min-w-0 sm:w-72 rounded-md border border-zinc-300 bg-white px-3 disabled:bg-zinc-50"
                       >
                         {m.clientId ? (
                           <>
@@ -904,7 +904,7 @@ export function WorklogForm({
                         onChange={(e) =>
                           setMileage((prev) => prev.map((x) => (x.id === m.id ? { ...x, kilometersText: e.target.value } : x)))
                         }
-                        className="h-10 w-40 rounded-md border border-zinc-300 bg-white px-3"
+                        className="h-10 w-full min-w-0 sm:w-40 rounded-md border border-zinc-300 bg-white px-3"
                       />
                     </td>
 
