@@ -10,6 +10,8 @@ type ReceiptUploaderProps = {
   expenseEntryId?: string;
   initialUrl?: string | null;
   onUploaded?: (url: string) => void;
+  /** Called when the user clears/removes the currently uploaded receipt from the UI. */
+  onRemoved?: () => void;
   /**
    * Optional. If set, hints to mobile browsers that this file input should use the camera.
    *
@@ -30,6 +32,7 @@ export function ReceiptUploader({
   expenseEntryId,
   initialUrl,
   onUploaded,
+  onRemoved,
   capture,
   variant = "card",
 }: ReceiptUploaderProps) {
@@ -40,6 +43,11 @@ export function ReceiptUploader({
   const [progress, setProgress] = useState<number | null>(null);
   const [url, setUrl] = useState<string | null>(initialUrl ?? null);
   const [error, setError] = useState<string | null>(null);
+
+  // Keep internal state in sync with parent state (e.g. when the parent clears the receipt URL).
+  useEffect(() => {
+    setUrl(initialUrl ?? null);
+  }, [initialUrl]);
 
   const prefix = useMemo(() => {
     const c = (clientId ?? "unassigned").trim() || "unassigned";
@@ -212,6 +220,22 @@ export function ReceiptUploader({
             label={url ? (captureValue ? "Upload file" : "Replace") : captureValue ? "Upload file" : "Upload"}
             accept={ACCEPT_UPLOAD}
           />
+
+          {url ? (
+            <button
+              type="button"
+              data-testid="receipt-upload-remove"
+              className="inline-flex items-center gap-2 rounded-md border border-zinc-200 bg-white px-3 py-1.5 text-sm text-zinc-700 hover:bg-zinc-50 disabled:opacity-60"
+              disabled={isUploading}
+              onClick={() => {
+                setError(null);
+                setUrl(null);
+                onRemoved?.();
+              }}
+            >
+              Remove
+            </button>
+          ) : null}
         </div>
       </div>
 

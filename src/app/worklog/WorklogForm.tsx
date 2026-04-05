@@ -53,7 +53,7 @@ type ExpenseLine = {
   description: string;
   amountText: string;
   // Receipt is uploaded (or captured via camera) and stored as a URL; we don't allow manual entry.
-  receiptUrl: string;
+  receiptUrl: string | null;
 };
 
 function uid() {
@@ -363,7 +363,7 @@ export function WorklogForm({
       if (!ex.clientId) return false;
       if (ex.engagementType === "MISC_PROJECT" && !ex.projectId) return false;
       if (ex.description.trim().length === 0) return false;
-      if (ex.receiptUrl.trim().length === 0) return false;
+      // Receipt is optional.
       return true;
     });
   }, [expenses, expenseLineIsActive]);
@@ -955,7 +955,7 @@ export function WorklogForm({
                   category: "OTHER",
                   description: "",
                   amountText: "",
-                  receiptUrl: "",
+                  receiptUrl: null,
                 },
               ])
             }
@@ -973,7 +973,6 @@ export function WorklogForm({
               const amt = parseNumberText(ex.amountText);
               const amountMissing = isActive && ex.amountText.trim() === "";
               const amountInvalid = ex.amountText.trim() !== "" && (!Number.isFinite(amt) || amt <= 0);
-              const receiptMissing = isActive && ex.receiptUrl.trim().length === 0;
 
               return (
                 <div key={ex.id} className="rounded-lg border border-zinc-200 bg-white p-4">
@@ -1126,22 +1125,24 @@ export function WorklogForm({
 
                     <div className="md:col-span-4">
                       <div className="mb-1 text-xs font-medium text-zinc-600">Receipt</div>
-                      <div className={showValidation && receiptMissing ? "rounded-md border border-red-300 p-1" : ""}>
+                      <div>
                         {!ex.clientId ? <div className="mb-2 text-xs text-zinc-600">Select a client to upload a receipt.</div> : null}
                         <div className={!ex.clientId ? "pointer-events-none opacity-50" : ""}>
                           <ReceiptUploader
                             clientId={ex.clientId ?? undefined}
                             expenseEntryId={ex.id}
-                            initialUrl={ex.receiptUrl || null}
+                            initialUrl={ex.receiptUrl ?? null}
                             capture
                             variant="inline"
                             onUploaded={(url) =>
                               setExpenses((prev) => prev.map((x) => (x.id === ex.id ? { ...x, receiptUrl: url } : x)))
                             }
+                            onRemoved={() =>
+                              setExpenses((prev) => prev.map((x) => (x.id === ex.id ? { ...x, receiptUrl: null } : x)))
+                            }
                           />
                         </div>
                       </div>
-                      {showValidation && receiptMissing ? <div className="mt-1 text-xs text-red-700">Receipt is required.</div> : null}
                     </div>
                   </div>
                 </div>
