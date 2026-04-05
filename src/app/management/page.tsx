@@ -4,6 +4,7 @@ export const dynamic = "force-dynamic";
 
 const LINKS: Array<{ href: string; title: string; desc: string }> = [
   { href: "/management/retainers", title: "Retainer Logs", desc: "Review retainer usage + caps." },
+  { href: "/management/project-logs", title: "Project Logs", desc: "Review one-off project usage, mileage, and expenses." },
   // Clients live under /ops/clients (client hub).
   { href: "/management/approvals", title: "Approvals", desc: "Approve/reject late worklogs, resubmits, day-offs." },
   { href: "/management/worklogs", title: "Worklogs", desc: "Manager view across users." },

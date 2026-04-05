@@ -8,6 +8,7 @@ type Tile = { href: string; title: string; desc: string; adminOnly?: boolean };
 
 const ADMIN_TILES: Tile[] = [
   { href: "/admin/retainers", title: "Retainer Logs", desc: "Manage retainers and billing enforcement." },
+  { href: "/admin/project-logs", title: "Project Logs", desc: "Review one-off project usage, mileage, and expenses." },
   { href: "/admin/clients", title: "Clients", desc: "Client list, contacts, and configuration." },
   { href: "/admin/worklogs", title: "Worklogs", desc: "Review submitted worklogs." },
   { href: "/admin/approvals", title: "Approvals", desc: "Approve worklogs and requests." },
