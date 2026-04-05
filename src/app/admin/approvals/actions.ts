@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db";
 import { requireAdminOrThrow, requireAdminUserIdOrThrow } from "@/lib/adminAuth";
-import { ApprovalStatus } from "@prisma/client";
+import { ApprovalStatus, ExpenseEntryStatus } from "@prisma/client";
 
 function asString(v: FormDataEntryValue | null) {
   return typeof v === "string" ? v : "";
@@ -26,7 +26,7 @@ export async function approveRequest(formData: FormData) {
       reviewedByUserId: reviewerId,
       reviewNote: note || null,
     },
-    select: { id: true, worklogId: true, dayOffId: true },
+    select: { id: true, worklogId: true, dayOffId: true, expenseEntryId: true },
   });
 
   if (req.worklogId) {
@@ -53,13 +53,21 @@ export async function approveRequest(formData: FormData) {
     });
   }
 
-  if (req.worklogId || req.dayOffId) {
+  if (req.expenseEntryId) {
+    await prisma.expenseEntry.update({
+      where: { id: req.expenseEntryId },
+      data: { status: ExpenseEntryStatus.APPROVED },
+    });
+  }
+
+  if (req.worklogId || req.dayOffId || req.expenseEntryId) {
     await prisma.approvalRequest.updateMany({
       where: {
         id: { not: req.id },
         status: ApprovalStatus.PENDING,
         ...(req.worklogId ? { worklogId: req.worklogId } : {}),
         ...(req.dayOffId ? { dayOffId: req.dayOffId } : {}),
+        ...(req.expenseEntryId ? { expenseEntryId: req.expenseEntryId } : {}),
       },
       data: {
         status: ApprovalStatus.SUPERSEDED,
@@ -90,7 +98,7 @@ export async function rejectRequest(formData: FormData) {
       reviewedByUserId: reviewerId,
       reviewNote: note || "Rejected",
     },
-    select: { id: true, worklogId: true, dayOffId: true },
+    select: { id: true, worklogId: true, dayOffId: true, expenseEntryId: true },
   });
 
   if (req.worklogId) {
@@ -117,13 +125,21 @@ export async function rejectRequest(formData: FormData) {
     });
   }
 
-  if (req.worklogId || req.dayOffId) {
+  if (req.expenseEntryId) {
+    await prisma.expenseEntry.update({
+      where: { id: req.expenseEntryId },
+      data: { status: ExpenseEntryStatus.REJECTED },
+    });
+  }
+
+  if (req.worklogId || req.dayOffId || req.expenseEntryId) {
     await prisma.approvalRequest.updateMany({
       where: {
         id: { not: req.id },
         status: ApprovalStatus.PENDING,
         ...(req.worklogId ? { worklogId: req.worklogId } : {}),
         ...(req.dayOffId ? { dayOffId: req.dayOffId } : {}),
+        ...(req.expenseEntryId ? { expenseEntryId: req.expenseEntryId } : {}),
       },
       data: {
         status: ApprovalStatus.SUPERSEDED,

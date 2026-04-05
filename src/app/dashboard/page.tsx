@@ -24,6 +24,7 @@ export default function DashboardPage() {
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <Tile href="/worklog" title="Worklog" desc="Enter today’s work and totals." />
+        <Tile href="/expenses" title="Expenses" desc="Submit expenses for approval." />
         <Tile href="/schedule" title="Schedule" desc="View the team schedule." />
         <Tile href="/equipment" title="Equipment" desc="Browse and manage equipment items." />
       </div>

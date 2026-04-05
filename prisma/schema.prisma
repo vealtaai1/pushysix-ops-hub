@@ -44,6 +44,7 @@ enum ApprovalType {
   WORKLOG_LATE_SUBMIT
   WORKLOG_RESUBMIT
   DAY_OFF
+  EXPENSE_SUBMISSION
 }
 
 enum ApprovalStatus {
@@ -323,6 +324,8 @@ model ExpenseEntry {
   submittedByUser User? @relation("ExpenseEntriesSubmittedBy", fields: [submittedByUserId], references: [id], onDelete: SetNull)
   employee        User? @relation("ExpenseEntriesForEmployee", fields: [employeeId], references: [id], onDelete: SetNull)
 
+  approvalRequests ApprovalRequest[]
+
   @@index([clientId, expenseDate])
   @@index([engagementType])
   @@index([projectId])
@@ -593,8 +596,9 @@ model ApprovalRequest {
   reviewNote String?
 
   // Optional linkage to the record being approved
-  worklogId String?
-  dayOffId  String?
+  worklogId       String?
+  dayOffId        String?
+  expenseEntryId  String?
 
   payload Json?
 
@@ -604,14 +608,16 @@ model ApprovalRequest {
   requestedByUser User  @relation("RequestedBy", fields: [requestedByUserId], references: [id], onDelete: Cascade)
   reviewedByUser  User? @relation("ReviewedBy", fields: [reviewedByUserId], references: [id], onDelete: SetNull)
 
-  worklog Worklog? @relation(fields: [worklogId], references: [id], onDelete: SetNull)
-  dayOff  DayOff?  @relation(fields: [dayOffId], references: [id], onDelete: SetNull)
+  worklog       Worklog?      @relation(fields: [worklogId], references: [id], onDelete: SetNull)
+  dayOff        DayOff?       @relation(fields: [dayOffId], references: [id], onDelete: SetNull)
+  expenseEntry  ExpenseEntry? @relation(fields: [expenseEntryId], references: [id], onDelete: SetNull)
 
   @@index([status, createdAt])
   @@index([type])
   @@index([workDate])
   @@index([requestedByUserId])
   @@index([reviewedByUserId])
+  @@index([expenseEntryId])
 }
 
 model EquipmentItem {

@@ -4,7 +4,7 @@ import {
   requireAdminOrAccountManagerOrThrow,
   requireAdminOrAccountManagerUserIdOrThrow,
 } from "@/lib/adminAuth";
-import { ApprovalStatus } from "@prisma/client";
+import { ApprovalStatus, ExpenseEntryStatus } from "@prisma/client";
 
 function statusFromAuthError(e: unknown) {
   const msg = e instanceof Error ? e.message : "Unauthorized";
@@ -46,7 +46,7 @@ export async function POST(req: Request) {
       reviewedByUserId: reviewerId,
       reviewNote: note || null,
     },
-    select: { id: true, type: true, worklogId: true, dayOffId: true },
+    select: { id: true, type: true, worklogId: true, dayOffId: true, expenseEntryId: true },
   });
 
   if (reqRow.worklogId) {
@@ -73,15 +73,23 @@ export async function POST(req: Request) {
     });
   }
 
+  if (reqRow.expenseEntryId) {
+    await prisma.expenseEntry.update({
+      where: { id: reqRow.expenseEntryId },
+      data: { status: ExpenseEntryStatus.APPROVED },
+    });
+  }
+
   // Resolve any sibling PENDING approval requests for the same underlying entity.
   // (Prevents multiple pending rows for the same worklog/day-off showing up in the queue.)
-  if (reqRow.worklogId || reqRow.dayOffId) {
+  if (reqRow.worklogId || reqRow.dayOffId || reqRow.expenseEntryId) {
     await prisma.approvalRequest.updateMany({
       where: {
         id: { not: reqRow.id },
         status: ApprovalStatus.PENDING,
         ...(reqRow.worklogId ? { worklogId: reqRow.worklogId } : {}),
         ...(reqRow.dayOffId ? { dayOffId: reqRow.dayOffId } : {}),
+        ...(reqRow.expenseEntryId ? { expenseEntryId: reqRow.expenseEntryId } : {}),
       },
       data: {
         status: ApprovalStatus.SUPERSEDED,

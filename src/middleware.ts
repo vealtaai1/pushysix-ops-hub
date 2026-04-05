@@ -65,6 +65,8 @@ export const config = {
     "/schedule/:path*",
     "/portal",
     "/portal/:path*",
+    "/expenses",
+    "/expenses/:path*",
     "/equipment",
     "/equipment/:path*",
     "/ops",
