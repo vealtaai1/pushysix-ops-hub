@@ -256,16 +256,7 @@ export function ReceiptUploader({
 
       {url ? (
         <div className={variant === "inline" ? "mt-2" : "mt-3"}>
-          <a
-            data-testid="receipt-upload-view"
-            className="text-sm text-blue-700 hover:underline"
-            href={url}
-            target="_blank"
-            rel="noreferrer"
-          >
-            View uploaded receipt
-          </a>
-          <div className="mt-1 break-all text-xs text-zinc-500">{url}</div>
+          <div className="text-xs font-medium text-emerald-700">Receipt uploaded.</div>
         </div>
       ) : variant === "inline" ? (
         <div className="mt-2 text-xs text-zinc-500">No receipt yet.</div>
