@@ -54,7 +54,7 @@ export default async function OpsV2ProjectPage({ params }: { params: Promise<{ p
       take: 500,
     }),
     prisma.expenseEntry.findMany({
-      where: { projectId, OR: [{ worklogId: null }, { worklog: { status: "APPROVED" } }] },
+      where: { projectId, OR: [{ worklog: { status: "APPROVED" } }, { worklogId: null, status: "APPROVED" }] },
       orderBy: [{ expenseDate: "desc" }, { createdAt: "desc" }],
       select: {
         id: true,

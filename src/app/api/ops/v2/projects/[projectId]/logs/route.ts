@@ -62,7 +62,7 @@ export async function GET(_req: Request, ctx: { params: Promise<{ projectId: str
     where: {
       projectId,
       engagementType: "MISC_PROJECT",
-      OR: [{ worklogId: null }, { worklog: { status: "APPROVED" } }],
+      OR: [{ worklog: { status: "APPROVED" } }, { worklogId: null, status: "APPROVED" }],
     },
     orderBy: [{ expenseDate: "desc" }],
     select: {

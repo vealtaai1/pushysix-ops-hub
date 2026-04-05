@@ -159,8 +159,10 @@ export async function GET(req: Request) {
     where: {
       clientId: { in: clients.map((c) => c.id) },
       expenseDate: { gte: fromDate, lt: toDateExclusive },
-      // Only count expenses that are not tied to a worklog OR are tied to an APPROVED worklog.
-      OR: [{ worklogId: null }, { worklog: { status: "APPROVED" } }],
+      // Only count:
+      // - worklog-linked expenses where the worklog is APPROVED
+      // - non-worklog expenses (e.g. employee submissions) only when the expense itself is APPROVED
+      OR: [{ worklog: { status: "APPROVED" } }, { worklogId: null, status: "APPROVED" }],
       // NOTE: We intentionally do NOT filter by projectId at query-time.
       // Reason: deployed DBs may have drift; filtering in-memory is safer.
     },
