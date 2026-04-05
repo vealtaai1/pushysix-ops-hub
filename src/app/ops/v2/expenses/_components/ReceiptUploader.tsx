@@ -1,7 +1,7 @@
 "use client";
 
 import { upload } from "@vercel/blob/client";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 type ReceiptUploaderProps = {
   /** Optional; used to namespace the blob path. */
@@ -34,6 +34,9 @@ export function ReceiptUploader({
   variant = "card",
 }: ReceiptUploaderProps) {
   const [isUploading, setIsUploading] = useState(false);
+  const [cameraOpen, setCameraOpen] = useState(false);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
   const [progress, setProgress] = useState<number | null>(null);
   const [url, setUrl] = useState<string | null>(initialUrl ?? null);
   const [error, setError] = useState<string | null>(null);
@@ -79,10 +82,74 @@ export function ReceiptUploader({
   const wrapperClass = variant === "inline" ? "" : "rounded-lg border border-zinc-200 bg-white p-4";
   const captureValue = capture === true ? "environment" : capture;
 
+  // If we can, use a real camera capture flow (more reliable than <input capture> across mobile browsers).
+  useEffect(() => {
+    if (!cameraOpen) return;
+
+    let cancelled = false;
+
+    async function start() {
+      try {
+        const facingMode = captureValue === "user" ? "user" : "environment";
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode },
+          audio: false,
+        });
+        if (cancelled) {
+          stream.getTracks().forEach((t) => t.stop());
+          return;
+        }
+        streamRef.current = stream;
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+          await videoRef.current.play();
+        }
+      } catch (e) {
+        setError(e instanceof Error ? e.message : String(e));
+        setCameraOpen(false);
+      }
+    }
+
+    void start();
+
+    return () => {
+      cancelled = true;
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach((t) => t.stop());
+        streamRef.current = null;
+      }
+    };
+  }, [cameraOpen, captureValue]);
+
   // On mobile, including non-image MIME types in `accept` can cause the camera capture flow
   // to fall back to the generic file picker (making "Take photo" behave like "Upload").
   const ACCEPT_CAMERA = "image/*";
   const ACCEPT_UPLOAD = "image/jpeg,image/png,image/webp,application/pdf";
+
+  async function captureFromVideo() {
+    const v = videoRef.current;
+    if (!v) return;
+
+    const w = v.videoWidth || 1280;
+    const h = v.videoHeight || 720;
+
+    const canvas = document.createElement("canvas");
+    canvas.width = w;
+    canvas.height = h;
+
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    ctx.drawImage(v, 0, 0, w, h);
+
+    const blob: Blob | null = await new Promise((resolve) => canvas.toBlob(resolve, "image/jpeg", 0.9));
+    if (!blob) return;
+
+    const file = new File([blob], `receipt-${Date.now()}.jpg`, { type: "image/jpeg" });
+
+    setCameraOpen(false);
+    await onPickFile(file);
+  }
 
   const Trigger = (props: {
     label: string;
@@ -125,13 +192,18 @@ export function ReceiptUploader({
 
         <div className="flex flex-wrap items-center justify-end gap-2">
           {captureValue ? (
-            <Trigger
-              testId="receipt-upload-trigger-camera"
-              inputTestId="receipt-file-input-camera"
-              label={url ? "Retake photo" : "Take photo"}
-              capture={captureValue}
-              accept={ACCEPT_CAMERA}
-            />
+            <button
+              type="button"
+              data-testid="receipt-upload-trigger-camera"
+              className="inline-flex cursor-pointer items-center gap-2 rounded-md border border-zinc-200 bg-white px-3 py-1.5 text-sm text-zinc-700 hover:bg-zinc-50 disabled:opacity-60"
+              disabled={isUploading}
+              onClick={() => {
+                setError(null);
+                setCameraOpen(true);
+              }}
+            >
+              {isUploading ? "Uploading…" : url ? "Retake photo" : "Take photo"}
+            </button>
           ) : null}
 
           <Trigger
@@ -142,6 +214,37 @@ export function ReceiptUploader({
           />
         </div>
       </div>
+
+      {cameraOpen ? (
+        <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/70 p-4">
+          <div className="w-full max-w-md rounded-lg bg-white p-4">
+            <div className="text-sm font-semibold text-zinc-900">Take photo</div>
+            <div className="mt-3 overflow-hidden rounded-md bg-black">
+              <video ref={videoRef} className="h-auto w-full" playsInline />
+            </div>
+
+            <div className="mt-3 flex items-center justify-end gap-2">
+              <button
+                type="button"
+                className="h-9 rounded-md border border-zinc-200 bg-white px-3 text-sm text-zinc-700 hover:bg-zinc-50"
+                onClick={() => setCameraOpen(false)}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="h-9 rounded-md bg-zinc-900 px-3 text-sm text-white hover:bg-zinc-800 disabled:opacity-60"
+                disabled={isUploading}
+                onClick={() => {
+                  void captureFromVideo();
+                }}
+              >
+                Use photo
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       {isUploading && progress !== null ? <div className="mt-3 text-xs text-zinc-600">Uploading: {progress}%</div> : null}
 
