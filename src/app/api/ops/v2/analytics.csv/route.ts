@@ -77,6 +77,7 @@ export async function GET(req: Request) {
     clientId: clientId ?? undefined,
     worklog: {
       workDate: { gte: fromDate, lt: toDateExclusive },
+      status: "APPROVED",
       userId: userId ?? undefined,
     },
   };

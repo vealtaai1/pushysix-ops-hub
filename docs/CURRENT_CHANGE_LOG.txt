@@ -1,0 +1,77 @@
+Current Change Log (Paul) — working sheet
+Prod: https://ops.pushysix.com
+Rule: Task wording must remain EXACTLY as provided. All items UNAPPROVED until Paul explicitly approves.
+
+1. Meal should be under the travel category
+Status: Completed (deployed) — UNAPPROVED
+Notes:
+- Updated the shared expense category dropdown ordering so MEAL is grouped under Travel.
+
+2. When adding a retainer, one of the fields should be “Monthly Ad Spend” (it appears when editing a retainer, but not when adding one)
+Status: Not done yet — UNAPPROVED
+Notes:
+- Retainer settings include ad spend fields, but the “Add retainer” flow still needs a Monthly Ad Spend field added.
+
+3. Trying to complete a worklog and when I add an expense, i’m getting an error when trying to submit - invalid payload.
+Status: Completed (deployed) — UNAPPROVED
+Notes:
+- Fixed backend validation + DB drift: added ExpenseEntry.engagementType migration and removed the hard requirement for receiptUrl.
+
+4. We should make the receipt optional while submitting an expense on the worklog.
+Status: Completed (deployed) — UNAPPROVED
+Notes:
+- Receipt is now optional for worklog-submitted expenses.
+
+5. Delete all this “what gets deleted” stuff under the client > open page
+Status: Not done yet — UNAPPROVED
+Notes:
+- The Danger Zone delete-client section currently includes explanatory text about deletions; we can remove that copy.
+
+28. On the worklogs page, the take photo button is returning with upload functionality and not taking picture functionality.
+Status: Completed (deployed) — UNAPPROVED
+Notes:
+- Replaced the browser file-input capture hint with a real camera modal (getUserMedia preview + capture), so “Take photo” reliably opens the camera.
+
+29. Need a way to click on the projects within the client > open page and see a full summary of the project, total specs, all worklog/expense entries relating to that project, etc.
+Status: Completed (deployed) — UNAPPROVED
+Notes:
+- Project summary page implemented and client project rows are now clickable to open it.
+
+31. Ad spend should only be changeable / accessible under the RETAINER settings. This should be tracked and logged under finance for the retainers as well.
+Status: Completed (deployed) — UNAPPROVED
+Notes:
+- Removed client-open ad spend module entrypoints; ad spend editing is under Retainer settings.
+- Included in retainer finance.
+
+32. We also need a way to log ad spend totals under projects as well - which should also be reflected in the finance page.
+Status: Completed (deployed) — UNAPPROVED
+Notes:
+- Added project-level ad spend quick-add and finance attribution for project-linked AD_SPEND.
+
+remove this from the management mode dashboard
+Status: Needs clarification — UNAPPROVED
+Notes:
+- Please specify what “this” refers to (screenshot + circle the tile/section, or tell me the exact label). Then I’ll remove it and deploy.
+
+33. we need to make another page for Project Logs. Similar to the retainer logs except this is where we can see the one off projects instead of the retainers. On this page, we should be able to select a client, and select any projects they have listed under them, which would show a full breakdown of the project similar to how the retainer logs give breakdowns of the retainers.
+Status: Completed (deployed) — UNAPPROVED
+Notes:
+- Added /admin/project-logs and /management/project-logs with client + project selectors.
+- Added an API endpoint to fetch project breakdown (worklogs, mileage, expenses) for MISC_PROJECT engagement.
+
+34. This page should be available under both admin mode and management mode.
+Status: Completed (deployed) — UNAPPROVED
+Notes:
+- Linked from both Admin and Management nav.
+
+35. No logs shouldn't influence the retainer logs, the project logs, or the finance page until they're approved. if they're rejected they should nolonger log against those tools.
+Status: Completed (deployed) — UNAPPROVED
+Notes:
+- Updated Retainer Logs, Project Logs, Finance analytics, and project summary queries to only count entries linked to APPROVED worklogs.
+- Rejected worklogs are excluded.
+
+36. I don’t want horizontal scrolling anywhere on the site, on any module. Please audit and fix the entire software.
+Status: In progress — UNAPPROVED
+Notes:
+- Implemented fixes for Worklogs + Approvals pages and added a global overflow-x-hidden guard.
+- Ongoing: continue sweeping remaining pages for min-width tables / fixed-width controls that can force sideways scroll.

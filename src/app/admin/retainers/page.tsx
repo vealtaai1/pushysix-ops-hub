@@ -46,6 +46,7 @@ export default async function AdminRetainersPage() {
               gte: startUTC,
               lt: endExclusiveUTC,
             },
+            status: "APPROVED",
           },
         },
         select: {

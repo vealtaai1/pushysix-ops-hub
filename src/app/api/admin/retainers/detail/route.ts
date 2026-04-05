@@ -108,6 +108,7 @@ export async function GET(req: Request) {
       engagementType: "RETAINER",
       worklog: {
         workDate: { gte: startUTC, lt: endExclusiveUTC },
+        status: "APPROVED",
       },
     },
     orderBy: [{ worklog: { workDate: "asc" } }, { createdAt: "asc" }],

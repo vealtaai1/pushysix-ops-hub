@@ -128,8 +128,7 @@ export async function GET(req: Request) {
           gte: fromDate,
           lt: toDateExclusive,
         },
-        // NOTE: If you want finance analytics to consider only approved worklogs, add:
-        // status: "APPROVED",
+        status: "APPROVED",
       },
     },
     select: {
@@ -160,6 +159,8 @@ export async function GET(req: Request) {
     where: {
       clientId: { in: clients.map((c) => c.id) },
       expenseDate: { gte: fromDate, lt: toDateExclusive },
+      // Only count expenses that are not tied to a worklog OR are tied to an APPROVED worklog.
+      OR: [{ worklogId: null }, { worklog: { status: "APPROVED" } }],
       // NOTE: We intentionally do NOT filter by projectId at query-time.
       // Reason: deployed DBs may have drift; filtering in-memory is safer.
     },
@@ -177,7 +178,7 @@ export async function GET(req: Request) {
   const mileageEntries = await prisma.mileageEntry.findMany({
     where: {
       clientId: { in: clients.map((c) => c.id) },
-      worklog: { workDate: { gte: fromDate, lt: toDateExclusive } },
+      worklog: { workDate: { gte: fromDate, lt: toDateExclusive }, status: "APPROVED" },
     },
     select: {
       clientId: true,

@@ -58,6 +58,7 @@ export async function GET(req: Request) {
         gte: fromDate,
         lt: toDateExclusive,
       },
+      status: "APPROVED",
     },
   };
 

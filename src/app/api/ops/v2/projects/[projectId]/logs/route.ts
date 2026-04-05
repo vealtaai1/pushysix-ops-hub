@@ -35,7 +35,7 @@ export async function GET(_req: Request, ctx: { params: Promise<{ projectId: str
 
   // One-off projects = engagementType=MISC_PROJECT.
   const worklogs = await prisma.worklogEntry.findMany({
-    where: { projectId, engagementType: "MISC_PROJECT" },
+    where: { projectId, engagementType: "MISC_PROJECT", worklog: { status: "APPROVED" } },
     orderBy: [{ worklog: { workDate: "desc" } }],
     select: {
       minutes: true,
@@ -48,7 +48,7 @@ export async function GET(_req: Request, ctx: { params: Promise<{ projectId: str
   });
 
   const mileage = await prisma.mileageEntry.findMany({
-    where: { projectId, engagementType: "MISC_PROJECT" },
+    where: { projectId, engagementType: "MISC_PROJECT", worklog: { status: "APPROVED" } },
     orderBy: [{ worklog: { workDate: "desc" } }],
     select: {
       kilometers: true,
@@ -59,7 +59,11 @@ export async function GET(_req: Request, ctx: { params: Promise<{ projectId: str
   });
 
   const expenses = await prisma.expenseEntry.findMany({
-    where: { projectId, engagementType: "MISC_PROJECT" },
+    where: {
+      projectId,
+      engagementType: "MISC_PROJECT",
+      OR: [{ worklogId: null }, { worklog: { status: "APPROVED" } }],
+    },
     orderBy: [{ expenseDate: "desc" }],
     select: {
       expenseDate: true,
