@@ -7,6 +7,7 @@ import { prisma } from "@/lib/db";
 
 const ADMIN_LINKS: Array<{ href: string; label: string }> = [
   { href: "/admin/retainers", label: "Retainer Logs" },
+  { href: "/admin/project-logs", label: "Project Logs" },
   { href: "/admin/clients", label: "Clients" },
   { href: "/admin/worklogs", label: "Worklogs" },
   { href: "/admin/approvals", label: "Approvals" },

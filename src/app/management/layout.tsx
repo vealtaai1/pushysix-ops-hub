@@ -7,6 +7,7 @@ import { prisma } from "@/lib/db";
 
 const MANAGEMENT_LINKS: Array<{ href: string; label: string }> = [
   { href: "/management/retainers", label: "Retainer Logs" },
+  { href: "/management/project-logs", label: "Project Logs" },
   // Clients live under /ops/clients (client hub).
   { href: "/management/approvals", label: "Approvals" },
   { href: "/management/worklogs", label: "Worklogs" },
