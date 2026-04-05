@@ -282,18 +282,30 @@ export function FinanceDashboardClient({ clients }: { clients: ClientOption[] })
 
         {data ? (
           <>
-            <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
-            <Stat label="Clients" value={String(data.totals.clients)} />
-            <Stat label="Logged" value={fmtHours(data.totals.loggedMinutes / 60)} />
-            {isProjectOnlyView ? null : <Stat label="Revenue (retainers)" value={fmtMoneyFromCents(data.totals.retainerRevenueCents, "CAD")} />}
-            <Stat label="Payroll" value={fmtMoneyFromCents(data.totals.payrollCostCents, "CAD")} />
-            <Stat label="Mileage" value={fmtMoneyFromCents(data.totals.mileageCostCents, "CAD")} />
-            <Stat label="Other expenses" value={fmtMoneyFromCents(data.totals.expenseCents, "CAD")} />
-          </div>
-          <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <Stat label="Total expenses" value={fmtMoneyFromCents(data.totals.totalExpenseCostCents, "CAD")} />
-            <Stat label="Mileage km" value={`${data.totals.mileageKm.toFixed(1)}km`} />
-          </div>
+            {(() => {
+              const adSpendCents = Number(data.expenseByCategoryCents?.AD_SPEND ?? 0) || 0;
+              const otherExpenseCents = Math.max(0, (Number(data.totals.expenseCents) || 0) - adSpendCents);
+
+              return (
+                <>
+                  <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-7">
+                    <Stat label="Clients" value={String(data.totals.clients)} />
+                    <Stat label="Logged" value={fmtHours(data.totals.loggedMinutes / 60)} />
+                    {isProjectOnlyView ? null : (
+                      <Stat label="Revenue (retainers)" value={fmtMoneyFromCents(data.totals.retainerRevenueCents, "CAD")} />
+                    )}
+                    <Stat label="Payroll" value={fmtMoneyFromCents(data.totals.payrollCostCents, "CAD")} />
+                    <Stat label="Mileage" value={fmtMoneyFromCents(data.totals.mileageCostCents, "CAD")} />
+                    <Stat label="Ad spend" value={fmtMoneyFromCents(adSpendCents, "CAD")} />
+                    <Stat label="Other expenses" value={fmtMoneyFromCents(otherExpenseCents, "CAD")} />
+                  </div>
+                  <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    <Stat label="Total expenses" value={fmtMoneyFromCents(data.totals.totalExpenseCostCents, "CAD")} />
+                    <Stat label="Mileage km" value={`${data.totals.mileageKm.toFixed(1)}km`} />
+                  </div>
+                </>
+              );
+            })()}
           </>
         ) : null}
 

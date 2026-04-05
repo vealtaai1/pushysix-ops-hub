@@ -117,6 +117,7 @@ export async function GET(req: Request) {
 
   const whereSql = Prisma.sql`
     w."workDate" >= ${fromDate} AND w."workDate" < ${toDateExclusive}
+    AND w."status" = 'APPROVED'
     ${clientId ? Prisma.sql`AND e."clientId" = ${clientId}` : Prisma.empty}
     ${bucketKey ? Prisma.sql`AND e."bucketKey" = ${bucketKey}` : Prisma.empty}
     ${userId ? Prisma.sql`AND w."userId" = ${userId}` : Prisma.empty}
