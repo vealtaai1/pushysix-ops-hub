@@ -228,8 +228,8 @@ export function ApprovalsClient({ initialPending }: { initialPending: PendingRow
                     {(submission.worklog.entries ?? []).length === 0 ? (
                       <div className="mt-2 text-sm text-zinc-600">No entries.</div>
                     ) : (
-                      <div className="mt-2 overflow-auto">
-                        <table className="w-full min-w-[720px] border-separate border-spacing-0">
+                      <div className="mt-2 overflow-x-hidden">
+                        <table className="w-full table-fixed border-separate border-spacing-0">
                           <thead>
                             <tr className="text-left text-xs text-zinc-600">
                               <th className="border-b border-zinc-200 px-2 py-1.5">Client</th>
@@ -277,8 +277,8 @@ export function ApprovalsClient({ initialPending }: { initialPending: PendingRow
                     {(submission.worklog.expenseEntries ?? []).length === 0 ? (
                       <div className="mt-2 text-sm text-zinc-600">No expenses.</div>
                     ) : (
-                      <div className="mt-2 overflow-auto">
-                        <table className="w-full min-w-[820px] border-separate border-spacing-0">
+                      <div className="mt-2 overflow-x-hidden">
+                        <table className="w-full table-fixed border-separate border-spacing-0">
                           <thead>
                             <tr className="text-left text-xs text-zinc-600">
                               <th className="border-b border-zinc-200 px-2 py-1.5">Client</th>
@@ -338,8 +338,8 @@ export function ApprovalsClient({ initialPending }: { initialPending: PendingRow
       {rows.length === 0 ? (
         <div className="rounded-md border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm text-zinc-700">No pending approvals.</div>
       ) : (
-        <div className="overflow-auto rounded-lg border border-zinc-200">
-          <table className="w-full min-w-[980px] border-separate border-spacing-0">
+        <div className="overflow-x-hidden rounded-lg border border-zinc-200">
+          <table className="w-full table-fixed border-separate border-spacing-0">
             <thead>
               <tr className="text-left text-xs font-medium text-zinc-600">
                 <th className="border-b border-zinc-200 px-3 py-2.5">Created</th>
@@ -387,12 +387,12 @@ export function ApprovalsClient({ initialPending }: { initialPending: PendingRow
                         <div className="text-xs text-zinc-500">{busyId === p.id ? "Working…" : null}</div>
                       </div>
 
-                      <div className="flex flex-wrap gap-2">
-                        <div className="flex items-center gap-2">
+                      <div className="flex flex-col gap-2">
+                        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
                           <input
                             name={`note-${p.id}`}
                             placeholder="Note (optional)"
-                            className="h-9 w-56 rounded-md border border-zinc-300 bg-white px-3 text-sm"
+                            className="h-9 w-full min-w-0 max-w-[14rem] rounded-md border border-zinc-300 bg-white px-3 text-sm"
                             disabled={busyId === p.id}
                             onKeyDown={(e) => {
                               if (e.key === "Enter") e.preventDefault();
@@ -412,11 +412,11 @@ export function ApprovalsClient({ initialPending }: { initialPending: PendingRow
                           </button>
                         </div>
 
-                        <div className="flex items-center gap-2">
+                        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
                           <input
                             name={`reject-${p.id}`}
                             placeholder="Rejection reason (required)"
-                            className="h-9 w-56 rounded-md border border-zinc-300 bg-white px-3 text-sm"
+                            className="h-9 w-full min-w-0 max-w-[14rem] rounded-md border border-zinc-300 bg-white px-3 text-sm"
                             disabled={busyId === p.id}
                             onKeyDown={(e) => {
                               if (e.key === "Enter") e.preventDefault();
