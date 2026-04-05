@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useSearchParams } from "next/navigation";
 import { CALGARY_TZ, isoDateInTimeZone, parseISODateAsUTC } from "@/lib/time";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
 import { updateClientRetainerBasics } from "./actions";
@@ -104,6 +105,8 @@ const PIE_COLORS = [
 ];
 
 export function RetainersDashboardClient({ initialRows }: { initialRows: ClientRow[] }) {
+  const searchParams = useSearchParams();
+
   const [query, setQuery] = React.useState("");
   const [atRiskOnly, setAtRiskOnly] = React.useState(false);
   const [sortKey, setSortKey] = React.useState<"RISK" | "NAME" | "OVER">("RISK");
@@ -162,6 +165,27 @@ export function RetainersDashboardClient({ initialRows }: { initialRows: ClientR
       setLoadingDetail(false);
     }
   }
+
+  // URL-driven preselect (used by Admin → Client → Retainer log button)
+  React.useEffect(() => {
+    const spClientId = searchParams.get("clientId") ?? "";
+    if (!spClientId) return;
+
+    const r = initialRows.find((x) => x.client.id === spClientId);
+    if (!r) return;
+
+    // Open the detail modal automatically.
+    (async () => {
+      const currentCycleId = await loadCycles(r.client.id);
+      void loadDetail({
+        clientId: r.client.id,
+        cycleId: currentCycleId,
+        startISO: r.range.startISO,
+        endISO: r.range.endISO,
+      });
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const rows = React.useMemo(() => {
     const q = query.trim().toLowerCase();

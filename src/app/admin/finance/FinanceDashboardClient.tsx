@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import {
   Bar,
   BarChart,
@@ -158,6 +159,8 @@ function expenseCategoryLabel(key: string): string {
 }
 
 export function FinanceDashboardClient({ clients }: { clients: ClientOption[] }) {
+  const searchParams = useSearchParams();
+
   const clientOptions = useMemo(
     () => [{ id: "", name: "All active clients", status: "", billingCycleStartDay: "", monthlyRetainerFeeCents: null, monthlyRetainerFeeCurrency: "CAD", projects: [] }, ...clients],
     [clients],
@@ -167,6 +170,25 @@ export function FinanceDashboardClient({ clients }: { clients: ClientOption[] })
   const referenceDate = useMemo(() => isoToday(), []);
   const [clientId, setClientId] = useState<string>("");
   const [engagementKey, setEngagementKey] = useState<string>("RETAINER");
+
+  // URL-driven preselect (used by Admin → Client buttons)
+  useEffect(() => {
+    const spClientId = searchParams.get("clientId") ?? "";
+    const spEngagementType = (searchParams.get("engagementType") ?? "").toUpperCase();
+    const spProjectId = searchParams.get("projectId") ?? "";
+
+    if (spClientId && clients.some((c) => c.id === spClientId)) {
+      setClientId(spClientId);
+
+      if (spEngagementType === "MISC_PROJECT" && spProjectId) {
+        setEngagementKey(`PROJECT:${spProjectId}`);
+      } else {
+        // default to retainer
+        setEngagementKey("RETAINER");
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const isProjectOnlyView = Boolean(clientId) && engagementKey.startsWith("PROJECT:");
 

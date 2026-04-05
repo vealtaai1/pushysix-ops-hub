@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { auth } from "@/auth";
+import { prisma } from "@/lib/db";
 import { AddRetainerClient } from "./AddRetainerClient";
 import { ClearRetainerClient } from "./ClearRetainerClient";
 import { RetainerFeeEditorClient } from "./RetainerFeeEditorClient";
@@ -53,6 +54,28 @@ export async function RetainersSection({ client, quotaItems }: RetainersSectionP
 
   const canAddInitialRetainer = isAdmin && !hasAny;
 
+  const now = new Date();
+  const currentCycle = hasAny
+    ? await prisma.retainerCycle.findFirst({
+        where: {
+          clientId: client.id,
+          startDate: { lte: now },
+          endDate: { gte: now },
+        },
+        orderBy: [{ startDate: "desc" }],
+        select: { id: true },
+      })
+    : null;
+
+  const adSpendQuoteCents = currentCycle
+    ? (
+        await prisma.retainerAdSpendItem.aggregate({
+          where: { retainerCycleId: currentCycle.id },
+          _sum: { quotaCents: true },
+        })
+      )._sum.quotaCents ?? 0
+    : 0;
+
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between gap-3">
@@ -62,13 +85,21 @@ export async function RetainersSection({ client, quotaItems }: RetainersSectionP
 
           {isAdmin && hasAny ? <ClearRetainerClient clientId={client.id} /> : null}
 
-          {isAdmin ? (
-            <Link
-              href="/admin/retainers"
-              className="inline-flex h-9 items-center rounded-md bg-zinc-900 px-3 text-sm font-semibold text-white hover:opacity-90"
-            >
-              Manage retainers
-            </Link>
+          {isAdmin && hasAny ? (
+            <>
+              <Link
+                href={`/admin/retainers?clientId=${encodeURIComponent(client.id)}`}
+                className="inline-flex h-9 items-center rounded-md bg-zinc-900 px-3 text-sm font-semibold text-white hover:opacity-90"
+              >
+                Retainer log
+              </Link>
+              <Link
+                href={`/admin/finance?clientId=${encodeURIComponent(client.id)}&engagementType=RETAINER`}
+                className="inline-flex h-9 items-center rounded-md border border-zinc-300 bg-white px-3 text-sm font-semibold text-zinc-800 hover:bg-zinc-50"
+              >
+                Retainer finance
+              </Link>
+            </>
           ) : null}
         </div>
       </div>
@@ -117,6 +148,14 @@ export async function RetainersSection({ client, quotaItems }: RetainersSectionP
                   <span className="text-zinc-600">Admin-only</span>
                 )}
               </div>
+            </div>
+
+            <div className="grid grid-cols-12 gap-2 px-4 py-3 text-sm border-t border-zinc-200">
+              <div className="col-span-6 font-medium">Monthly ad spend (quote)</div>
+              <div className="col-span-3 whitespace-nowrap">
+                {adSpendQuoteCents > 0 ? fmtMoneyFromCents(adSpendQuoteCents, client.monthlyRetainerFeeCurrency) : "—"}
+              </div>
+              <div className="col-span-3 text-zinc-600">Current cycle quota</div>
             </div>
 
             {client.maxShootsPerCycle !== null ? (

@@ -40,7 +40,7 @@ export default async function AdminClientHubPage({ params }: { params: Promise<{
   const canCloseProjects = session?.user?.role === "ADMIN";
   const canEditClient = session?.user?.role === "ADMIN";
 
-  const [projects, quotaItems, recentExpenses] = await Promise.all([
+  const [projects, quotaItems] = await Promise.all([
     prisma.project.findMany({
       where: { clientId },
       orderBy: [{ createdAt: "desc" }],
@@ -64,26 +64,6 @@ export default async function AdminClientHubPage({ params }: { params: Promise<{
         usageMode: true,
         limitPerCycleDays: true,
         limitPerCycleMinutes: true,
-      },
-    }),
-    prisma.expenseEntry.findMany({
-      where: { clientId },
-      orderBy: [{ expenseDate: "desc" }, { createdAt: "desc" }],
-      take: 50,
-      select: {
-        id: true,
-        kind: true,
-        status: true,
-        expenseDate: true,
-        vendor: true,
-        description: true,
-        amountCents: true,
-        currency: true,
-        receiptUrl: true,
-        reimburseToEmployee: true,
-        worklogId: true,
-        submittedByUser: { select: { name: true, email: true } },
-        employee: { select: { name: true, email: true } },
       },
     }),
   ]);
@@ -148,66 +128,8 @@ export default async function AdminClientHubPage({ params }: { params: Promise<{
           clientBillingEmail: client.billingContactEmail ?? client.clientBillingEmail,
         }}
         initialProjects={projects}
+        projectLinkMode="admin"
       />
-
-      <section className="rounded-lg border border-zinc-200 bg-white p-4">
-        <div>
-          <div className="text-sm font-semibold text-zinc-900">Recent expenses</div>
-          <div className="mt-1 text-xs text-zinc-500">Expenses are submitted via Worklog and surfaced here for client review.</div>
-        </div>
-
-        {recentExpenses.length === 0 ? (
-          <div className="mt-3 text-sm text-zinc-600">No expenses found.</div>
-        ) : (
-          <div className="mt-3 overflow-x-auto">
-            <table className="min-w-full border-separate border-spacing-y-1 text-sm">
-              <thead>
-                <tr className="text-left text-xs font-semibold uppercase tracking-wide text-zinc-500">
-                  <th className="pr-4">Date</th>
-                  <th className="pr-4">Description</th>
-                  <th className="pr-4">Vendor</th>
-                  <th className="pr-4">Amount</th>
-                  <th className="pr-4">Receipt</th>
-                  <th className="pr-4">Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {recentExpenses.map((e) => (
-                  <tr key={e.id} className="rounded-md bg-zinc-50">
-                    <td className="whitespace-nowrap px-2 py-2 pr-4 font-medium text-zinc-900">
-                      {e.expenseDate.toISOString().slice(0, 10)}
-                    </td>
-                    <td className="px-2 py-2 pr-4 text-zinc-800">
-                      <div className="line-clamp-2">{e.description}</div>
-                      <div className="mt-0.5 text-xs text-zinc-500">
-                        {e.employee?.name ?? e.employee?.email ?? ""}
-                        {e.reimburseToEmployee ? " · reimbursable" : ""}
-                        {e.worklogId ? " · worklog" : ""}
-                      </div>
-                    </td>
-                    <td className="px-2 py-2 pr-4 text-zinc-700">{e.vendor ?? "—"}</td>
-                    <td className="whitespace-nowrap px-2 py-2 pr-4 text-zinc-900">
-                      {(e.amountCents / 100).toFixed(2)} {e.currency}
-                    </td>
-                    <td className="whitespace-nowrap px-2 py-2 pr-4">
-                      {e.receiptUrl ? (
-                        <a className="text-blue-600 hover:underline" href={e.receiptUrl} target="_blank" rel="noreferrer">
-                          View
-                        </a>
-                      ) : (
-                        <span className="text-zinc-500">—</span>
-                      )}
-                    </td>
-                    <td className="whitespace-nowrap px-2 py-2 pr-4">
-                      <span className="text-xs font-semibold text-zinc-700">{e.status}</span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </section>
 
       {canEditClient ? <DangerZoneDeleteClientClient clientId={client.id} clientName={client.name} /> : null}
     </div>

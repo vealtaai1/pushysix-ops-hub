@@ -30,6 +30,12 @@ type ClientHubClientProps = {
     closedAt: Date | null;
   }>;
   canCloseProjects: boolean;
+  /**
+   * Controls where project click-through should go.
+   * - "ops": /ops/v2/projects/:id
+   * - "admin": /admin/project-logs (with preselected client+project)
+   */
+  projectLinkMode?: "ops" | "admin";
 };
 
 function pad4(n: number) {
@@ -60,7 +66,7 @@ function slugifyShortCode(input: string) {
     .replace(/-+$/, "");
 }
 
-export function ClientHubClient({ client, initialProjects, canCloseProjects }: ClientHubClientProps) {
+export function ClientHubClient({ client, initialProjects, canCloseProjects, projectLinkMode = "ops" }: ClientHubClientProps) {
   const [showAdd, setShowAdd] = React.useState(false);
 
   const createInit: CreateProjectState = { ok: false };
@@ -143,41 +149,66 @@ export function ClientHubClient({ client, initialProjects, canCloseProjects }: C
         {initialProjects.length === 0 ? (
           <div className="px-4 py-10 text-sm text-zinc-500">No projects yet.</div>
         ) : (
-          initialProjects.map((p) => (
-            <div key={p.id} className="grid grid-cols-12 gap-2 border-t border-zinc-200 px-4 py-3 text-sm">
-              <div className="col-span-2">
-                <Link href={`/ops/v2/projects/${p.id}`} className="text-sm font-medium text-zinc-900 hover:underline">
-                  {p.code}
-                </Link>
-              </div>
-              <div className="col-span-2">
-                <Link href={`/ops/v2/projects/${p.id}`} className="text-sm text-zinc-600 hover:underline">
-                  {p.shortCode}
-                </Link>
-              </div>
-              <div className="col-span-6">
-                <Link href={`/ops/v2/projects/${p.id}`} className="font-medium text-zinc-900 hover:underline">
-                  {p.name}
-                </Link>
-                {p.shortDescription ? <div className="mt-0.5 text-xs text-zinc-500 line-clamp-2">{p.shortDescription}</div> : null}
-              </div>
-              <div className="col-span-1 text-zinc-700">{p.status}</div>
-              <div className="col-span-1 text-right">
-                <div className="flex flex-col items-end gap-1">
-                  {canCloseProjects ? (
-                    <button
-                      type="button"
-                      className="h-8 rounded-md border border-zinc-300 bg-white px-2.5 text-xs font-semibold text-zinc-800 hover:bg-zinc-50"
-                      onClick={() => {
-                        setEditProject({ id: p.id, code: p.code, name: p.name, shortDescription: p.shortDescription });
-                        setEditName(p.name);
-                        setEditShortDescription(p.shortDescription ?? "");
-                        setEditError(null);
-                      }}
-                    >
-                      Edit
-                    </button>
-                  ) : null}
+          initialProjects.map((p) => {
+            const projectHref =
+              projectLinkMode === "admin"
+                ? `/admin/project-logs?clientId=${encodeURIComponent(client.id)}&projectId=${encodeURIComponent(p.id)}`
+                : `/ops/v2/projects/${p.id}`;
+
+            const projectFinanceHref = `/admin/finance?clientId=${encodeURIComponent(client.id)}&engagementType=MISC_PROJECT&projectId=${encodeURIComponent(p.id)}`;
+
+            return (
+              <div key={p.id} className="grid grid-cols-12 gap-2 border-t border-zinc-200 px-4 py-3 text-sm">
+                <div className="col-span-2">
+                  <Link href={projectHref} className="text-sm font-medium text-zinc-900 hover:underline">
+                    {p.code}
+                  </Link>
+                </div>
+                <div className="col-span-2">
+                  <Link href={projectHref} className="text-sm text-zinc-600 hover:underline">
+                    {p.shortCode}
+                  </Link>
+                </div>
+                <div className="col-span-6">
+                  <Link href={projectHref} className="font-medium text-zinc-900 hover:underline">
+                    {p.name}
+                  </Link>
+                  {p.shortDescription ? <div className="mt-0.5 text-xs text-zinc-500 line-clamp-2">{p.shortDescription}</div> : null}
+                </div>
+                <div className="col-span-1 text-zinc-700">{p.status}</div>
+                <div className="col-span-1 text-right">
+                  <div className="flex flex-col items-end gap-1">
+                    {projectLinkMode === "admin" ? (
+                      <>
+                        <Link
+                          href={projectHref}
+                          className="h-8 rounded-md border border-zinc-300 bg-white px-2.5 text-xs font-semibold text-zinc-800 hover:bg-zinc-50 inline-flex items-center"
+                        >
+                          Project log
+                        </Link>
+                        <Link
+                          href={projectFinanceHref}
+                          className="h-8 rounded-md border border-zinc-300 bg-white px-2.5 text-xs font-semibold text-zinc-800 hover:bg-zinc-50 inline-flex items-center"
+                        >
+                          Project finance
+                        </Link>
+                      </>
+                    ) : null}
+
+                    {canCloseProjects ? (
+                      <button
+                        type="button"
+                        className="h-8 rounded-md border border-zinc-300 bg-white px-2.5 text-xs font-semibold text-zinc-800 hover:bg-zinc-50"
+                        onClick={() => {
+                          setEditProject({ id: p.id, code: p.code, name: p.name, shortDescription: p.shortDescription });
+                          setEditName(p.name);
+                          setEditShortDescription(p.shortDescription ?? "");
+                          setEditError(null);
+                        }}
+                      >
+                        Edit
+                      </button>
+                    ) : null}
 
                   {p.status === "OPEN" ? (
                     canCloseProjects ? (
@@ -236,7 +267,8 @@ export function ClientHubClient({ client, initialProjects, canCloseProjects }: C
                 </div>
               </div>
             </div>
-          ))
+          );
+          })
         )}
       </div>
 
