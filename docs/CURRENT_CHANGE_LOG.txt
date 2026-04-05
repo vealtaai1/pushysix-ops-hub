@@ -8,9 +8,9 @@ Notes:
 - Updated the shared expense category dropdown ordering so MEAL is grouped under Travel.
 
 2. When adding a retainer, one of the fields should be “Monthly Ad Spend” (it appears when editing a retainer, but not when adding one)
-Status: Not done yet — UNAPPROVED
+Status: Completed (deployed) — UNAPPROVED
 Notes:
-- Retainer settings include ad spend fields, but the “Add retainer” flow still needs a Monthly Ad Spend field added.
+- Added “Monthly Ad Spend (optional)” to the Add Retainer modal; it seeds the current cycle lumped ad spend quota.
 
 3. Trying to complete a worklog and when I add an expense, i’m getting an error when trying to submit - invalid payload.
 Status: Completed (deployed) — UNAPPROVED
@@ -23,9 +23,9 @@ Notes:
 - Receipt is now optional for worklog-submitted expenses.
 
 5. Delete all this “what gets deleted” stuff under the client > open page
-Status: Not done yet — UNAPPROVED
+Status: Completed (deployed) — UNAPPROVED
 Notes:
-- The Danger Zone delete-client section currently includes explanatory text about deletions; we can remove that copy.
+- Removed the “What gets deleted” list from the Danger Zone section.
 
 28. On the worklogs page, the take photo button is returning with upload functionality and not taking picture functionality.
 Status: Completed (deployed) — UNAPPROVED

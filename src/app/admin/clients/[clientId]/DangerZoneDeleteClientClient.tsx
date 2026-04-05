@@ -35,17 +35,7 @@ export function DangerZoneDeleteClientClient({ clientId, clientName }: { clientI
       <div className="mt-3 rounded-md border border-red-200 bg-white p-3">
         <div className="text-sm font-semibold text-zinc-900">Delete client</div>
         <div className="mt-1 text-xs text-zinc-600">
-          <div className="font-medium text-zinc-800">What gets deleted</div>
-          <ul className="mt-1 list-disc pl-5">
-            <li>The client record</li>
-            <li>Projects and project-close billing emails (cascade)</li>
-            <li>Retainer cycles + ad spend items (cascade)</li>
-            <li>Client quota items (cascade)</li>
-            <li>Expense entries for this client (cascade)</li>
-            <li>Worklog entries tagged to this client (hard-delete)</li>
-            <li>Mileage entries allocated to this client (hard-delete)</li>
-            <li>Any worklogs that become empty after removing their entries/mileage</li>
-          </ul>
+          Deleting a client is permanent. Type the confirmations below to proceed.
         </div>
 
         <form

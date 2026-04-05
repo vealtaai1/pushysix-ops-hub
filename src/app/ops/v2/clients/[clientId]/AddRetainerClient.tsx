@@ -16,8 +16,17 @@ export function AddRetainerClient({ clientId, clientName }: AddRetainerClientPro
 
   const [billingCycleStartDay, setBillingCycleStartDay] = React.useState<BillingCycleStartDay>("FIRST");
   const [monthlyRetainerHours, setMonthlyRetainerHours] = React.useState<string>("10");
+  const [monthlyAdSpend, setMonthlyAdSpend] = React.useState<string>("");
   const [maxShootsPerCycle, setMaxShootsPerCycle] = React.useState<string>("");
   const [maxCaptureHoursPerCycle, setMaxCaptureHoursPerCycle] = React.useState<string>("");
+
+  function dollarsToCents(text: string): number {
+    const t = String(text ?? "").trim();
+    if (!t) return 0;
+    const n = Number.parseFloat(t.replace(/,/g, "."));
+    if (!Number.isFinite(n) || n < 0) return 0;
+    return Math.round(n * 100);
+  }
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -42,6 +51,41 @@ export function AddRetainerClient({ clientId, clientName }: AddRetainerClientPro
       if (!res.ok || !data?.ok) {
         setError(String(data?.message || `Request failed (${res.status})`));
         return;
+      }
+
+      // Optional: set initial Monthly Ad Spend (current cycle) if provided.
+      const adQuotaCents = dollarsToCents(monthlyAdSpend);
+      if (adQuotaCents > 0) {
+        const cycRes = await fetch(`/api/ops/v2/retainers/${clientId}/cycles?ensureCurrent=true&limit=1`, {
+          credentials: "include",
+        });
+        const cycData = await cycRes.json().catch(() => null);
+        const cycleId = cycData?.current?.id as string | undefined;
+        if (!cycRes.ok || !cycData?.ok || !cycleId) {
+          setError(String(cycData?.message || `Failed to load current cycle (${cycRes.status})`));
+          return;
+        }
+
+        const adRes = await fetch(`/api/ops/v2/retainers/${clientId}/adspend`, {
+          method: "PUT",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            cycleId,
+            items: [
+              {
+                platformKey: "lumped",
+                platformName: "Lumped",
+                quotaCents: adQuotaCents,
+                actualCents: 0,
+              },
+            ],
+          }),
+        });
+        const adData = await adRes.json().catch(() => null);
+        if (!adRes.ok || !adData?.ok) {
+          setError(String(adData?.message || `Ad spend save failed (${adRes.status})`));
+          return;
+        }
       }
 
       setOpen(false);
@@ -104,6 +148,18 @@ export function AddRetainerClient({ clientId, clientName }: AddRetainerClientPro
                     inputMode="numeric"
                   />
                   <div className="text-xs text-zinc-500">Retainer settings are admin-only.</div>
+                </label>
+
+                <label className="grid gap-1">
+                  <span className="text-xs font-semibold text-zinc-600">Monthly Ad Spend (optional)</span>
+                  <input
+                    value={monthlyAdSpend}
+                    onChange={(e) => setMonthlyAdSpend(e.target.value)}
+                    className="h-10 rounded-md border border-zinc-300 bg-white px-3"
+                    inputMode="decimal"
+                    placeholder="0.00"
+                  />
+                  <div className="text-xs text-zinc-500">Sets the current cycle lumped ad spend quota.</div>
                 </label>
 
                 <div className="grid grid-cols-2 gap-3">
