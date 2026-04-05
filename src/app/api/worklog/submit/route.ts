@@ -268,8 +268,8 @@ export async function POST(req: Request) {
         const description = String((ex as any)?.description ?? "").trim();
         if (!description) throw new Error("Description is required for expenses with amount > 0.");
 
-        const receiptUrl = String((ex as any)?.receiptUrl ?? "").trim();
-        if (!receiptUrl) throw new Error("Receipt URL is required for expenses with amount > 0.");
+        // Receipt is optional ("take photo" is just a file upload helper)
+        const receiptUrl = String((ex as any)?.receiptUrl ?? "").trim() || null;
 
         const vendor = (ex as any)?.vendor ? String((ex as any).vendor).trim() : null;
         const category = String((ex as any)?.category ?? "OTHER").trim() || "OTHER";
