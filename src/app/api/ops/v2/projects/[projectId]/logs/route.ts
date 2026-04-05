@@ -42,7 +42,7 @@ export async function GET(_req: Request, ctx: { params: Promise<{ projectId: str
       bucketName: true,
       bucketKey: true,
       notes: true,
-      worklog: { select: { workDate: true } },
+      worklog: { select: { workDate: true, user: { select: { id: true, name: true, email: true } } } },
     },
     take: 500,
   });
@@ -53,7 +53,7 @@ export async function GET(_req: Request, ctx: { params: Promise<{ projectId: str
     select: {
       kilometers: true,
       notes: true,
-      worklog: { select: { workDate: true } },
+      worklog: { select: { workDate: true, user: { select: { id: true, name: true, email: true } } } },
     },
     take: 500,
   });
@@ -79,14 +79,17 @@ export async function GET(_req: Request, ctx: { params: Promise<{ projectId: str
   const mileageKm = mileage.reduce((sum, m) => sum + (m.kilometers ?? 0), 0);
   const expenseTotalCents = expenses.reduce((sum, ex) => sum + (ex.amountCents ?? 0), 0);
 
-  const byBucketMap = new Map<string, number>();
+  const byBucketMap = new Map<string, { bucketKey: string; bucketName: string; minutes: number }>();
   for (const e of worklogs) {
+    const key = e.bucketKey ?? "other";
     const name = e.bucketName ?? e.bucketKey ?? "Other";
-    byBucketMap.set(name, (byBucketMap.get(name) ?? 0) + (e.minutes ?? 0));
+    const cur = byBucketMap.get(key) ?? { bucketKey: key, bucketName: name, minutes: 0 };
+    cur.minutes += e.minutes ?? 0;
+    // If some rows have empty bucketName, keep the best name we see.
+    if (!cur.bucketName && name) cur.bucketName = name;
+    byBucketMap.set(key, cur);
   }
-  const byBucket = Array.from(byBucketMap.entries())
-    .map(([bucketName, minutes]) => ({ bucketName, minutes }))
-    .sort((a, b) => b.minutes - a.minutes);
+  const byBucket = Array.from(byBucketMap.values()).sort((a, b) => b.minutes - a.minutes);
 
   return NextResponse.json({
     ok: true,
@@ -96,13 +99,24 @@ export async function GET(_req: Request, ctx: { params: Promise<{ projectId: str
     worklogs: worklogs.map((e) => ({
       workDate: e.worklog.workDate.toISOString(),
       minutes: e.minutes,
+      bucketKey: e.bucketKey ?? null,
       bucketName: e.bucketName ?? e.bucketKey ?? "—",
       notes: e.notes ?? null,
+      user: {
+        id: e.worklog.user.id,
+        name: e.worklog.user.name,
+        email: e.worklog.user.email,
+      },
     })),
     mileage: mileage.map((m) => ({
       workDate: m.worklog.workDate.toISOString(),
       kilometers: m.kilometers,
       notes: m.notes ?? null,
+      user: {
+        id: m.worklog.user.id,
+        name: m.worklog.user.name,
+        email: m.worklog.user.email,
+      },
     })),
     expenses: expenses.map((ex) => ({
       expenseDate: ex.expenseDate.toISOString(),
