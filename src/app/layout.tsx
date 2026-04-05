@@ -29,10 +29,10 @@ export default async function RootLayout({
     <html lang="en">
       <body className={`${openSans.variable} font-sans antialiased`}>
         {/* Default: light theme */}
-        <div className="min-h-dvh bg-zinc-50 text-zinc-950">
+        <div className="min-h-dvh overflow-x-hidden bg-zinc-50 text-zinc-950">
           <header className="border-b border-zinc-200 bg-white">
-            <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3">
-              <Link href={homeHref} className="flex items-center gap-3" aria-label="Pushysix Ops Hub">
+            <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-3 px-4 py-3">
+              <Link href={homeHref} className="flex min-w-0 items-center gap-3" aria-label="Pushysix Ops Hub">
                 <Image
                   src="/brand/pushysix-hex.png"
                   alt="Pushysix"
@@ -42,9 +42,9 @@ export default async function RootLayout({
                   className="h-9 w-9"
                 />
 
-                <div className="leading-tight">
-                  <div className="text-sm font-semibold tracking-wide">PUSHYSIX</div>
-                  <div className="text-xs ui-muted">Operations Hub</div>
+                <div className="min-w-0 leading-tight">
+                  <div className="truncate text-sm font-semibold tracking-wide">PUSHYSIX</div>
+                  <div className="truncate text-xs ui-muted">Operations Hub</div>
                 </div>
               </Link>
 

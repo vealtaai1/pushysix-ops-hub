@@ -562,7 +562,7 @@ export function WorklogForm({
       </div>
 
       <div className="rounded-lg border border-zinc-200 p-4">
-        <div className="mb-3 flex items-center justify-between">
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-3">
             <h2 className="text-sm font-semibold">Tasks</h2>
             <span
@@ -580,7 +580,7 @@ export function WorklogForm({
           </div>
           <button
             type="button"
-            className="h-9 rounded-md border border-zinc-300 bg-white px-3 text-sm hover:bg-zinc-50"
+            className="h-9 rounded-md border border-zinc-300 bg-white px-2 sm:px-3 text-xs sm:text-sm whitespace-nowrap hover:bg-zinc-50"
             onClick={() =>
               setTasks((prev) => [
                 ...prev,
@@ -601,8 +601,8 @@ export function WorklogForm({
           </button>
         </div>
 
-        <div className="overflow-x-auto overflow-y-visible">
-          <table className="w-full min-w-[820px] border-separate border-spacing-0">
+        <div className="overflow-x-hidden">
+          <table className="w-full table-fixed border-separate border-spacing-0">
             <thead>
               <tr className="text-left text-xs text-zinc-600">
                 <th className="border-b border-zinc-200 px-3 py-2">Client</th>
@@ -783,11 +783,11 @@ export function WorklogForm({
 
       {mileageRequired ? (
         <div className="rounded-lg border border-zinc-200 p-4">
-          <div className="mb-3 flex items-center justify-between">
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
             <h2 className="text-sm font-semibold">Mileage allocation</h2>
             <button
               type="button"
-              className="h-9 rounded-md border border-zinc-300 bg-white px-3 text-sm hover:bg-zinc-50"
+              className="h-9 rounded-md border border-zinc-300 bg-white px-2 sm:px-3 text-xs sm:text-sm whitespace-nowrap hover:bg-zinc-50"
               onClick={() =>
                 setMileage((prev) => [
                   ...prev,
@@ -799,8 +799,8 @@ export function WorklogForm({
             </button>
           </div>
 
-          <div className="overflow-x-auto overflow-y-visible">
-            <table className="w-full min-w-[700px] border-separate border-spacing-0">
+          <div className="overflow-x-hidden">
+            <table className="w-full table-fixed border-separate border-spacing-0">
               <thead>
                 <tr className="text-left text-xs text-zinc-600">
                   <th className="border-b border-zinc-200 px-3 py-2">Client</th>
@@ -932,17 +932,17 @@ export function WorklogForm({
       ) : null}
 
       <div className="rounded-lg border border-zinc-200 p-4">
-        <div className="mb-3 flex items-center justify-between">
+        <div className="mb-3 flex flex-wrap items-start justify-between gap-2">
           <div>
             <h2 className="text-sm font-semibold">Expenses (optional)</h2>
             <div className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-zinc-600">
-              <span>Add expenses related to this work day. Each expense row requires: client/engagement, description, amount (CAD), and receipt.</span>
+              <span>Add expenses related to this work day. Each expense row requires: client/engagement, description, and amount (CAD). Receipt is optional.</span>
               <span className="font-medium text-zinc-800">Total: {cad.format(expenseTotalCad)}</span>
             </div>
           </div>
           <button
             type="button"
-            className="h-9 rounded-md border border-zinc-300 bg-white px-3 text-sm hover:bg-zinc-50"
+            className="h-9 rounded-md border border-zinc-300 bg-white px-2 sm:px-3 text-xs sm:text-sm whitespace-nowrap hover:bg-zinc-50"
             onClick={() =>
               setExpenses((prev) => [
                 ...prev,
