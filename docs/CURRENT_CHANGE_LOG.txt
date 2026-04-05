@@ -19,22 +19,25 @@ Notes:
 - Mileage rows now include the employee who logged them.
 
 4. Need a way to click on the projects within the client > open page and see a full summary of the project, total specs, all worklog/expense entries relating to that project, etc. (THIS SHOULD GO TO THE PROJECT LOGS PAGE AND DEFAULT TO THE EXACT PROJECT THEY CLICKED ON)
-Status: In progress — UNAPPROVED
+Status: Completed (deployed) — UNAPPROVED
 Notes:
-- Current: Project summary exists; Project Logs page exists.
-- Next: change the client project click-through to route to Project Logs preselected to that project.
+- Admin client open page projects now click-through to Project Logs and preselect the exact project.
 
 5. On the admin > client > open Page, remove “manage retainers” button
-Status: Not done yet — UNAPPROVED
+Status: Completed (deployed) — UNAPPROVED
 
 6. On the admin > client > open page, EVERY project AND retainer that exists under that client should have the following buttons: - “Retainer Log” - redirects to the retainer logs page, with that retainer log open, - “Retainer Finance” - redirects to the finance page with that retainer open - “Project Log” - redirects to the project logs page with that project open - “Project Finance” - redirects to the finance page with that project open.
-Status: Not done yet — UNAPPROVED
+Status: Completed (deployed) — UNAPPROVED
+Notes:
+- Added Retainer Log/Finance buttons and Project Log/Finance buttons (with deep links that preselect the right client/project).
 
 7. The “recent expenses” module on the admin > client > open page should be removed. These should be logged under the finance page and are not required here.
-Status: Not done yet — UNAPPROVED
+Status: Completed (deployed) — UNAPPROVED
 
 8. Under admin > client > open, if the client has a retainer, the ad spend quote should be visible under the retainer breakdown
-Status: Not done yet — UNAPPROVED
+Status: Completed (deployed) — UNAPPROVED
+Notes:
+- Added “Monthly ad spend (quote)” row under the retainer breakdown (current cycle quota).
 
 9. RECEIPT SHOULD NOT BE REQUIRED ON WORKLOG PAGE. THIS IS OPTIONAL TO UPLOAD OR TAKE A PICTURE.
 Status: Completed (deployed) — UNAPPROVED
@@ -48,4 +51,6 @@ Notes:
 - Next: verify remaining endpoints/UI paths that might still count hours prematurely and patch.
 
 11. Ad spend should be visible in the top module of the admin > finance page (for retainers and projects)
-Status: Not done yet — UNAPPROVED
+Status: Completed (deployed) — UNAPPROVED
+Notes:
+- Added an Ad spend stat to the Finance top module.
