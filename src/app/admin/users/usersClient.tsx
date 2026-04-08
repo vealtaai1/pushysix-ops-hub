@@ -20,6 +20,10 @@ const ROLE_ACCOUNT_MANAGER = "ACCOUNT_MANAGER" as unknown as UserRole;
 export function UsersClient() {
   const [status, setStatus] = useState<string | null>(null);
 
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [inviteLoading, setInviteLoading] = useState(false);
+  const [lastInvite, setLastInvite] = useState<{ email: string; expiresAt: string } | null>(null);
+
   const [users, setUsers] = useState<UserRow[] | null>(null);
   const [usersLoading, setUsersLoading] = useState(false);
 
@@ -107,6 +111,31 @@ export function UsersClient() {
     }
   }
 
+  async function sendInvite() {
+    const email = inviteEmail.trim();
+    if (!email) return;
+
+    setInviteLoading(true);
+    setStatus(null);
+    setLastInvite(null);
+    try {
+      const res = await fetch("/api/admin/users/invite", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+      const json = (await res.json().catch(() => null)) as any;
+      if (!res.ok || !json?.ok) throw new Error(json?.message ?? `Invite failed (${res.status})`);
+      setLastInvite({ email: json.email ?? email, expiresAt: json.expiresAt ?? "" });
+      setStatus("Invite email sent.");
+      setInviteEmail("");
+    } catch (e) {
+      setStatus(e instanceof Error ? e.message : "Invite failed");
+    } finally {
+      setInviteLoading(false);
+    }
+  }
+
   return (
     <div className="space-y-6">
       <div className="rounded-lg border border-zinc-200 bg-white p-4">
@@ -114,7 +143,7 @@ export function UsersClient() {
           <div>
             <h2 className="text-sm font-semibold">Users</h2>
             <p className="text-xs text-zinc-600">Manage roles. Total: {users?.length ?? "…"}</p>
-            <p className="text-xs text-zinc-500">Invites are disabled.</p>
+            <p className="text-xs text-zinc-500">Invite users by email.</p>
           </div>
           <button
             type="button"
@@ -124,6 +153,35 @@ export function UsersClient() {
           >
             {usersLoading ? "Refreshing…" : "Refresh"}
           </button>
+        </div>
+
+        <div className="mb-4 flex flex-wrap items-end gap-2">
+          <div className="min-w-[260px] flex-1">
+            <label className="mb-1 block text-xs font-semibold text-zinc-700">Invite email</label>
+            <input
+              value={inviteEmail}
+              onChange={(e) => setInviteEmail(e.target.value)}
+              placeholder="name@company.com"
+              className="h-9 w-full rounded-md border border-zinc-300 bg-white px-3 text-sm"
+              type="email"
+              autoComplete="off"
+            />
+          </div>
+          <button
+            type="button"
+            onClick={sendInvite}
+            disabled={inviteLoading || !inviteEmail.trim()}
+            className="h-9 rounded-md bg-zinc-900 px-3 text-sm font-semibold text-white disabled:opacity-50"
+          >
+            {inviteLoading ? "Sending…" : "Send invite"}
+          </button>
+
+          {lastInvite ? (
+            <div className="text-xs text-zinc-600">
+              Last invite: <span className="font-semibold">{lastInvite.email}</span>
+              {lastInvite.expiresAt ? ` (expires ${new Date(lastInvite.expiresAt).toLocaleString()})` : null}
+            </div>
+          ) : null}
         </div>
 
         {status ? <p className="mb-3 text-sm text-zinc-700 whitespace-pre-wrap">{status}</p> : null}
