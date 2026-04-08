@@ -24,6 +24,7 @@ type ClientOption = {
   status: string;
   billingCycleStartDay: string;
   monthlyRetainerFeeCents: number | null;
+  monthlyRetainerSpendCents: number | null;
   monthlyRetainerFeeCurrency: string;
   projects: Array<{ id: string; code: string; name: string; status: string }>;
 };
@@ -51,6 +52,7 @@ type FinanceAnalyticsResponse = {
     billingCycleStartDay: string;
     cycle: { startISO: string; endISO: string };
     monthlyRetainerFeeCents: number | null;
+    monthlyRetainerSpendCents: number | null;
     monthlyRetainerFeeCurrency: string;
     monthlyRetainerHours: number;
     loggedMinutes: number;
@@ -162,7 +164,19 @@ export function FinanceDashboardClient({ clients }: { clients: ClientOption[] })
   const searchParams = useSearchParams();
 
   const clientOptions = useMemo(
-    () => [{ id: "", name: "All active clients", status: "", billingCycleStartDay: "", monthlyRetainerFeeCents: null, monthlyRetainerFeeCurrency: "CAD", projects: [] }, ...clients],
+    () => [
+      {
+        id: "",
+        name: "All active clients",
+        status: "",
+        billingCycleStartDay: "",
+        monthlyRetainerFeeCents: null,
+        monthlyRetainerSpendCents: null,
+        monthlyRetainerFeeCurrency: "CAD",
+        projects: [],
+      },
+      ...clients,
+    ],
     [clients],
   );
 
@@ -346,7 +360,7 @@ export function FinanceDashboardClient({ clients }: { clients: ClientOption[] })
                   <BarChart
                     data={(data.clients ?? []).map((c) => ({
                       client: c.clientName,
-                      revenueCents: c.monthlyRetainerFeeCents == null ? 0 : normalizeCents(c.monthlyRetainerFeeCents),
+                      revenueCents: c.monthlyRetainerSpendCents == null ? 0 : normalizeCents(c.monthlyRetainerSpendCents),
                       totalExpenseCents: c.totalExpenseCostCents,
                       marginCents: c.grossMarginCents ?? 0,
                     }))}
@@ -512,7 +526,9 @@ export function FinanceDashboardClient({ clients }: { clients: ClientOption[] })
                   <td className="py-2 pr-3 text-zinc-700">{fmtHours(c.loggedHours)}</td>
                   {isProjectOnlyView ? null : (
                     <td className="py-2 pr-3 text-zinc-700">
-                      {c.monthlyRetainerFeeCents == null ? "—" : fmtMoneyFromCents(c.monthlyRetainerFeeCents, c.monthlyRetainerFeeCurrency)}
+                      {c.monthlyRetainerSpendCents == null
+                        ? "—"
+                        : fmtMoneyFromCents(c.monthlyRetainerSpendCents, c.monthlyRetainerFeeCurrency)}
                     </td>
                   )}
                   <td className="py-2 pr-3 text-zinc-700">{fmtMoneyFromCents(c.payrollCostCents, c.payrollCurrency)}</td>

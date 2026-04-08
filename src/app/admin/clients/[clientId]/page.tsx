@@ -29,6 +29,7 @@ export default async function AdminClientHubPage({ params }: { params: Promise<{
       monthlyRetainerHours: true,
       monthlyRetainerFeeCents: true,
       monthlyRetainerFeeCurrency: true,
+      monthlyRetainerSpendCents: true,
       maxShootsPerCycle: true,
       maxCaptureHoursPerCycle: true,
     },
@@ -113,6 +114,7 @@ export default async function AdminClientHubPage({ params }: { params: Promise<{
           monthlyRetainerHours: client.monthlyRetainerHours,
           monthlyRetainerFeeCents: client.monthlyRetainerFeeCents,
           monthlyRetainerFeeCurrency: client.monthlyRetainerFeeCurrency,
+          monthlyRetainerSpendCents: client.monthlyRetainerSpendCents,
           maxShootsPerCycle: client.maxShootsPerCycle,
           maxCaptureHoursPerCycle: client.maxCaptureHoursPerCycle,
         }}

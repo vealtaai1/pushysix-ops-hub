@@ -16,6 +16,7 @@ export default async function AdminFinancePage() {
       billingCycleStartDay: true,
       monthlyRetainerFeeCents: true,
       monthlyRetainerFeeCurrency: true,
+      monthlyRetainerSpendCents: true,
       projects: {
         where: { status: "OPEN" },
         orderBy: [{ code: "asc" }],

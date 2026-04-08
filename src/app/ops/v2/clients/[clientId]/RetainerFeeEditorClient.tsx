@@ -5,6 +5,7 @@ import * as React from "react";
 type RetainerFeeEditorClientProps = {
   clientId: string;
   initialFeeCents: number | null;
+  initialSpendCents: number | null;
   currency: string;
 };
 
@@ -40,22 +41,30 @@ function parseMoneyToCents(input: string): { ok: true; cents: number | null } | 
   return { ok: true, cents };
 }
 
-export function RetainerFeeEditorClient({ clientId, initialFeeCents, currency }: RetainerFeeEditorClientProps) {
-  const [value, setValue] = React.useState(() => formatDollarsInputFromCents(initialFeeCents));
+export function RetainerFeeEditorClient({ clientId, initialFeeCents, initialSpendCents, currency }: RetainerFeeEditorClientProps) {
+  const [feeValue, setFeeValue] = React.useState(() => formatDollarsInputFromCents(initialFeeCents));
+  const [spendValue, setSpendValue] = React.useState(() => formatDollarsInputFromCents(initialSpendCents));
   const [pending, setPending] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const [savedAt, setSavedAt] = React.useState<number | null>(null);
 
-  const parsed = React.useMemo(() => parseMoneyToCents(value), [value]);
+  const parsedFee = React.useMemo(() => parseMoneyToCents(feeValue), [feeValue]);
+  const parsedSpend = React.useMemo(() => parseMoneyToCents(spendValue), [spendValue]);
 
   async function onSave() {
     setPending(true);
     setError(null);
     setSavedAt(null);
 
-    if (!parsed.ok) {
+    if (!parsedFee.ok) {
       setPending(false);
-      setError(parsed.message);
+      setError(parsedFee.message);
+      return;
+    }
+
+    if (!parsedSpend.ok) {
+      setPending(false);
+      setError(parsedSpend.message);
       return;
     }
 
@@ -64,7 +73,8 @@ export function RetainerFeeEditorClient({ clientId, initialFeeCents, currency }:
         method: "PUT",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
-          monthlyRetainerFeeCents: parsed.cents,
+          monthlyRetainerFeeCents: parsedFee.cents,
+          monthlyRetainerSpendCents: parsedSpend.cents,
           monthlyRetainerFeeCurrency: currency || "CAD",
         }),
       });
@@ -87,25 +97,39 @@ export function RetainerFeeEditorClient({ clientId, initialFeeCents, currency }:
 
   return (
     <div className="flex flex-wrap items-center justify-end gap-2">
-      <div className="flex items-center gap-2">
-        <span className="text-xs text-zinc-500">{(currency || "CAD").toUpperCase()}</span>
-        <input
-          value={value}
-          onChange={(e) => setValue(e.target.value)}
-          inputMode="decimal"
-          placeholder="(not set)"
-          className="h-9 w-[140px] rounded-md border border-zinc-300 bg-white px-3 text-sm"
-          aria-label="Monthly retainer fee"
-        />
+      <div className="flex flex-col items-end gap-2">
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-zinc-500">{(currency || "CAD").toUpperCase()}</span>
+          <input
+            value={spendValue}
+            onChange={(e) => setSpendValue(e.target.value)}
+            inputMode="decimal"
+            placeholder="(not set)"
+            className="h-9 w-[140px] rounded-md border border-zinc-300 bg-white px-3 text-sm"
+            aria-label="Monthly retainer spend"
+          />
+        </div>
+
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-zinc-500">{(currency || "CAD").toUpperCase()}</span>
+          <input
+            value={feeValue}
+            onChange={(e) => setFeeValue(e.target.value)}
+            inputMode="decimal"
+            placeholder="(not set)"
+            className="h-9 w-[140px] rounded-md border border-zinc-300 bg-white px-3 text-sm"
+            aria-label="Monthly retainer fee"
+          />
+        </div>
       </div>
 
       <button
         type="button"
         onClick={onSave}
-        disabled={pending || !parsed.ok}
+        disabled={pending || !parsedFee.ok || !parsedSpend.ok}
         className={
           "h-9 rounded-md px-3 text-sm font-semibold text-white " +
-          (pending || !parsed.ok ? "bg-zinc-300" : "bg-zinc-900 hover:opacity-90")
+          (pending || !parsedFee.ok || !parsedSpend.ok ? "bg-zinc-300" : "bg-zinc-900 hover:opacity-90")
         }
       >
         {pending ? "Saving…" : "Save"}

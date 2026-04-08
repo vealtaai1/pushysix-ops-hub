@@ -179,6 +179,10 @@ model Client {
   monthlyRetainerFeeCents    Int?
   monthlyRetainerFeeCurrency String @default("CAD")
 
+  // Total monthly spend, inclusive of all expenses (money stored as cents)
+  // Ops policy: "fee includes all expenses" so this represents total retainer spend.
+  monthlyRetainerSpendCents Int?
+
   // Optional caps/guardrails (per billing cycle)
   maxShootsPerCycle       Int?
   maxCaptureHoursPerCycle Int?

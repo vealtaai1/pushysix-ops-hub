@@ -102,6 +102,7 @@ export async function GET(req: Request) {
       monthlyRetainerHours: true,
       monthlyRetainerFeeCents: true,
       monthlyRetainerFeeCurrency: true,
+      monthlyRetainerSpendCents: true,
     },
   });
 
@@ -198,6 +199,7 @@ export async function GET(req: Request) {
     cycle: { startISO: string; endISO: string };
 
     monthlyRetainerFeeCents: number | null;
+    monthlyRetainerSpendCents: number | null;
     monthlyRetainerFeeCurrency: string;
     monthlyRetainerHours: number;
 
@@ -233,6 +235,7 @@ export async function GET(req: Request) {
       cycle,
 
       monthlyRetainerFeeCents: normalizeMoneyCents(c.monthlyRetainerFeeCents),
+      monthlyRetainerSpendCents: normalizeMoneyCents((c as any).monthlyRetainerSpendCents),
       monthlyRetainerFeeCurrency: c.monthlyRetainerFeeCurrency,
       monthlyRetainerHours: c.monthlyRetainerHours,
 
@@ -341,13 +344,16 @@ export async function GET(req: Request) {
   const clientRows = Array.from(aggByClientId.values()).map((a) => {
     a.loggedHours = a.loggedMinutes / 60;
     a.totalExpenseCostCents = a.payrollCostCents + a.mileageCostCents + a.expenseCents;
-    a.grossMarginCents = a.monthlyRetainerFeeCents == null ? null : a.monthlyRetainerFeeCents - a.totalExpenseCostCents;
+    // Ops finance policy: "fee includes all expenses".
+    // Use total monthly retainer spend as the top-line revenue figure for margin.
+    // (Keep fee for reference, but margin uses spend.)
+    a.grossMarginCents = a.monthlyRetainerSpendCents == null ? null : a.monthlyRetainerSpendCents - a.totalExpenseCostCents;
     return a;
   });
 
   const totals = {
     clients: clientRows.length,
-    retainerRevenueCents: clientRows.reduce((sum, c) => sum + (c.monthlyRetainerFeeCents ?? 0), 0),
+    retainerRevenueCents: clientRows.reduce((sum, c) => sum + (c.monthlyRetainerSpendCents ?? 0), 0),
     payrollCostCents: clientRows.reduce((sum, c) => sum + c.payrollCostCents, 0),
     mileageCostCents: clientRows.reduce((sum, c) => sum + c.mileageCostCents, 0),
     expenseCents: clientRows.reduce((sum, c) => sum + c.expenseCents, 0),

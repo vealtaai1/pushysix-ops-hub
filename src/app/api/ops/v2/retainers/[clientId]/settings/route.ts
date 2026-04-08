@@ -41,6 +41,7 @@ export async function GET(_req: Request, ctx: { params: Promise<{ clientId: stri
       monthlyRetainerHours: true,
       monthlyRetainerFeeCents: true,
       monthlyRetainerFeeCurrency: true,
+      monthlyRetainerSpendCents: true,
       maxShootsPerCycle: true,
       maxCaptureHoursPerCycle: true,
     },
@@ -78,6 +79,7 @@ export async function PUT(req: Request, ctx: { params: Promise<{ clientId: strin
       monthlyRetainerHours: true,
       monthlyRetainerFeeCents: true,
       monthlyRetainerFeeCurrency: true,
+      monthlyRetainerSpendCents: true,
       maxShootsPerCycle: true,
       maxCaptureHoursPerCycle: true,
     },
@@ -127,12 +129,20 @@ export async function PUT(req: Request, ctx: { params: Promise<{ clientId: strin
     return badRequest("monthlyRetainerFeeCurrency must be CAD");
   }
 
+  const monthlyRetainerSpendCents = hasOwn(body, "monthlyRetainerSpendCents")
+    ? parseOptionalInt(body?.monthlyRetainerSpendCents)
+    : existing.monthlyRetainerSpendCents;
+  if (monthlyRetainerSpendCents !== null && (monthlyRetainerSpendCents < 0 || monthlyRetainerSpendCents > 50_000_000)) {
+    return badRequest("monthlyRetainerSpendCents must be null or an integer between 0 and 50000000");
+  }
+
   const updated = await prisma.client.update({
     where: { id: clientId },
     data: {
       monthlyRetainerHours,
       monthlyRetainerFeeCents,
       monthlyRetainerFeeCurrency,
+      monthlyRetainerSpendCents,
       maxShootsPerCycle,
       maxCaptureHoursPerCycle,
       billingCycleStartDay,
@@ -145,6 +155,7 @@ export async function PUT(req: Request, ctx: { params: Promise<{ clientId: strin
       monthlyRetainerHours: true,
       monthlyRetainerFeeCents: true,
       monthlyRetainerFeeCurrency: true,
+      monthlyRetainerSpendCents: true,
       maxShootsPerCycle: true,
       maxCaptureHoursPerCycle: true,
     },

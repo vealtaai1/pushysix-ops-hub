@@ -182,13 +182,13 @@ export function ClientHubClient({ client, initialProjects, canCloseProjects, pro
                       <>
                         <Link
                           href={projectHref}
-                          className="h-8 rounded-md border border-zinc-300 bg-white px-2.5 text-xs font-semibold text-zinc-800 hover:bg-zinc-50 inline-flex items-center"
+                          className="inline-flex h-8 items-center justify-center rounded-md border border-zinc-300 bg-white px-2.5 text-xs font-semibold leading-none text-zinc-800 hover:bg-zinc-50 whitespace-nowrap"
                         >
-                          Project log
+                          Project logs
                         </Link>
                         <Link
                           href={projectFinanceHref}
-                          className="h-8 rounded-md border border-zinc-300 bg-white px-2.5 text-xs font-semibold text-zinc-800 hover:bg-zinc-50 inline-flex items-center"
+                          className="inline-flex h-8 items-center justify-center rounded-md border border-zinc-300 bg-white px-2.5 text-xs font-semibold leading-none text-zinc-800 hover:bg-zinc-50 whitespace-nowrap"
                         >
                           Project finance
                         </Link>

@@ -15,6 +15,7 @@ type RetainersSectionProps = {
     monthlyRetainerHours: number;
     monthlyRetainerFeeCents: number | null;
     monthlyRetainerFeeCurrency: string;
+    monthlyRetainerSpendCents: number | null;
     maxShootsPerCycle: number | null;
     maxCaptureHoursPerCycle: number | null;
   };
@@ -135,19 +136,26 @@ export async function RetainersSection({ client, quotaItems }: RetainersSectionP
             </div>
 
             <div className="grid grid-cols-12 gap-2 px-4 py-3 text-sm border-t border-zinc-200">
-              <div className="col-span-6 font-medium">Monthly retainer fee</div>
-              <div className="col-span-3 whitespace-nowrap">{fmtMoneyFromCents(client.monthlyRetainerFeeCents, client.monthlyRetainerFeeCurrency)}</div>
+              <div className="col-span-6 font-medium">Monthly retainer spend (total)</div>
+              <div className="col-span-3 whitespace-nowrap">{fmtMoneyFromCents(client.monthlyRetainerSpendCents, client.monthlyRetainerFeeCurrency)}</div>
               <div className="col-span-3">
                 {isAdmin ? (
                   <RetainerFeeEditorClient
                     clientId={client.id}
                     initialFeeCents={client.monthlyRetainerFeeCents}
+                    initialSpendCents={client.monthlyRetainerSpendCents}
                     currency={client.monthlyRetainerFeeCurrency}
                   />
                 ) : (
                   <span className="text-zinc-600">Admin-only</span>
                 )}
               </div>
+            </div>
+
+            <div className="grid grid-cols-12 gap-2 px-4 py-3 text-sm border-t border-zinc-200">
+              <div className="col-span-6 font-medium">Monthly retainer fee</div>
+              <div className="col-span-3 whitespace-nowrap">{fmtMoneyFromCents(client.monthlyRetainerFeeCents, client.monthlyRetainerFeeCurrency)}</div>
+              <div className="col-span-3 text-zinc-600">Fee includes all expenses</div>
             </div>
 
             <div className="grid grid-cols-12 gap-2 px-4 py-3 text-sm border-t border-zinc-200">
