@@ -7,8 +7,14 @@ import { getAuthSecret } from "@/lib/authSecret";
 
 // NOTE: This endpoint supports both legacy PasswordResetToken and new UserInviteToken.
 
-function hashToken(raw: string): string {
+function hashPasswordResetToken(raw: string): string {
+  // Legacy password reset tokens are salted with AUTH_SECRET.
   return createHash("sha256").update(`${raw}${getAuthSecret()}`).digest("hex");
+}
+
+function hashInviteToken(raw: string): string {
+  // Invite tokens are stored as a plain sha256(token) (see src/lib/invites/userInviteTokens.ts)
+  return createHash("sha256").update(raw).digest("hex");
 }
 
 export async function POST(req: Request) {
@@ -21,17 +27,17 @@ export async function POST(req: Request) {
   const err = validatePassword(password);
   if (err) return NextResponse.json({ ok: false, message: err }, { status: 400 });
 
-  const tokenHash = hashToken(token);
+  const passwordResetTokenHash = hashPasswordResetToken(token);
 
   // 1) Try legacy password reset tokens
   const prt = await prisma.passwordResetToken.findUnique({
-    where: { tokenHash },
+    where: { tokenHash: passwordResetTokenHash },
     select: { userId: true, expiresAt: true },
   });
 
   if (prt) {
     if (prt.expiresAt.getTime() < Date.now()) {
-      await prisma.passwordResetToken.delete({ where: { tokenHash } }).catch(() => null);
+      await prisma.passwordResetToken.delete({ where: { tokenHash: passwordResetTokenHash } }).catch(() => null);
       return NextResponse.json({ ok: false, message: "Token expired." }, { status: 400 });
     }
 
@@ -39,15 +45,17 @@ export async function POST(req: Request) {
 
     await prisma.$transaction([
       prisma.user.update({ where: { id: prt.userId }, data: { passwordHash } }),
-      prisma.passwordResetToken.delete({ where: { tokenHash } }),
+      prisma.passwordResetToken.delete({ where: { tokenHash: passwordResetTokenHash } }),
     ]);
 
     return NextResponse.json({ ok: true });
   }
 
   // 2) Try invite tokens (new users)
+  const inviteTokenHash = hashInviteToken(token);
+
   const invite = await prisma.userInviteToken.findUnique({
-    where: { tokenHash },
+    where: { tokenHash: inviteTokenHash },
     select: { id: true, email: true, expiresAt: true, usedAt: true },
   });
 
