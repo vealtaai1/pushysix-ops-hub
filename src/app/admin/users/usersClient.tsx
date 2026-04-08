@@ -92,6 +92,27 @@ export function UsersClient() {
     }
   }
 
+  async function updateUser(userId: string, patch: { name?: string | null; hourlyWage?: string | null }) {
+    if (!users) return;
+
+    const target = users.find((u) => u.id === userId);
+    if (!target) return;
+
+    try {
+      const res = await fetch("/api/admin/users/update", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ userId, ...patch }),
+      });
+      const json = (await res.json().catch(() => null)) as any;
+      if (!res.ok || !json?.ok) throw new Error(json?.message ?? `Update failed (${res.status})`);
+      setStatus("User updated.");
+      await refreshUsers();
+    } catch (e) {
+      setStatus(e instanceof Error ? e.message : "Update failed");
+    }
+  }
+
   async function deleteUser(userId: string) {
     if (!users) return;
 
@@ -273,7 +294,22 @@ export function UsersClient() {
                 {users.map((u) => (
                   <tr key={u.id} className="text-sm">
                     <td className="border-b border-zinc-100 px-3 py-2">{u.email}</td>
-                    <td className="border-b border-zinc-100 px-3 py-2">{u.name ?? "—"}</td>
+                    <td className="border-b border-zinc-100 px-3 py-2">
+                      <div className="flex items-center gap-2">
+                        <span>{u.name ?? "—"}</span>
+                        <button
+                          type="button"
+                          className="h-7 rounded-md border border-zinc-300 bg-white px-2 text-xs font-semibold text-zinc-800 hover:bg-zinc-50"
+                          onClick={async () => {
+                            const next = window.prompt("Set name (blank clears)", u.name ?? "");
+                            if (next === null) return;
+                            await updateUser(u.id, { name: next.trim() ? next : null });
+                          }}
+                        >
+                          Edit
+                        </button>
+                      </div>
+                    </td>
                     <td className="border-b border-zinc-100 px-3 py-2">
                       <span
                         className={
@@ -288,7 +324,23 @@ export function UsersClient() {
                         {u.role}
                       </span>
                     </td>
-                    <td className="border-b border-zinc-100 px-3 py-2 whitespace-nowrap">{fmtCadCents(u.hourlyWageCents)}</td>
+                    <td className="border-b border-zinc-100 px-3 py-2 whitespace-nowrap">
+                      <div className="flex items-center gap-2">
+                        <span>{fmtCadCents(u.hourlyWageCents)}</span>
+                        <button
+                          type="button"
+                          className="h-7 rounded-md border border-zinc-300 bg-white px-2 text-xs font-semibold text-zinc-800 hover:bg-zinc-50"
+                          onClick={async () => {
+                            const current = u.hourlyWageCents != null ? String(u.hourlyWageCents / 100) : "";
+                            const next = window.prompt("Set hourly wage in CAD (blank clears)", current);
+                            if (next === null) return;
+                            await updateUser(u.id, { hourlyWage: next.trim() ? next : null });
+                          }}
+                        >
+                          Edit
+                        </button>
+                      </div>
+                    </td>
                     <td className="border-b border-zinc-100 px-3 py-2">
                       <div className="flex items-center gap-2">
                         {u.role !== ROLE_ADMIN ? (
