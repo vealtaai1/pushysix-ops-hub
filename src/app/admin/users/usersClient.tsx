@@ -60,6 +60,12 @@ export function UsersClient() {
   async function setRole(userId: string, role: UserRole) {
     if (!users) return;
 
+    const target = users.find((u) => u.id === userId);
+    if (target) {
+      const ok = window.confirm(`Change role for ${target.email} from ${target.role} to ${role}?`);
+      if (!ok) return;
+    }
+
     // Guard: don't allow removing the last admin
     const current = users.find((u) => u.id === userId);
     if (current?.role === ROLE_ADMIN && role !== ROLE_ADMIN && adminsCount <= 1) {
