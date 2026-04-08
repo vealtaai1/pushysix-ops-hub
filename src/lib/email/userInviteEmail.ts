@@ -10,7 +10,7 @@ export function getAppBaseUrl(): string {
 
 export function buildInviteLink(token: string): string {
   const base = getAppBaseUrl();
-  return `${base}/set-password?invite=${encodeURIComponent(token)}`;
+  return `${base}/set-password?token=${encodeURIComponent(token)}`;
 }
 
 export async function sendUserInviteEmail(input: {
