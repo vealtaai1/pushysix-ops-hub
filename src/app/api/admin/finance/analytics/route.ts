@@ -108,6 +108,19 @@ export async function GET(req: Request) {
 
   if (clientId && clients.length === 0) return badRequest("Unknown clientId", { clientId });
 
+  // Project cost lookup for misc-project margin reporting
+  const projectTotalCostById = new Map<string, number | null>();
+  if (engagementTypeParam === "MISC_PROJECT") {
+    const projects = await prisma.project.findMany({
+      where: {
+        clientId: clientId ? clientId : { in: clients.map((c) => c.id) },
+        ...(projectId ? { id: projectId } : {}),
+      },
+      select: { id: true, totalCostCents: true },
+    });
+    for (const p of projects) projectTotalCostById.set(p.id, p.totalCostCents);
+  }
+
   // Compute per-client cycle range and overall query span.
   const cycles = clients.map((c) => {
     const range = getRetainerCycleRange(referenceDate, c.billingCycleStartDay as BillingCycleStartDay);
@@ -124,6 +137,7 @@ export async function GET(req: Request) {
     where: {
       clientId: { in: clients.map((c) => c.id) },
       ...(engagementTypeParam ? { engagementType: engagementTypeParam as any } : {}),
+      ...(engagementTypeParam === "MISC_PROJECT" && projectId ? { projectId } : {}),
       worklog: {
         workDate: {
           gte: fromDate,
@@ -344,10 +358,21 @@ export async function GET(req: Request) {
   const clientRows = Array.from(aggByClientId.values()).map((a) => {
     a.loggedHours = a.loggedMinutes / 60;
     a.totalExpenseCostCents = a.payrollCostCents + a.mileageCostCents + a.expenseCents;
-    // Ops finance policy: "fee includes all expenses".
-    // Use total monthly retainer spend as the top-line revenue figure for margin.
-    // (Keep fee for reference, but margin uses spend.)
-    a.grossMarginCents = a.monthlyRetainerSpendCents == null ? null : a.monthlyRetainerSpendCents - a.totalExpenseCostCents;
+    if (engagementTypeParam === "MISC_PROJECT") {
+      // Misc project margin uses Project.totalCostCents as the revenue figure.
+      if (!projectId) {
+        // Undefined without a specific project selection.
+        a.grossMarginCents = null;
+      } else {
+        const projectTotalCostCents = projectTotalCostById.get(projectId) ?? null;
+        a.grossMarginCents = projectTotalCostCents == null ? null : projectTotalCostCents - a.totalExpenseCostCents;
+      }
+    } else {
+      // Ops finance policy: "fee includes all expenses".
+      // Use total monthly retainer spend as the top-line revenue figure for margin.
+      // (Keep fee for reference, but margin uses spend.)
+      a.grossMarginCents = a.monthlyRetainerSpendCents == null ? null : a.monthlyRetainerSpendCents - a.totalExpenseCostCents;
+    }
     return a;
   });
 

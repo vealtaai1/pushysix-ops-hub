@@ -51,6 +51,7 @@ export default async function AdminClientHubPage({ params }: { params: Promise<{
         shortCode: true,
         name: true,
         shortDescription: true,
+        totalCostCents: true,
         status: true,
         createdAt: true,
         closedAt: true,

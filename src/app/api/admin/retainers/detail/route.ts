@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { requireAdminOrThrow } from "@/lib/adminAuth";
 import { CALGARY_TZ, parseISODateAsUTC } from "@/lib/time";
 import { getRetainerCycleRange } from "@/lib/retainers";
+import { getApprovedFinanceLedgerTotals } from "@/lib/financeLedger";
 
 function addDaysUTC(d: Date, days: number): Date {
   return new Date(d.getTime() + days * 24 * 60 * 60 * 1000);
@@ -132,6 +133,13 @@ export async function GET(req: Request) {
     bucketUsage[e.bucketKey] = (bucketUsage[e.bucketKey] ?? 0) + (e.minutes ?? 0);
   }
 
+  const financeLedger = await getApprovedFinanceLedgerTotals({
+    from: startUTC,
+    toExclusive: endExclusiveUTC,
+    clientId,
+    engagementType: "RETAINER",
+  });
+
   return NextResponse.json({
     ok: true,
     client,
@@ -146,5 +154,6 @@ export async function GET(req: Request) {
     bucketLimits: cycle?.bucketLimits ?? [],
     bucketUsage,
     entries,
+    financeLedger,
   });
 }

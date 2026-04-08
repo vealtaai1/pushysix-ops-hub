@@ -53,12 +53,22 @@ type DetailPayload = {
     bucketName: string;
     worklog: { workDate: string; user: { id: string; name: string | null; email: string } };
   }>;
+  financeLedger?: {
+    approvedWorklogMinutes: number;
+    approvedMileageKm: number;
+    approvedExpenseCents: number;
+  };
 };
 
 function fmtHours(h: number): string {
   if (!Number.isFinite(h)) return "—";
   const s = h.toFixed(1);
   return s.endsWith(".0") ? s.slice(0, -2) : s;
+}
+
+function fmtMoneyCADFromCents(cents: number): string {
+  const v = Number(cents ?? 0) / 100;
+  return new Intl.NumberFormat("en-CA", { style: "currency", currency: "CAD" }).format(v);
 }
 
 function parseHoursToMinutes(raw: string): number | null {
@@ -722,6 +732,26 @@ export function RetainersDashboardClient({ initialRows }: { initialRows: ClientR
                           );
                         })()}
                       </div>
+
+                      {detail.financeLedger ? (
+                        <div className="mt-3 rounded-md border border-zinc-200 bg-white px-3 py-2">
+                          <div className="text-xs font-semibold text-zinc-700">Approved finance ledger (this cycle)</div>
+                          <div className="mt-1 grid gap-1 text-sm sm:grid-cols-3">
+                            <div className="flex items-baseline justify-between gap-2">
+                              <span className="text-zinc-600">Work</span>
+                              <span className="font-semibold text-zinc-900">{fmtHours((detail.financeLedger.approvedWorklogMinutes ?? 0) / 60)}h</span>
+                            </div>
+                            <div className="flex items-baseline justify-between gap-2">
+                              <span className="text-zinc-600">Mileage</span>
+                              <span className="font-semibold text-zinc-900">{Number(detail.financeLedger.approvedMileageKm ?? 0).toFixed(1)} km</span>
+                            </div>
+                            <div className="flex items-baseline justify-between gap-2">
+                              <span className="text-zinc-600">Expenses</span>
+                              <span className="font-semibold text-zinc-900">{fmtMoneyCADFromCents(detail.financeLedger.approvedExpenseCents ?? 0)}</span>
+                            </div>
+                          </div>
+                        </div>
+                      ) : null}
                     </div>
                   ) : null}
 

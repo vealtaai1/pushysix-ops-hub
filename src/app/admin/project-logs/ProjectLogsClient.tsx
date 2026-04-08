@@ -31,6 +31,11 @@ type LogsResponse = {
     mileageKm: number;
     expenseTotalCents: number;
   };
+  financeLedger?: {
+    approvedWorklogMinutes: number;
+    approvedMileageKm: number;
+    approvedExpenseCents: number;
+  };
   byBucket?: Array<{ bucketKey: string; bucketName: string; minutes: number }>;
   worklogs?: Array<{
     workDate: string;
@@ -61,6 +66,10 @@ function fmtHours(h: number): string {
   const s = h.toFixed(2);
   // trim trailing zeros a bit, but keep it stable-ish for finance views
   return s.replace(/\.00$/, "").replace(/(\.\d)0$/, "$1");
+}
+
+function fmtMoneyCADFromCents(cents: number): string {
+  return new Intl.NumberFormat("en-CA", { style: "currency", currency: "CAD" }).format(Number(cents ?? 0) / 100);
 }
 
 const PIE_COLORS = [
@@ -260,15 +269,19 @@ export function ProjectLogsClient({ clients, projects }: { clients: ClientRow[];
             <div className="mt-3 grid gap-3 sm:grid-cols-3">
               <div className="rounded-md border border-zinc-200 bg-zinc-50 p-3">
                 <div className="text-xs text-zinc-600">Hours logged</div>
-                <div className="mt-1 text-lg font-semibold">{totalHours.toFixed(2)}</div>
+                <div className="mt-1 text-lg font-semibold">
+                  {(data.financeLedger ? (data.financeLedger.approvedWorklogMinutes ?? 0) / 60 : totalHours).toFixed(2)}
+                </div>
               </div>
               <div className="rounded-md border border-zinc-200 bg-zinc-50 p-3">
                 <div className="text-xs text-zinc-600">Mileage (km)</div>
-                <div className="mt-1 text-lg font-semibold">{(data.summary?.mileageKm ?? 0).toFixed(1)}</div>
+                <div className="mt-1 text-lg font-semibold">{(data.financeLedger ? data.financeLedger.approvedMileageKm ?? 0 : data.summary?.mileageKm ?? 0).toFixed(1)}</div>
               </div>
               <div className="rounded-md border border-zinc-200 bg-zinc-50 p-3">
                 <div className="text-xs text-zinc-600">Expenses</div>
-                <div className="mt-1 text-lg font-semibold">{cad.format(expenseTotal)}</div>
+                <div className="mt-1 text-lg font-semibold">
+                  {data.financeLedger ? fmtMoneyCADFromCents(data.financeLedger.approvedExpenseCents ?? 0) : cad.format(expenseTotal)}
+                </div>
               </div>
             </div>
           </div>

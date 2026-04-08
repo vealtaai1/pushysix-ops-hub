@@ -50,6 +50,19 @@ function slugifyShortCode(input: string) {
     .replace(/-+$/, "");
 }
 
+function parseMoneyToCents(input: string): number | null {
+  const s = String(input ?? "").trim();
+  if (!s) return null;
+  // allow commas and $ prefix
+  const cleaned = s.replace(/[$,\s]/g, "");
+  if (!cleaned) return null;
+  // Support "123", "123.4", "123.45"
+  if (!/^\d+(?:\.\d{1,2})?$/.test(cleaned)) return NaN;
+  const [whole, frac = ""] = cleaned.split(".");
+  const cents = Number(whole) * 100 + Number((frac + "00").slice(0, 2));
+  return Number.isFinite(cents) ? cents : NaN;
+}
+
 export type CreateProjectState = { ok: boolean; message?: string };
 
 export async function createProject(prev: CreateProjectState, formData: FormData): Promise<CreateProjectState> {
@@ -68,6 +81,16 @@ export async function createProject(prev: CreateProjectState, formData: FormData
   const shortName = String(formData.get("shortCode") || "").trim();
   const shortDescriptionRaw = String(formData.get("shortDescription") || "").trim();
   const shortDescription = shortDescriptionRaw ? shortDescriptionRaw.slice(0, 500) : null;
+  const totalCostRaw = String(formData.get("totalCost") || "");
+  const totalCostCents = parseMoneyToCents(totalCostRaw);
+
+  if (totalCostCents !== null && !Number.isFinite(totalCostCents)) {
+    return { ok: false, message: "Total cost must be a number like 2500 or 2500.00." };
+  }
+
+  if (typeof totalCostCents === "number" && Number.isFinite(totalCostCents) && totalCostCents < 0) {
+    return { ok: false, message: "Total cost cannot be negative." };
+  }
 
   if (!clientId) return { ok: false, message: "Missing clientId." };
   if (!name) return { ok: false, message: "Project name is required." };
@@ -103,6 +126,8 @@ export async function createProject(prev: CreateProjectState, formData: FormData
         code,
         shortCode,
         status: "OPEN",
+        totalCostCents: totalCostCents === null ? null : totalCostCents,
+        totalCostCurrency: "CAD",
       },
     });
   } catch (err: any) {

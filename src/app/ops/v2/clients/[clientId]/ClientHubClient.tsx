@@ -25,6 +25,7 @@ type ClientHubClientProps = {
     shortCode: string;
     name: string;
     shortDescription: string | null;
+    totalCostCents?: number | null;
     status: "OPEN" | "CLOSED";
     createdAt: Date;
     closedAt: Date | null;
@@ -81,13 +82,21 @@ export function ClientHubClient({ client, initialProjects, canCloseProjects, pro
   const [projectName, setProjectName] = React.useState("");
   const [projectShortName, setProjectShortName] = React.useState("");
   const [projectShortDescription, setProjectShortDescription] = React.useState("");
+  const [projectTotalCost, setProjectTotalCost] = React.useState("");
   const [suggestedCode, setSuggestedCode] = React.useState("");
 
-  const [editProject, setEditProject] = React.useState<null | { id: string; code: string; name: string; shortDescription: string | null }>(null);
+  const [editProject, setEditProject] = React.useState<null | { id: string; code: string; name: string; shortDescription: string | null; totalCostCents?: number | null }>(null);
   const [editName, setEditName] = React.useState("");
   const [editShortDescription, setEditShortDescription] = React.useState("");
+  const [editTotalCost, setEditTotalCost] = React.useState("");
   const [editPending, setEditPending] = React.useState(false);
   const [editError, setEditError] = React.useState<string | null>(null);
+
+  function fmtDollarsInputFromCents(cents: number | null | undefined): string {
+    if (cents == null) return "";
+    if (!Number.isFinite(cents)) return "";
+    return (cents / 100).toFixed(2);
+  }
 
   React.useEffect(() => {
     if (showAdd) {
@@ -95,6 +104,7 @@ export function ClientHubClient({ client, initialProjects, canCloseProjects, pro
       setProjectName("");
       setProjectShortName("");
       setProjectShortDescription("");
+      setProjectTotalCost("");
     }
   }, [showAdd, initialProjects]);
 
@@ -200,9 +210,10 @@ export function ClientHubClient({ client, initialProjects, canCloseProjects, pro
                         type="button"
                         className="h-8 rounded-md border border-zinc-300 bg-white px-2.5 text-xs font-semibold text-zinc-800 hover:bg-zinc-50"
                         onClick={() => {
-                          setEditProject({ id: p.id, code: p.code, name: p.name, shortDescription: p.shortDescription });
+                          setEditProject({ id: p.id, code: p.code, name: p.name, shortDescription: p.shortDescription, totalCostCents: p.totalCostCents ?? null });
                           setEditName(p.name);
                           setEditShortDescription(p.shortDescription ?? "");
+                          setEditTotalCost(fmtDollarsInputFromCents(p.totalCostCents ?? null));
                           setEditError(null);
                         }}
                       >
@@ -352,6 +363,21 @@ export function ClientHubClient({ client, initialProjects, canCloseProjects, pro
                   <div className="text-xs text-zinc-500">Up to 500 characters.</div>
                 </label>
 
+                <label className="grid gap-1">
+                  <span className="text-xs font-semibold text-zinc-600">Total cost (CAD, optional)</span>
+                  <input
+                    name="totalCost"
+                    value={projectTotalCost}
+                    onChange={(e) => setProjectTotalCost(e.target.value)}
+                    className="h-10 rounded-md border border-zinc-300 bg-white px-3"
+                    placeholder="e.g. 2500.00"
+                    inputMode="decimal"
+                    autoComplete="off"
+                    spellCheck={false}
+                  />
+                  <div className="text-xs text-zinc-500">Used for Finance margin reporting on misc projects.</div>
+                </label>
+
                 <div className="flex items-center justify-between gap-3">
                   <div className="text-xs">
                     {createState.message ? (
@@ -419,6 +445,7 @@ export function ClientHubClient({ client, initialProjects, canCloseProjects, pro
                       body: JSON.stringify({
                         name: editName,
                         shortDescription: editShortDescription,
+                        totalCost: editTotalCost,
                       }),
                     });
                     const data = await res.json().catch(() => null);
@@ -455,6 +482,19 @@ export function ClientHubClient({ client, initialProjects, canCloseProjects, pro
                     placeholder="One-line context that shows up in the project list"
                   />
                   <div className="text-xs text-zinc-500">Up to 500 characters.</div>
+                </label>
+
+                <label className="grid gap-1">
+                  <span className="text-xs font-semibold text-zinc-600">Total cost (CAD, optional)</span>
+                  <input
+                    value={editTotalCost}
+                    onChange={(e) => setEditTotalCost(e.target.value)}
+                    className="h-10 rounded-md border border-zinc-300 bg-white px-3"
+                    placeholder="e.g. 2500.00"
+                    inputMode="decimal"
+                    autoComplete="off"
+                    spellCheck={false}
+                  />
                 </label>
 
                 <div className="flex items-center justify-between gap-3">
