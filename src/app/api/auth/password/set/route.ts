@@ -5,6 +5,8 @@ import { prisma } from "@/lib/db";
 import { hashPassword, validatePassword } from "@/lib/password";
 import { getAuthSecret } from "@/lib/authSecret";
 
+// NOTE: This endpoint supports both legacy PasswordResetToken and new UserInviteToken.
+
 function hashToken(raw: string): string {
   return createHash("sha256").update(`${raw}${getAuthSecret()}`).digest("hex");
 }
@@ -21,23 +23,62 @@ export async function POST(req: Request) {
 
   const tokenHash = hashToken(token);
 
+  // 1) Try legacy password reset tokens
   const prt = await prisma.passwordResetToken.findUnique({
     where: { tokenHash },
-    select: { id: true, userId: true, expiresAt: true },
+    select: { userId: true, expiresAt: true },
   });
 
-  if (!prt) return NextResponse.json({ ok: false, message: "Invalid or expired token." }, { status: 400 });
-  if (prt.expiresAt.getTime() < Date.now()) {
-    await prisma.passwordResetToken.delete({ where: { tokenHash } }).catch(() => null);
+  if (prt) {
+    if (prt.expiresAt.getTime() < Date.now()) {
+      await prisma.passwordResetToken.delete({ where: { tokenHash } }).catch(() => null);
+      return NextResponse.json({ ok: false, message: "Token expired." }, { status: 400 });
+    }
+
+    const passwordHash = await hashPassword(password);
+
+    await prisma.$transaction([
+      prisma.user.update({ where: { id: prt.userId }, data: { passwordHash } }),
+      prisma.passwordResetToken.delete({ where: { tokenHash } }),
+    ]);
+
+    return NextResponse.json({ ok: true });
+  }
+
+  // 2) Try invite tokens (new users)
+  const invite = await prisma.userInviteToken.findUnique({
+    where: { tokenHash },
+    select: { id: true, email: true, expiresAt: true, usedAt: true },
+  });
+
+  if (!invite) {
+    return NextResponse.json({ ok: false, message: "Invalid or expired token." }, { status: 400 });
+  }
+
+  if (invite.usedAt) {
+    return NextResponse.json({ ok: false, message: "Token already used." }, { status: 400 });
+  }
+
+  if (invite.expiresAt.getTime() < Date.now()) {
+    // Mark as used to prevent reuse, but keep record for audit.
+    await prisma.userInviteToken.update({ where: { id: invite.id }, data: { usedAt: new Date() } }).catch(() => null);
     return NextResponse.json({ ok: false, message: "Token expired." }, { status: 400 });
   }
 
   const passwordHash = await hashPassword(password);
 
-  await prisma.$transaction([
-    prisma.user.update({ where: { id: prt.userId }, data: { passwordHash } }),
-    prisma.passwordResetToken.delete({ where: { tokenHash } }),
-  ]);
+  // Create the user (default role EMPLOYEE) and mark invite used.
+  await prisma.$transaction(async (tx) => {
+    await tx.user.create({
+      data: {
+        email: invite.email,
+        passwordHash,
+        role: "EMPLOYEE",
+      },
+    });
+
+    await tx.userInviteToken.update({ where: { id: invite.id }, data: { usedAt: new Date() } });
+  });
 
   return NextResponse.json({ ok: true });
 }
