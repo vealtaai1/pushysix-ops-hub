@@ -138,7 +138,7 @@ export async function GET(req: Request) {
     toExclusive: endExclusiveUTC,
     clientId,
     engagementType: "RETAINER",
-  });
+  }).catch(() => null);
 
   return NextResponse.json({
     ok: true,

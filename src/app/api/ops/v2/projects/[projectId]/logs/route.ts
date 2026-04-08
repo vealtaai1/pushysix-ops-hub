@@ -82,14 +82,15 @@ export async function GET(_req: Request, ctx: { params: Promise<{ projectId: str
   const expenseTotalCents = expenses.reduce((sum, ex) => sum + (ex.amountCents ?? 0), 0);
 
   // Finance ledger totals (approved-only) for this project, across all time.
-  // UI can use this to display a single canonical set of totals.
+  // NOTE: This calls a raw-SQL helper that may fail if production DB is missing newer columns.
+  // To keep logs pages resilient, we fail open and return null ledger totals.
   const financeLedger = await getApprovedFinanceLedgerTotals({
     from: new Date("1970-01-01T00:00:00.000Z"),
     toExclusive: new Date("3000-01-01T00:00:00.000Z"),
     clientId: project.client.id,
     engagementType: "MISC_PROJECT",
     projectId,
-  });
+  }).catch(() => null);
 
   const byBucketMap = new Map<string, { bucketKey: string; bucketName: string; minutes: number }>();
   for (const e of worklogs) {
