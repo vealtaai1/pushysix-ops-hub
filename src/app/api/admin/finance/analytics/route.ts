@@ -481,11 +481,16 @@ export async function GET(req: Request) {
     cumulativeLoggedMinutes: number;
     cumulativeMileageKm: number;
 
-    retainerRevenueCents: number;
+    revenueCents: number;
     grossMarginCents: number;
   }> = [];
 
-  const totalRevenueCents = totals.retainerRevenueCents;
+  const totalRevenueCents =
+    engagementTypeParam === "MISC_PROJECT"
+      ? projectId
+        ? (projectTotalCostById.get(projectId) ?? 0)
+        : 0
+      : totals.retainerRevenueCents;
   let cur = isoToUTCDate(overallFromISO);
   const end = isoToUTCDate(overallToISO);
 
@@ -534,7 +539,7 @@ export async function GET(req: Request) {
       cumulativeLoggedMinutes: cumMinutes,
       cumulativeMileageKm: cumMileageKm,
 
-      retainerRevenueCents: totalRevenueCents,
+      revenueCents: totalRevenueCents,
       grossMarginCents: totalRevenueCents - cumTotalExpense,
     });
 

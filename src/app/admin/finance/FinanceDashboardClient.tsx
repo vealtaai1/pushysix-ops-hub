@@ -37,7 +37,8 @@ type FinanceAnalyticsResponse = {
   expenseByCategoryCents: Record<string, number>;
   totals: {
     clients: number;
-    retainerRevenueCents: number;
+    // Deprecated (retainer-only); use daily[].revenueCents instead.
+    retainerRevenueCents?: number;
     payrollCostCents: number;
     mileageCostCents: number;
     expenseCents: number;
@@ -84,7 +85,7 @@ type FinanceAnalyticsResponse = {
     cumulativeLoggedMinutes: number;
     cumulativeMileageKm: number;
 
-    retainerRevenueCents: number;
+    revenueCents: number;
     grossMarginCents: number;
   }>;
   warnings: Array<{ code: string; message: string; details?: unknown }>;
@@ -328,7 +329,7 @@ export function FinanceDashboardClient({ clients }: { clients: ClientOption[] })
                     <Stat label="Clients" value={String(data.totals.clients)} />
                     <Stat label="Logged" value={fmtHours(data.totals.loggedMinutes / 60)} />
                     {isProjectOnlyView ? null : (
-                      <Stat label="Revenue (retainers)" value={fmtMoneyFromCents(data.totals.retainerRevenueCents, "CAD")} />
+                      <Stat label="Revenue (retainers)" value={fmtMoneyFromCents(data.totals.retainerRevenueCents ?? 0, "CAD")} />
                     )}
                     <Stat label="Payroll" value={fmtMoneyFromCents(data.totals.payrollCostCents, "CAD")} />
                     <Stat label="Mileage" value={fmtMoneyFromCents(data.totals.mileageCostCents, "CAD")} />
@@ -406,7 +407,7 @@ export function FinanceDashboardClient({ clients }: { clients: ClientOption[] })
                       labelFormatter={(label) => `Date: ${label}`}
                       formatter={(value: any, name: any) => {
                         const n = String(name);
-                        if (n === "retainerRevenueCents") return [fmtMoneyFromCents(Number(value), "CAD"), "Revenue"];
+                        if (n === "revenueCents") return [fmtMoneyFromCents(Number(value), "CAD"), "Revenue"];
                         if (n === "cumulativeTotalExpenseCostCents") return [fmtMoneyFromCents(Number(value), "CAD"), "Cumulative total expenses"];
                         if (n === "grossMarginCents") return [fmtMoneyFromCents(Number(value), "CAD"), "Gross margin"];
                         return [String(value), n];
@@ -415,7 +416,7 @@ export function FinanceDashboardClient({ clients }: { clients: ClientOption[] })
                     {isProjectOnlyView ? null : (
                       <Legend
                         formatter={(v) =>
-                          v === "retainerRevenueCents"
+                          v === "revenueCents"
                             ? "Revenue"
                             : v === "cumulativeTotalExpenseCostCents"
                               ? "Cumulative total expenses"
@@ -425,7 +426,7 @@ export function FinanceDashboardClient({ clients }: { clients: ClientOption[] })
                         }
                       />
                     )}
-                    {isProjectOnlyView ? null : <Line type="monotone" dataKey="retainerRevenueCents" stroke="#0ea5e9" strokeWidth={2} dot={false} />}
+                    {isProjectOnlyView ? null : <Line type="monotone" dataKey="revenueCents" stroke="#0ea5e9" strokeWidth={2} dot={false} />}
                     <Line type="monotone" dataKey="cumulativeTotalExpenseCostCents" stroke="#f97316" strokeWidth={2} dot={false} />
                     {isProjectOnlyView ? null : <Line type="monotone" dataKey="grossMarginCents" stroke="#22c55e" strokeWidth={2} dot={false} />}
                   </LineChart>

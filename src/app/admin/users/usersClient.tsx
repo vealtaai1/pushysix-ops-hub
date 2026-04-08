@@ -2,6 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 
+import { PremiumEditUserModal } from "./PremiumEditUserModal";
+
 import type { UserRole } from "@prisma/client";
 
 type UserRow = {
@@ -36,7 +38,11 @@ export function UsersClient() {
   const [users, setUsers] = useState<UserRow[] | null>(null);
   const [usersLoading, setUsersLoading] = useState(false);
 
+
   const adminsCount = useMemo(() => (users ? users.filter((u) => u.role === ROLE_ADMIN).length : 0), [users]);
+
+  const [editUserId, setEditUserId] = useState<string | null>(null);
+  const editUser = useMemo(() => (editUserId && users ? users.find((u) => u.id === editUserId) ?? null : null), [editUserId, users]);
 
   async function refreshUsers() {
     setUsersLoading(true);
@@ -92,7 +98,10 @@ export function UsersClient() {
     }
   }
 
-  async function updateUser(userId: string, patch: { name?: string | null; hourlyWage?: string | null }) {
+  async function updateUser(
+    userId: string,
+    patch: { name?: string | null; hourlyWage?: string | null; role?: UserRole },
+  ) {
     if (!users) return;
 
     const target = users.find((u) => u.id === userId);
@@ -110,6 +119,22 @@ export function UsersClient() {
       await refreshUsers();
     } catch (e) {
       setStatus(e instanceof Error ? e.message : "Update failed");
+    }
+  }
+
+  async function saveFromModal(patch: { name: string | null; hourlyWage: string | null; role: UserRole }) {
+    if (!editUser) return;
+
+    // Keep role change confirmation behavior.
+    if (patch.role !== editUser.role) {
+      const ok = window.confirm(`Change role for ${editUser.email} from ${editUser.role} to ${patch.role}?`);
+      if (!ok) return;
+    }
+
+    await updateUser(editUser.id, { name: patch.name, hourlyWage: patch.hourlyWage });
+
+    if (patch.role !== editUser.role) {
+      await setRole(editUser.id, patch.role);
     }
   }
 
@@ -186,6 +211,24 @@ export function UsersClient() {
 
   return (
     <div className="space-y-6">
+      <PremiumEditUserModal
+        open={!!editUser}
+        userEmail={editUser?.email ?? ""}
+        initialName={editUser?.name ?? null}
+        initialHourlyWageCents={editUser?.hourlyWageCents ?? null}
+        initialRole={(editUser?.role ?? ROLE_EMPLOYEE) as UserRole}
+        adminsCount={adminsCount}
+        onClose={() => setEditUserId(null)}
+        onSave={async (patch) => {
+          if (!editUser) return;
+          // Confirm role changes explicitly (prevents misclicks)
+          if (patch.role !== editUser.role) {
+            const ok = window.confirm(`Change role for ${editUser.email} from ${editUser.role} to ${patch.role}?`);
+            if (!ok) return;
+          }
+          await updateUser(editUser.id, patch);
+        }}
+      />
       <div className="rounded-lg border border-zinc-200 bg-white p-4">
         <div className="mb-3 flex items-center justify-between gap-3">
           <div>
@@ -300,11 +343,7 @@ export function UsersClient() {
                         <button
                           type="button"
                           className="h-7 rounded-md border border-zinc-300 bg-white px-2 text-xs font-semibold text-zinc-800 hover:bg-zinc-50"
-                          onClick={async () => {
-                            const next = window.prompt("Set name (blank clears)", u.name ?? "");
-                            if (next === null) return;
-                            await updateUser(u.id, { name: next.trim() ? next : null });
-                          }}
+                          onClick={() => setEditUserId(u.id)}
                         >
                           Edit
                         </button>
@@ -330,12 +369,7 @@ export function UsersClient() {
                         <button
                           type="button"
                           className="h-7 rounded-md border border-zinc-300 bg-white px-2 text-xs font-semibold text-zinc-800 hover:bg-zinc-50"
-                          onClick={async () => {
-                            const current = u.hourlyWageCents != null ? String(u.hourlyWageCents / 100) : "";
-                            const next = window.prompt("Set hourly wage in CAD (blank clears)", current);
-                            if (next === null) return;
-                            await updateUser(u.id, { hourlyWage: next.trim() ? next : null });
-                          }}
+                          onClick={() => setEditUserId(u.id)}
                         >
                           Edit
                         </button>
@@ -389,6 +423,7 @@ export function UsersClient() {
             </table>
           </div>
         )}
+
       </div>
     </div>
   );
