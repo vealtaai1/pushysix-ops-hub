@@ -13,6 +13,12 @@ type UserRow = {
   hourlyWageCents?: number | null;
 };
 
+function fmtCadCents(cents: number | null | undefined) {
+  if (cents == null) return "—";
+  const cad = new Intl.NumberFormat("en-CA", { style: "currency", currency: "CAD" });
+  return cad.format(cents / 100);
+}
+
 const ROLE_ADMIN = "ADMIN" as unknown as UserRole;
 const ROLE_EMPLOYEE = "EMPLOYEE" as unknown as UserRole;
 const ROLE_ACCOUNT_MANAGER = "ACCOUNT_MANAGER" as unknown as UserRole;
@@ -198,6 +204,7 @@ export function UsersClient() {
                   <th className="border-b border-zinc-200 px-3 py-2">Email</th>
                   <th className="border-b border-zinc-200 px-3 py-2">Name</th>
                   <th className="border-b border-zinc-200 px-3 py-2">Role</th>
+                  <th className="border-b border-zinc-200 px-3 py-2">Hourly wage</th>
                   <th className="border-b border-zinc-200 px-3 py-2">Actions</th>
                 </tr>
               </thead>
@@ -220,6 +227,7 @@ export function UsersClient() {
                         {u.role}
                       </span>
                     </td>
+                    <td className="border-b border-zinc-100 px-3 py-2 whitespace-nowrap">{fmtCadCents(u.hourlyWageCents)}</td>
                     <td className="border-b border-zinc-100 px-3 py-2">
                       <div className="flex items-center gap-2">
                         {u.role !== ROLE_ADMIN ? (

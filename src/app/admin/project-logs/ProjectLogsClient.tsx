@@ -41,7 +41,14 @@ type LogsResponse = {
     user: { id: string; name: string | null; email: string };
   }>;
   mileage?: Array<{ workDate: string; kilometers: number; notes: string | null; user: { id: string; name: string | null; email: string } }>;
-  expenses?: Array<{ expenseDate: string; category: string; description: string; amountCents: number; vendor: string | null }>;
+  expenses?: Array<{
+    expenseDate: string;
+    category: string;
+    description: string;
+    amountCents: number;
+    vendor: string | null;
+    user: { id: string; name: string | null; email: string } | null;
+  }>;
 };
 
 function fmtDate(iso: string) {
@@ -456,6 +463,9 @@ export function ProjectLogsClient({ clients, projects }: { clients: ClientRow[];
                       <div className="whitespace-nowrap">{cad.format(ex.amountCents / 100)}</div>
                     </div>
                     <div className="mt-1 text-xs text-zinc-700 break-words">{ex.description}</div>
+                    {ex.user ? (
+                      <div className="mt-1 text-xs text-zinc-500 break-words">Logged by: {ex.user.name ?? ex.user.email}</div>
+                    ) : null}
                     {ex.vendor ? <div className="mt-1 text-xs text-zinc-500 break-words">Vendor: {ex.vendor}</div> : null}
                   </div>
                 ))}

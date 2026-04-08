@@ -13,6 +13,7 @@ export async function GET() {
       email: true,
       name: true,
       role: true,
+      hourlyWageCents: true,
       createdAt: true,
     },
   });

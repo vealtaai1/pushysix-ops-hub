@@ -71,6 +71,7 @@ export async function GET(_req: Request, ctx: { params: Promise<{ projectId: str
       description: true,
       amountCents: true,
       vendor: true,
+      worklog: { select: { user: { select: { id: true, name: true, email: true } } } },
     },
     take: 500,
   });
@@ -124,6 +125,13 @@ export async function GET(_req: Request, ctx: { params: Promise<{ projectId: str
       description: ex.description,
       amountCents: ex.amountCents,
       vendor: ex.vendor ?? null,
+      user: ex.worklog?.user
+        ? {
+            id: ex.worklog.user.id,
+            name: ex.worklog.user.name,
+            email: ex.worklog.user.email,
+          }
+        : null,
     })),
   });
 }
