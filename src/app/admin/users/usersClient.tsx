@@ -27,6 +27,9 @@ export function UsersClient() {
   const [status, setStatus] = useState<string | null>(null);
 
   const [inviteEmail, setInviteEmail] = useState("");
+  const [inviteName, setInviteName] = useState("");
+  const [inviteHourlyWage, setInviteHourlyWage] = useState("");
+  const [inviteRole, setInviteRole] = useState<UserRole>(ROLE_EMPLOYEE);
   const [inviteLoading, setInviteLoading] = useState(false);
   const [lastInvite, setLastInvite] = useState<{ email: string; expiresAt: string } | null>(null);
 
@@ -117,7 +120,7 @@ export function UsersClient() {
     }
   }
 
-  async function sendInvite() {
+  async function createUserAndInvite() {
     const email = inviteEmail.trim();
     if (!email) return;
 
@@ -125,18 +128,30 @@ export function UsersClient() {
     setStatus(null);
     setLastInvite(null);
     try {
-      const res = await fetch("/api/admin/users/invite", {
+      const res = await fetch("/api/admin/users/create", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ email }),
+        body: JSON.stringify({
+          email,
+          name: inviteName.trim() || null,
+          role: inviteRole,
+          hourlyWage: inviteHourlyWage.trim() || null,
+        }),
       });
       const json = (await res.json().catch(() => null)) as any;
-      if (!res.ok || !json?.ok) throw new Error(json?.message ?? `Invite failed (${res.status})`);
-      setLastInvite({ email: json.email ?? email, expiresAt: json.expiresAt ?? "" });
-      setStatus("Invite email sent.");
+      if (!res.ok || !json?.ok) throw new Error(json?.message ?? `Create user failed (${res.status})`);
+
+      if (json?.invite?.email) {
+        setLastInvite({ email: json.invite.email ?? email, expiresAt: json.invite.expiresAt ?? "" });
+      }
+      setStatus("User created. Invite email sent.");
       setInviteEmail("");
+      setInviteName("");
+      setInviteHourlyWage("");
+      setInviteRole(ROLE_EMPLOYEE);
+      await refreshUsers();
     } catch (e) {
-      setStatus(e instanceof Error ? e.message : "Invite failed");
+      setStatus(e instanceof Error ? e.message : "Create user failed");
     } finally {
       setInviteLoading(false);
     }
@@ -149,7 +164,7 @@ export function UsersClient() {
           <div>
             <h2 className="text-sm font-semibold">Users</h2>
             <p className="text-xs text-zinc-600">Manage roles. Total: {users?.length ?? "…"}</p>
-            <p className="text-xs text-zinc-500">Invite users by email.</p>
+            <p className="text-xs text-zinc-500">Create a user now, then email them a set-password link.</p>
           </div>
           <button
             type="button"
@@ -161,33 +176,73 @@ export function UsersClient() {
           </button>
         </div>
 
-        <div className="mb-4 flex flex-wrap items-end gap-2">
-          <div className="min-w-[260px] flex-1">
-            <label className="mb-1 block text-xs font-semibold text-zinc-700">Invite email</label>
-            <input
-              value={inviteEmail}
-              onChange={(e) => setInviteEmail(e.target.value)}
-              placeholder="name@company.com"
-              className="h-9 w-full rounded-md border border-zinc-300 bg-white px-3 text-sm"
-              type="email"
-              autoComplete="off"
-            />
-          </div>
-          <button
-            type="button"
-            onClick={sendInvite}
-            disabled={inviteLoading || !inviteEmail.trim()}
-            className="h-9 rounded-md bg-zinc-900 px-3 text-sm font-semibold text-white disabled:opacity-50"
-          >
-            {inviteLoading ? "Sending…" : "Send invite"}
-          </button>
-
-          {lastInvite ? (
-            <div className="text-xs text-zinc-600">
-              Last invite: <span className="font-semibold">{lastInvite.email}</span>
-              {lastInvite.expiresAt ? ` (expires ${new Date(lastInvite.expiresAt).toLocaleString()})` : null}
+        <div className="mb-4 grid gap-2">
+          <div className="grid gap-2 sm:grid-cols-4">
+            <div className="sm:col-span-2">
+              <label className="mb-1 block text-xs font-semibold text-zinc-700">Email</label>
+              <input
+                value={inviteEmail}
+                onChange={(e) => setInviteEmail(e.target.value)}
+                placeholder="name@company.com"
+                className="h-9 w-full rounded-md border border-zinc-300 bg-white px-3 text-sm"
+                type="email"
+                autoComplete="off"
+              />
             </div>
-          ) : null}
+            <div>
+              <label className="mb-1 block text-xs font-semibold text-zinc-700">Name</label>
+              <input
+                value={inviteName}
+                onChange={(e) => setInviteName(e.target.value)}
+                placeholder="Optional"
+                className="h-9 w-full rounded-md border border-zinc-300 bg-white px-3 text-sm"
+                type="text"
+                autoComplete="off"
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-semibold text-zinc-700">Hourly wage (CAD)</label>
+              <input
+                value={inviteHourlyWage}
+                onChange={(e) => setInviteHourlyWage(e.target.value)}
+                placeholder="$25.00"
+                className="h-9 w-full rounded-md border border-zinc-300 bg-white px-3 text-sm"
+                type="text"
+                autoComplete="off"
+              />
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-end gap-2">
+            <div>
+              <label className="mb-1 block text-xs font-semibold text-zinc-700">Role</label>
+              <select
+                value={inviteRole as unknown as string}
+                onChange={(e) => setInviteRole(e.target.value as unknown as UserRole)}
+                className="h-9 rounded-md border border-zinc-300 bg-white px-3 text-sm"
+              >
+                <option value={ROLE_EMPLOYEE as unknown as string}>EMPLOYEE</option>
+                <option value={ROLE_ACCOUNT_MANAGER as unknown as string}>ACCOUNT_MANAGER</option>
+                <option value={ROLE_ADMIN as unknown as string}>ADMIN</option>
+              </select>
+            </div>
+
+            <button
+              type="button"
+              onClick={createUserAndInvite}
+              disabled={inviteLoading || !inviteEmail.trim()}
+              className="h-9 rounded-md bg-zinc-900 px-3 text-sm font-semibold text-white disabled:opacity-50"
+            >
+              {inviteLoading ? "Creating…" : "Create user + send invite"}
+            </button>
+
+            {lastInvite ? (
+              <div className="text-xs text-zinc-600">
+                Last invite: <span className="font-semibold">{lastInvite.email}</span>
+                {lastInvite.expiresAt ? ` (expires ${new Date(lastInvite.expiresAt).toLocaleString()})` : null}
+              </div>
+            ) : null}
+          </div>
         </div>
 
         {status ? <p className="mb-3 text-sm text-zinc-700 whitespace-pre-wrap">{status}</p> : null}
