@@ -41,6 +41,7 @@ export default async function AdminRetainersPage() {
       const entries = await prisma.worklogEntry.findMany({
         where: {
           clientId: c.id,
+          engagementType: "RETAINER",
           worklog: {
             workDate: {
               gte: startUTC,
