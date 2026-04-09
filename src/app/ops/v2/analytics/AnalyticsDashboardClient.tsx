@@ -442,7 +442,7 @@ export function AnalyticsDashboardClient({
                   <tr key={u.userId} className="border-t border-zinc-100">
                     <td className="px-3 py-2">
                       <div className="font-medium text-zinc-900">{u.userName ?? u.userEmail ?? u.userId}</div>
-                      {u.userEmail ? <div className="text-xs text-zinc-500">{u.userEmail}</div> : null}
+                      {u.userName && u.userEmail ? <div className="text-xs text-zinc-500">{u.userEmail}</div> : null}
                     </td>
                     <td className="px-3 py-2 font-medium">{fmtHours(u.minutes)}</td>
                     <td className="px-3 py-2">

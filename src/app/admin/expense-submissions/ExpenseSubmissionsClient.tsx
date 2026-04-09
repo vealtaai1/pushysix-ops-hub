@@ -96,7 +96,7 @@ export function ExpenseSubmissionsClient({
               <option value="">(all)</option>
               {employees.map((u) => (
                 <option key={u.id} value={u.id}>
-                  {u.email}
+                  {u.name ?? u.email}
                 </option>
               ))}
             </select>

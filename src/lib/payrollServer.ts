@@ -67,7 +67,7 @@ export async function computePayrollForRange(params: {
       ...e,
       overtimeHours: config.overtimeMode === "PER_PERIOD" ? Math.max(0, e.hours - config.thresholdHours) : 0,
     }))
-    .sort((a, b) => a.email.localeCompare(b.email));
+    .sort((a, b) => (a.name ?? a.email).localeCompare(b.name ?? b.email));
 
   const summary = summarizePayroll({
     config,

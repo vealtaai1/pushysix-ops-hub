@@ -207,8 +207,8 @@ export default async function ManagementPayrollPage({
                 {payroll?.employees.map((e) => (
                   <tr key={e.userId}>
                     <td className="border-b border-zinc-100 px-3 py-2 text-sm">
-                      <div className="font-medium break-all">{e.email}</div>
-                      {e.name ? <div className="text-xs text-zinc-600">{e.name}</div> : null}
+                      <div className="font-medium break-all">{e.name ?? e.email}</div>
+                      {e.name ? <div className="text-xs text-zinc-600">{e.email}</div> : null}
                     </td>
                     <td className="border-b border-zinc-100 px-3 py-2 text-sm">{fmt(e.hours)}</td>
                     <td className="border-b border-zinc-100 px-3 py-2 text-sm">{fmt(e.overtimeHours)}</td>

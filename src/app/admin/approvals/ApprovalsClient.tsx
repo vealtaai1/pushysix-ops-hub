@@ -103,8 +103,9 @@ export function ApprovalsClient({ initialPending }: { initialPending: PendingRow
       }
 
       const removed = rows.find((r) => r.id === id);
+      const requesterLabel = removed?.requestedByUser.name ?? removed?.requestedByUser.email ?? "request";
       setRows((prev) => prev.filter((r) => r.id !== id));
-      setToast({ text: `Approved ${removed?.requestedByUser.email ?? "request"}. Undo?`, undoId: id });
+      setToast({ text: `Approved ${requesterLabel}. Undo?`, undoId: id });
     } catch (e) {
       alert(e instanceof Error ? e.message : "Approve failed");
     } finally {
@@ -131,8 +132,9 @@ export function ApprovalsClient({ initialPending }: { initialPending: PendingRow
       }
 
       const removed = rows.find((r) => r.id === id);
+      const requesterLabel = removed?.requestedByUser.name ?? removed?.requestedByUser.email ?? "request";
       setRows((prev) => prev.filter((r) => r.id !== id));
-      setToast({ text: `Rejected ${removed?.requestedByUser.email ?? "request"}. Undo?`, undoId: id });
+      setToast({ text: `Rejected ${requesterLabel}. Undo?`, undoId: id });
     } catch (e) {
       alert(e instanceof Error ? e.message : "Reject failed");
     } finally {
@@ -194,8 +196,11 @@ export function ApprovalsClient({ initialPending }: { initialPending: PendingRow
             <div className="flex items-start justify-between gap-3 border-b border-zinc-200 p-4">
               <div className="min-w-0">
                 <div className="text-lg font-semibold text-zinc-900">Submission details</div>
-                {submission?.requestedByUser?.email ? (
-                  <div className="mt-0.5 text-sm text-zinc-600 truncate">{submission.requestedByUser.email}</div>
+                <div className="mt-0.5 text-sm text-zinc-600 truncate">
+                  {submission?.requestedByUser?.name ?? submission?.requestedByUser?.email ?? "Unknown requester"}
+                </div>
+                {submission?.requestedByUser?.name && submission?.requestedByUser?.email ? (
+                  <div className="text-xs text-zinc-500 truncate">{submission.requestedByUser.email}</div>
                 ) : null}
               </div>
               <button
@@ -360,8 +365,8 @@ export function ApprovalsClient({ initialPending }: { initialPending: PendingRow
                     <td className="border-b border-zinc-100 px-3 py-3 text-xs text-zinc-600 whitespace-nowrap">{fmtDateTimeISO(p.createdAt)}</td>
                     <td className="border-b border-zinc-100 px-3 py-3 text-sm font-medium text-zinc-900 whitespace-nowrap">{p.type}</td>
                     <td className="border-b border-zinc-100 px-3 py-3 text-sm text-zinc-700">
-                      <div className="font-medium text-zinc-900">{p.requestedByUser.name ?? "(no name)"}</div>
-                      <div className="text-xs text-zinc-600">{p.requestedByUser.email}</div>
+                      <div className="font-medium text-zinc-900">{p.requestedByUser.name ?? p.requestedByUser.email}</div>
+                      {p.requestedByUser.name ? <div className="text-xs text-zinc-600">{p.requestedByUser.email}</div> : null}
                     </td>
                     <td className="border-b border-zinc-100 px-3 py-3 text-sm text-zinc-700 whitespace-nowrap">{dateShort}</td>
                     <td className="border-b border-zinc-100 px-3 py-3 text-sm text-zinc-700">

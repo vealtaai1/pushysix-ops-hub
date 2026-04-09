@@ -21,7 +21,7 @@ export default async function AdminWorklogsPage({
   const userId = typeof userIdRaw === "string" ? userIdRaw : undefined;
 
   const users = await prisma.user.findMany({
-    orderBy: { email: "asc" },
+    orderBy: [{ name: "asc" }, { email: "asc" }],
     select: { id: true, email: true, name: true, role: true },
   });
 
@@ -32,7 +32,7 @@ export default async function AdminWorklogsPage({
     orderBy: [{ workDate: "desc" }],
     take: 50,
     include: {
-      user: { select: { email: true } },
+      user: { select: { email: true, name: true } },
       entries: { include: { client: { select: { name: true } } } },
       mileage: { include: { client: { select: { name: true } } } },
     },
@@ -42,7 +42,7 @@ export default async function AdminWorklogsPage({
     where,
     orderBy: [{ dayDate: "desc" }],
     take: 50,
-    include: { user: { select: { email: true } } },
+    include: { user: { select: { email: true, name: true } } },
   });
 
   return (
@@ -59,7 +59,7 @@ export default async function AdminWorklogsPage({
             <option value="">(all)</option>
             {users.map((u) => (
               <option key={u.id} value={u.id}>
-                {u.email}
+                {u.name ?? u.email}
               </option>
             ))}
           </select>
@@ -72,7 +72,7 @@ export default async function AdminWorklogsPage({
             <option value="">(pick employee)</option>
             {users.map((u) => (
               <option key={u.id} value={u.email}>
-                {u.email}
+                {u.name ?? u.email}
               </option>
             ))}
           </select>
@@ -85,7 +85,7 @@ export default async function AdminWorklogsPage({
             <option value="">(pick employee)</option>
             {users.map((u) => (
               <option key={u.id} value={u.email}>
-                {u.email}
+                {u.name ?? u.email}
               </option>
             ))}
           </select>
@@ -110,7 +110,7 @@ export default async function AdminWorklogsPage({
                 {worklogs.map((w) => (
                   <tr key={w.id} className="align-top">
                     <td className="border-b border-zinc-100 px-3 py-2 text-sm">{isoDay(w.workDate)}</td>
-                    <td className="border-b border-zinc-100 px-3 py-2 text-sm">{w.user.email}</td>
+                    <td className="border-b border-zinc-100 px-3 py-2 text-sm">{w.user.name ?? w.user.email}</td>
                     <td className="border-b border-zinc-100 px-3 py-2 text-sm font-medium">{w.status}</td>
                     <td className="border-b border-zinc-100 px-3 py-2 text-xs text-zinc-700">
                       <div className="space-y-1">
@@ -151,7 +151,7 @@ export default async function AdminWorklogsPage({
                 {daysOff.map((d) => (
                   <tr key={d.id}>
                     <td className="border-b border-zinc-100 px-3 py-2 text-sm">{isoDay(d.dayDate)}</td>
-                    <td className="border-b border-zinc-100 px-3 py-2 text-sm">{d.user.email}</td>
+                    <td className="border-b border-zinc-100 px-3 py-2 text-sm">{d.user.name ?? d.user.email}</td>
                     <td className="border-b border-zinc-100 px-3 py-2 text-sm font-medium">{d.status}</td>
                   </tr>
                 ))}
