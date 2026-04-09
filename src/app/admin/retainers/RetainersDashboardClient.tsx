@@ -53,6 +53,19 @@ type DetailPayload = {
     bucketName: string;
     worklog: { workDate: string; user: { id: string; name: string | null; email: string } };
   }>;
+  ledgerRows?: Array<{
+    id: string;
+    type: "WORKLOG" | "MILEAGE" | "EXPENSE";
+    dateISO: string;
+    employeeName: string | null;
+    minutes: number | null;
+    kilometers: number | null;
+    amountCents: number | null;
+    serviceName: string | null;
+    category: string | null;
+    vendor: string | null;
+    description: string | null;
+  }>;
   financeLedger?: {
     approvedWorklogMinutes: number;
     approvedMileageKm: number;
@@ -69,6 +82,12 @@ function fmtHours(h: number): string {
 function fmtMoneyCADFromCents(cents: number): string {
   const v = Number(cents ?? 0) / 100;
   return new Intl.NumberFormat("en-CA", { style: "currency", currency: "CAD" }).format(v);
+}
+
+function ledgerTypeLabel(type: "WORKLOG" | "MILEAGE" | "EXPENSE") {
+  if (type === "WORKLOG") return "Work";
+  if (type === "MILEAGE") return "Mileage";
+  return "Expense";
 }
 
 function parseHoursToMinutes(raw: string): number | null {
@@ -821,7 +840,7 @@ export function RetainersDashboardClient({ initialRows }: { initialRows: ClientR
 
                     <div className="rounded-lg border border-zinc-200">
                       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-zinc-200 px-3 py-2">
-                        <div className="text-sm font-semibold">Work log ledger</div>
+                        <div className="text-sm font-semibold">Finance ledger</div>
 
                         <div className="flex flex-wrap items-center gap-2 text-xs">
                           {serviceFilterKey ? (
@@ -866,7 +885,7 @@ export function RetainersDashboardClient({ initialRows }: { initialRows: ClientR
                           ) : null}
 
                           <span className="text-zinc-600">
-                            Total: {fmtHours(totalFilteredDetailHours)}h
+                            Work total: {fmtHours(totalFilteredDetailHours)}h
                             {serviceFilterKey || employeeFilterId ? ` (of ${fmtHours(totalAllDetailHours)}h)` : ""}
                           </span>
                         </div>
@@ -876,29 +895,53 @@ export function RetainersDashboardClient({ initialRows }: { initialRows: ClientR
                           <thead>
                             <tr className="text-left text-xs font-semibold text-zinc-600">
                               <th className="border-b border-zinc-200 px-3 py-2">Date</th>
+                              <th className="border-b border-zinc-200 px-3 py-2">Type</th>
                               <th className="border-b border-zinc-200 px-3 py-2">Employee</th>
-                              <th className="border-b border-zinc-200 px-3 py-2">Service</th>
+                              <th className="border-b border-zinc-200 px-3 py-2">Service / Category</th>
                               <th className="border-b border-zinc-200 px-3 py-2">Hours</th>
-                              <th className="border-b border-zinc-200 px-3 py-2">Notes</th>
+                              <th className="border-b border-zinc-200 px-3 py-2">Km</th>
+                              <th className="border-b border-zinc-200 px-3 py-2">Amount</th>
+                              <th className="border-b border-zinc-200 px-3 py-2">Details</th>
                             </tr>
                           </thead>
                           <tbody>
-                            {filteredEntries.length === 0 ? (
+                            {(detail.ledgerRows ?? []).filter((row) => {
+                              if (row.type === "WORKLOG") {
+                                const serviceName = servicePie.find((x) => x.bucketKey === serviceFilterKey)?.name ?? null;
+                                const employeeName = employeePie.find((x) => x.employeeId === employeeFilterId)?.name ?? null;
+                                if (serviceFilterKey && row.serviceName !== serviceName) return false;
+                                if (employeeFilterId && row.employeeName !== employeeName) return false;
+                              }
+                              return true;
+                            }).length === 0 ? (
                               <tr>
-                                <td className="px-3 py-6 text-sm text-zinc-600" colSpan={5}>
+                                <td className="px-3 py-6 text-sm text-zinc-600" colSpan={8}>
                                   No ledger entries match the current filter(s).
                                 </td>
                               </tr>
                             ) : (
-                              filteredEntries.map((e) => (
-                                <tr key={e.id} className="align-top text-sm">
-                                  <td className="border-b border-zinc-100 px-3 py-2">{String(e.worklog.workDate).slice(0, 10)}</td>
-                                  <td className="border-b border-zinc-100 px-3 py-2">{e.worklog.user.name ?? e.worklog.user.email}</td>
-                                  <td className="border-b border-zinc-100 px-3 py-2">{e.bucketName}</td>
-                                  <td className="border-b border-zinc-100 px-3 py-2">{fmtHours((e.minutes ?? 0) / 60)}</td>
-                                  <td className="border-b border-zinc-100 px-3 py-2">{e.notes ?? ""}</td>
-                                </tr>
-                              ))
+                              (detail.ledgerRows ?? [])
+                                .filter((row) => {
+                                  if (row.type === "WORKLOG") {
+                                    const serviceName = servicePie.find((x) => x.bucketKey === serviceFilterKey)?.name ?? null;
+                                    const employeeName = employeePie.find((x) => x.employeeId === employeeFilterId)?.name ?? null;
+                                    if (serviceFilterKey && row.serviceName !== serviceName) return false;
+                                    if (employeeFilterId && row.employeeName !== employeeName) return false;
+                                  }
+                                  return true;
+                                })
+                                .map((row) => (
+                                  <tr key={row.id} className="align-top text-sm">
+                                    <td className="border-b border-zinc-100 px-3 py-2">{row.dateISO}</td>
+                                    <td className="border-b border-zinc-100 px-3 py-2">{ledgerTypeLabel(row.type)}</td>
+                                    <td className="border-b border-zinc-100 px-3 py-2">{row.employeeName ?? "—"}</td>
+                                    <td className="border-b border-zinc-100 px-3 py-2">{row.serviceName ?? row.category ?? "—"}</td>
+                                    <td className="border-b border-zinc-100 px-3 py-2">{row.minutes != null ? fmtHours(row.minutes / 60) : "—"}</td>
+                                    <td className="border-b border-zinc-100 px-3 py-2">{row.kilometers != null ? row.kilometers.toFixed(1) : "—"}</td>
+                                    <td className="border-b border-zinc-100 px-3 py-2">{row.amountCents != null ? fmtMoneyCADFromCents(row.amountCents) : "—"}</td>
+                                    <td className="border-b border-zinc-100 px-3 py-2">{row.vendor ? `${row.vendor} · ` : ""}{row.description ?? ""}</td>
+                                  </tr>
+                                ))
                             )}
                           </tbody>
                         </table>

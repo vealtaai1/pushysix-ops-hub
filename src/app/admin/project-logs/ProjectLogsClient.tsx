@@ -54,6 +54,19 @@ type LogsResponse = {
     vendor: string | null;
     user: { id: string; name: string | null; email: string } | null;
   }>;
+  ledgerRows?: Array<{
+    id: string;
+    type: "WORKLOG" | "MILEAGE" | "EXPENSE";
+    dateISO: string;
+    employeeName: string | null;
+    minutes: number | null;
+    kilometers: number | null;
+    amountCents: number | null;
+    serviceName: string | null;
+    category: string | null;
+    vendor: string | null;
+    description: string | null;
+  }>;
 };
 
 function fmtDate(iso: string) {
@@ -70,6 +83,12 @@ function fmtHours(h: number): string {
 
 function fmtMoneyCADFromCents(cents: number): string {
   return new Intl.NumberFormat("en-CA", { style: "currency", currency: "CAD" }).format(Number(cents ?? 0) / 100);
+}
+
+function ledgerTypeLabel(type: "WORKLOG" | "MILEAGE" | "EXPENSE") {
+  if (type === "WORKLOG") return "Work";
+  if (type === "MILEAGE") return "Mileage";
+  return "Expense";
 }
 
 const PIE_COLORS = [
@@ -378,7 +397,7 @@ export function ProjectLogsClient({ clients, projects }: { clients: ClientRow[];
 
           <div className="rounded-lg border border-zinc-200 bg-white">
             <div className="flex flex-wrap items-center justify-between gap-2 border-b border-zinc-200 px-4 py-3">
-              <div className="text-sm font-semibold">Work log ledger</div>
+              <div className="text-sm font-semibold">Finance ledger</div>
 
               <div className="flex flex-wrap items-center gap-2 text-xs">
                 {serviceFilterKey ? (
@@ -422,10 +441,7 @@ export function ProjectLogsClient({ clients, projects }: { clients: ClientRow[];
                   </button>
                 ) : null}
 
-                <span className="text-zinc-600">
-                  Total: {fmtHours(totalFilteredHours)}h
-                  {serviceFilterKey || employeeFilterId ? ` (of ${fmtHours(totalHours)}h)` : ""}
-                </span>
+                <span className="text-zinc-600">Work total: {fmtHours(totalFilteredHours)}h{serviceFilterKey || employeeFilterId ? ` (of ${fmtHours(totalHours)}h)` : ""}</span>
               </div>
             </div>
 
@@ -434,29 +450,44 @@ export function ProjectLogsClient({ clients, projects }: { clients: ClientRow[];
                 <thead>
                   <tr className="text-left text-xs font-semibold text-zinc-600">
                     <th className="border-b border-zinc-200 px-4 py-2">Date</th>
+                    <th className="border-b border-zinc-200 px-4 py-2">Type</th>
                     <th className="border-b border-zinc-200 px-4 py-2">Employee</th>
-                    <th className="border-b border-zinc-200 px-4 py-2">Service</th>
+                    <th className="border-b border-zinc-200 px-4 py-2">Service / Category</th>
                     <th className="border-b border-zinc-200 px-4 py-2">Hours</th>
-                    <th className="border-b border-zinc-200 px-4 py-2">Notes</th>
+                    <th className="border-b border-zinc-200 px-4 py-2">Km</th>
+                    <th className="border-b border-zinc-200 px-4 py-2">Amount</th>
+                    <th className="border-b border-zinc-200 px-4 py-2">Details</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredWorklogs.length === 0 ? (
+                  {(data.ledgerRows ?? []).length === 0 ? (
                     <tr>
-                      <td className="px-4 py-8 text-sm text-zinc-600" colSpan={5}>
+                      <td className="px-4 py-8 text-sm text-zinc-600" colSpan={8}>
                         No ledger entries match the current filter(s).
                       </td>
                     </tr>
                   ) : (
-                    filteredWorklogs.slice(0, 250).map((w, idx) => (
-                      <tr key={`${w.workDate}-${idx}`} className="align-top text-sm">
-                        <td className="border-b border-zinc-100 px-4 py-2">{fmtDate(w.workDate)}</td>
-                        <td className="border-b border-zinc-100 px-4 py-2">{w.user.name ?? w.user.email}</td>
-                        <td className="border-b border-zinc-100 px-4 py-2">{w.bucketName}</td>
-                        <td className="border-b border-zinc-100 px-4 py-2">{fmtHours((w.minutes ?? 0) / 60)}h</td>
-                        <td className="border-b border-zinc-100 px-4 py-2">{w.notes ?? ""}</td>
-                      </tr>
-                    ))
+                    (data.ledgerRows ?? [])
+                      .filter((row) => {
+                        if (row.type === "WORKLOG") {
+                          if (serviceFilterKey && row.serviceName !== (servicePie.find((x) => x.bucketKey === serviceFilterKey)?.name ?? row.serviceName)) return false;
+                          if (employeeFilterId && row.employeeName !== (employeePie.find((x) => x.employeeId === employeeFilterId)?.name ?? row.employeeName)) return false;
+                        }
+                        return true;
+                      })
+                      .slice(0, 300)
+                      .map((row) => (
+                        <tr key={row.id} className="align-top text-sm">
+                          <td className="border-b border-zinc-100 px-4 py-2">{row.dateISO}</td>
+                          <td className="border-b border-zinc-100 px-4 py-2">{ledgerTypeLabel(row.type)}</td>
+                          <td className="border-b border-zinc-100 px-4 py-2">{row.employeeName ?? "—"}</td>
+                          <td className="border-b border-zinc-100 px-4 py-2">{row.serviceName ?? row.category ?? "—"}</td>
+                          <td className="border-b border-zinc-100 px-4 py-2">{row.minutes != null ? `${fmtHours(row.minutes / 60)}h` : "—"}</td>
+                          <td className="border-b border-zinc-100 px-4 py-2">{row.kilometers != null ? row.kilometers.toFixed(1) : "—"}</td>
+                          <td className="border-b border-zinc-100 px-4 py-2">{row.amountCents != null ? fmtMoneyCADFromCents(row.amountCents) : "—"}</td>
+                          <td className="border-b border-zinc-100 px-4 py-2">{row.vendor ? `${row.vendor} · ` : ""}{row.description ?? ""}</td>
+                        </tr>
+                      ))
                   )}
                 </tbody>
               </table>

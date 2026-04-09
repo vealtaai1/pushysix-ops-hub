@@ -104,47 +104,99 @@ export async function GET(_req: Request, ctx: { params: Promise<{ projectId: str
   }
   const byBucket = Array.from(byBucketMap.values()).sort((a, b) => b.minutes - a.minutes);
 
+  const serializedWorklogs = worklogs.map((e) => ({
+    workDate: e.worklog.workDate.toISOString(),
+    minutes: e.minutes,
+    bucketKey: e.bucketKey ?? null,
+    bucketName: e.bucketName ?? e.bucketKey ?? "—",
+    notes: e.notes ?? null,
+    user: {
+      id: e.worklog.user.id,
+      name: e.worklog.user.name,
+      email: e.worklog.user.email,
+    },
+  }));
+
+  const serializedMileage = mileage.map((m) => ({
+    workDate: m.worklog.workDate.toISOString(),
+    kilometers: m.kilometers,
+    notes: m.notes ?? null,
+    user: {
+      id: m.worklog.user.id,
+      name: m.worklog.user.name,
+      email: m.worklog.user.email,
+    },
+  }));
+
+  const serializedExpenses = expenses.map((ex) => ({
+    expenseDate: ex.expenseDate.toISOString(),
+    category: ex.category,
+    description: ex.description,
+    amountCents: ex.amountCents,
+    vendor: ex.vendor ?? null,
+    user: ex.worklog?.user
+      ? {
+          id: ex.worklog.user.id,
+          name: ex.worklog.user.name,
+          email: ex.worklog.user.email,
+        }
+      : null,
+  }));
+
+  const ledgerRows = [
+    ...serializedWorklogs.map((w, idx) => ({
+      id: `worklog:${idx}:${w.workDate}`,
+      type: "WORKLOG" as const,
+      dateISO: w.workDate.slice(0, 10),
+      employeeName: w.user.name ?? w.user.email,
+      minutes: w.minutes,
+      kilometers: null,
+      amountCents: null,
+      serviceName: w.bucketName,
+      category: null,
+      vendor: null,
+      description: w.notes ?? null,
+    })),
+    ...serializedMileage.map((m, idx) => ({
+      id: `mileage:${idx}:${m.workDate}`,
+      type: "MILEAGE" as const,
+      dateISO: m.workDate.slice(0, 10),
+      employeeName: m.user.name ?? m.user.email,
+      minutes: null,
+      kilometers: m.kilometers,
+      amountCents: null,
+      serviceName: null,
+      category: null,
+      vendor: null,
+      description: m.notes ?? null,
+    })),
+    ...serializedExpenses.map((ex, idx) => ({
+      id: `expense:${idx}:${ex.expenseDate}`,
+      type: "EXPENSE" as const,
+      dateISO: ex.expenseDate.slice(0, 10),
+      employeeName: ex.user ? (ex.user.name ?? ex.user.email) : null,
+      minutes: null,
+      kilometers: null,
+      amountCents: ex.amountCents,
+      serviceName: null,
+      category: ex.category,
+      vendor: ex.vendor ?? null,
+      description: ex.description,
+    })),
+  ].sort((a, b) => {
+    if (a.dateISO !== b.dateISO) return b.dateISO.localeCompare(a.dateISO);
+    return a.id.localeCompare(b.id);
+  });
+
   return NextResponse.json({
     ok: true,
     project,
     summary: { worklogMinutes, mileageKm, expenseTotalCents },
     financeLedger,
     byBucket,
-    worklogs: worklogs.map((e) => ({
-      workDate: e.worklog.workDate.toISOString(),
-      minutes: e.minutes,
-      bucketKey: e.bucketKey ?? null,
-      bucketName: e.bucketName ?? e.bucketKey ?? "—",
-      notes: e.notes ?? null,
-      user: {
-        id: e.worklog.user.id,
-        name: e.worklog.user.name,
-        email: e.worklog.user.email,
-      },
-    })),
-    mileage: mileage.map((m) => ({
-      workDate: m.worklog.workDate.toISOString(),
-      kilometers: m.kilometers,
-      notes: m.notes ?? null,
-      user: {
-        id: m.worklog.user.id,
-        name: m.worklog.user.name,
-        email: m.worklog.user.email,
-      },
-    })),
-    expenses: expenses.map((ex) => ({
-      expenseDate: ex.expenseDate.toISOString(),
-      category: ex.category,
-      description: ex.description,
-      amountCents: ex.amountCents,
-      vendor: ex.vendor ?? null,
-      user: ex.worklog?.user
-        ? {
-            id: ex.worklog.user.id,
-            name: ex.worklog.user.name,
-            email: ex.worklog.user.email,
-          }
-        : null,
-    })),
+    worklogs: serializedWorklogs,
+    mileage: serializedMileage,
+    expenses: serializedExpenses,
+    ledgerRows,
   });
 }

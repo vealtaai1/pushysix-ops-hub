@@ -128,6 +128,51 @@ export async function GET(req: Request) {
     },
   });
 
+  const mileageEntries = await prisma.mileageEntry.findMany({
+    where: {
+      clientId,
+      worklog: {
+        workDate: { gte: startUTC, lt: endExclusiveUTC },
+        status: "APPROVED",
+      },
+    },
+    orderBy: [{ worklog: { workDate: "asc" } }, { createdAt: "asc" }],
+    select: {
+      id: true,
+      kilometers: true,
+      notes: true,
+      worklog: {
+        select: {
+          workDate: true,
+          user: { select: { id: true, name: true, email: true } },
+        },
+      },
+    },
+  });
+
+  const expenseEntries = await prisma.expenseEntry.findMany({
+    where: {
+      clientId,
+      projectId: null,
+      expenseDate: { gte: startUTC, lt: endExclusiveUTC },
+      OR: [{ worklog: { status: "APPROVED" } }, { worklogId: null, status: "APPROVED" }],
+    },
+    orderBy: [{ expenseDate: "asc" }, { createdAt: "asc" }],
+    select: {
+      id: true,
+      expenseDate: true,
+      category: true,
+      description: true,
+      amountCents: true,
+      vendor: true,
+      worklog: {
+        select: {
+          user: { select: { id: true, name: true, email: true } },
+        },
+      },
+    },
+  });
+
   const bucketUsage: Record<string, number> = {};
   for (const e of entries) {
     bucketUsage[e.bucketKey] = (bucketUsage[e.bucketKey] ?? 0) + (e.minutes ?? 0);
@@ -139,6 +184,51 @@ export async function GET(req: Request) {
     clientId,
     engagementType: "RETAINER",
   }).catch(() => null);
+
+  const ledgerRows = [
+    ...entries.map((entry) => ({
+      id: `worklog:${entry.id}`,
+      type: "WORKLOG" as const,
+      dateISO: entry.worklog.workDate.toISOString().slice(0, 10),
+      employeeName: entry.worklog.user.name ?? entry.worklog.user.email,
+      minutes: entry.minutes,
+      kilometers: null,
+      amountCents: null,
+      serviceName: entry.bucketName,
+      category: null,
+      vendor: null,
+      description: entry.notes ?? null,
+    })),
+    ...mileageEntries.map((entry) => ({
+      id: `mileage:${entry.id}`,
+      type: "MILEAGE" as const,
+      dateISO: entry.worklog.workDate.toISOString().slice(0, 10),
+      employeeName: entry.worklog.user.name ?? entry.worklog.user.email,
+      minutes: null,
+      kilometers: entry.kilometers,
+      amountCents: null,
+      serviceName: null,
+      category: null,
+      vendor: null,
+      description: entry.notes ?? null,
+    })),
+    ...expenseEntries.map((entry) => ({
+      id: `expense:${entry.id}`,
+      type: "EXPENSE" as const,
+      dateISO: entry.expenseDate.toISOString().slice(0, 10),
+      employeeName: entry.worklog?.user ? (entry.worklog.user.name ?? entry.worklog.user.email) : null,
+      minutes: null,
+      kilometers: null,
+      amountCents: entry.amountCents,
+      serviceName: null,
+      category: entry.category,
+      vendor: entry.vendor ?? null,
+      description: entry.description,
+    })),
+  ].sort((a, b) => {
+    if (a.dateISO !== b.dateISO) return a.dateISO.localeCompare(b.dateISO);
+    return a.id.localeCompare(b.id);
+  });
 
   return NextResponse.json({
     ok: true,
@@ -154,6 +244,7 @@ export async function GET(req: Request) {
     bucketLimits: cycle?.bucketLimits ?? [],
     bucketUsage,
     entries,
+    ledgerRows,
     financeLedger,
   });
 }
