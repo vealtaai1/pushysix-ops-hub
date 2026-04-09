@@ -75,15 +75,22 @@ export async function POST(req: Request) {
 
   const passwordHash = await hashPassword(password);
 
-  // Create the user (default role EMPLOYEE) and mark invite used.
+  // Set password for an invited user and mark invite used.
+  // Option A creates the user immediately, so we must handle both cases.
   await prisma.$transaction(async (tx) => {
-    await tx.user.create({
-      data: {
-        email: invite.email,
-        passwordHash,
-        role: "EMPLOYEE",
-      },
-    });
+    const existing = await tx.user.findUnique({ where: { email: invite.email }, select: { id: true } });
+
+    if (existing) {
+      await tx.user.update({ where: { id: existing.id }, data: { passwordHash } });
+    } else {
+      await tx.user.create({
+        data: {
+          email: invite.email,
+          passwordHash,
+          role: "EMPLOYEE",
+        },
+      });
+    }
 
     await tx.userInviteToken.update({ where: { id: invite.id }, data: { usedAt: new Date() } });
   });
