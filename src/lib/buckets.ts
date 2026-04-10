@@ -7,6 +7,8 @@ export const BUCKETS: Bucket[] = [
   { key: "capture", name: "Filming / Photography Capture" },
   { key: "travel", name: "Traveling" },
   { key: "editing", name: "Editing" },
+  { key: "management", name: "Management" },
+  { key: "administration", name: "Administration" },
   { key: "smm", name: "Social Media Management" },
   { key: "photo_video_editing", name: "Photo/Video Editing" },
   { key: "web_design", name: "Web Design" },

@@ -4,7 +4,6 @@ import * as React from "react";
 import { useSearchParams } from "next/navigation";
 import { CALGARY_TZ, isoDateInTimeZone, parseISODateAsUTC } from "@/lib/time";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
-import { updateClientRetainerBasics } from "./actions";
 
 // NOTE: Quota items are being replaced by per-cycle category restrictions derived from bucketKey.
 
@@ -1003,81 +1002,6 @@ export function RetainersDashboardClient({ initialRows }: { initialRows: ClientR
                       </div>
                     </div>
 
-
-                    <div className="rounded-lg border border-zinc-200 p-3">
-                      <div className="text-sm font-semibold">Retainer settings</div>
-                      <form
-                        action={updateClientRetainerBasics}
-                        className="mt-3 grid gap-3"
-                      >
-                        <input type="hidden" name="clientId" value={detail.client.id} />
-                        <label className="grid gap-1">
-                          <span className="text-xs font-semibold text-zinc-600">Monthly retainer hours</span>
-                          <input
-                            name="monthlyRetainerHours"
-                            defaultValue={String(detail.client.monthlyRetainerHours)}
-                            className="h-10 rounded-md border border-zinc-300 bg-white px-3"
-                          />
-                        </label>
-                        <label className="grid gap-1">
-                          <span className="text-xs font-semibold text-zinc-600">Max shoots per cycle (optional)</span>
-                          <input
-                            name="maxShootsPerCycle"
-                            defaultValue={detail.client.maxShootsPerCycle ?? ""}
-                            className="h-10 rounded-md border border-zinc-300 bg-white px-3"
-                          />
-                        </label>
-                        <label className="grid gap-1">
-                          <span className="text-xs font-semibold text-zinc-600">Max capture hours per cycle (optional)</span>
-                          <input
-                            name="maxCaptureHoursPerCycle"
-                            defaultValue={detail.client.maxCaptureHoursPerCycle ?? ""}
-                            className="h-10 rounded-md border border-zinc-300 bg-white px-3"
-                          />
-                        </label>
-
-                        <label className="grid gap-1">
-                          <span className="text-xs font-semibold text-zinc-600">Billing cycle start day</span>
-                          <select
-                            name="billingCycleStartDay"
-                            defaultValue={detail.client.billingCycleStartDay}
-                            className="h-10 rounded-md border border-zinc-300 bg-white px-3"
-                          >
-                            <option value="FIRST">1st</option>
-                            <option value="FIFTEENTH">15th</option>
-                          </select>
-                        </label>
-
-                        <label className="grid gap-1">
-                          <span className="text-xs font-semibold text-zinc-600">Client status</span>
-                          <select
-                            name="status"
-                            defaultValue={detail.client.status}
-                            className="h-10 rounded-md border border-zinc-300 bg-white px-3"
-                          >
-                            <option value="ACTIVE">Active</option>
-                            <option value="ON_HOLD">On hold</option>
-                          </select>
-                        </label>
-
-                        <label className="grid gap-1">
-                          <span className="text-xs font-semibold text-zinc-600">Billing email</span>
-                          <input
-                            name="clientBillingEmail"
-                            defaultValue={detail.client.clientBillingEmail ?? ""}
-                            className="h-10 rounded-md border border-zinc-300 bg-white px-3"
-                            placeholder="billing@client.com"
-                          />
-                        </label>
-
-                        <button
-                          type="submit"
-                          className="h-10 rounded-md bg-zinc-900 px-3 text-sm font-semibold text-white hover:opacity-90"
-                        >
-                          Save
-                        </button>
-                      </form>
-                    </div>
                   </div>
                 </div>
                 </div>
