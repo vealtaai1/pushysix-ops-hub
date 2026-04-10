@@ -57,6 +57,7 @@ type DetailPayload = {
     type: "WORKLOG" | "MILEAGE" | "EXPENSE";
     dateISO: string;
     employeeName: string | null;
+    employeeEmail?: string | null;
     minutes: number | null;
     kilometers: number | null;
     amountCents: number | null;
@@ -991,7 +992,10 @@ export function RetainersDashboardClient({ initialRows }: { initialRows: ClientR
                                     <td className="border-b border-zinc-100 px-3 py-2">{row.dateISO.slice(0, 10)}</td>
                                     <td className="border-b border-zinc-100 px-3 py-2">{ledgerTypeLabel(row.type)}</td>
                                     <td className="border-b border-zinc-100 px-3 py-2">
-                                      <div className="font-medium text-zinc-900">{displayPerson(row.employeeName, null)}</div>
+                                      <div className="font-medium text-zinc-900">{displayPerson(row.employeeName, row.employeeEmail ?? null)}</div>
+                                      {row.employeeEmail && row.employeeName && row.employeeName !== row.employeeEmail ? (
+                                        <div className="text-xs text-zinc-500 break-all">{row.employeeEmail}</div>
+                                      ) : null}
                                     </td>
                                     <td className="border-b border-zinc-100 px-3 py-2">{row.serviceName ?? row.category ?? "—"}</td>
                                     <td className="border-b border-zinc-100 px-3 py-2">{row.minutes != null ? `${fmtHours(row.minutes / 60)}h` : "—"}</td>
