@@ -7,12 +7,12 @@ export const dynamic = "force-dynamic";
 type Tile = { href: string; title: string; desc: string; adminOnly?: boolean };
 
 const ADMIN_TILES: Tile[] = [
-  { href: "/admin/retainers", title: "Retainer Logs", desc: "Manage retainers and billing enforcement." },
-  { href: "/admin/project-logs", title: "Project Logs", desc: "Review one-off project usage, mileage, and expenses." },
+  { href: "/admin/retainers", title: "Retainers", desc: "Review retainer usage, cycle pacing, and approved ledger totals." },
+  { href: "/admin/project-logs", title: "Projects", desc: "Review project activity, approved work, mileage, and expenses." },
   { href: "/admin/clients", title: "Clients", desc: "Client list, contacts, and configuration." },
   { href: "/admin/worklogs", title: "Worklogs", desc: "Review submitted worklogs." },
   { href: "/admin/approvals", title: "Approvals", desc: "Approve worklogs and requests." },
-  { href: "/admin/finance", title: "Finance", desc: "Cycle-based finance analytics and cost breakdowns." },
+  { href: "/admin/finance", title: "Finance", desc: "Approved revenue, cost, and margin reporting by cycle." },
   { href: "/admin/equipment", title: "Equipment", desc: "Admin equipment views and utilities." },
   { href: "/admin/payroll", title: "Payroll", desc: "Payroll exports and reports.", adminOnly: true },
   { href: "/admin/users", title: "Users", desc: "View/manage roles.", adminOnly: true },

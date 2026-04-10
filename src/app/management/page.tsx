@@ -3,10 +3,10 @@ import Link from "next/link";
 export const dynamic = "force-dynamic";
 
 const LINKS: Array<{ href: string; title: string; desc: string }> = [
-  { href: "/management/retainers", title: "Retainer Logs", desc: "Review retainer usage + caps." },
-  { href: "/management/project-logs", title: "Project Logs", desc: "Review one-off project usage, mileage, and expenses." },
+  { href: "/management/retainers", title: "Retainers", desc: "Review retainer usage, pacing, and approved totals." },
+  { href: "/management/project-logs", title: "Projects", desc: "Review project activity, approved work, mileage, and expenses." },
   // Clients live under /ops/clients (client hub).
-  { href: "/management/approvals", title: "Approvals", desc: "Approve/reject late worklogs, resubmits, day-offs." },
+  { href: "/management/approvals", title: "Approvals", desc: "Approve or reject late worklogs, resubmits, and day-off requests." },
   { href: "/management/worklogs", title: "Worklogs", desc: "Manager view across users." },
   { href: "/management/users", title: "Users", desc: "View users." },
 ];
