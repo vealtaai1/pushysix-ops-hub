@@ -41,7 +41,7 @@ export default async function AdminDashboardPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-xl font-semibold">Admin Dashboard</h1>
-        <p className="text-sm text-zinc-600">Administrative tools, reporting, and controls.</p>
+        <p className="text-sm text-zinc-600">Administrative tools for approvals, reviews, and controls.</p>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
