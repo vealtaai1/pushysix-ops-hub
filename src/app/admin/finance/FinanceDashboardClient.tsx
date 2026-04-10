@@ -433,7 +433,7 @@ export function FinanceDashboardClient({ clients }: { clients: ClientOption[] })
                 </ResponsiveContainer>
               </div>
               <p className="mt-2 text-xs text-zinc-500">
-                Revenue is shown as a constant cycle-level reference line, while costs accrue from approved work, mileage, and expense entries.
+                Revenue is shown as a constant cycle-level reference line, while costs accrue from approved worklogs, mileage, and expense submissions.
               </p>
             </div>
 
@@ -465,7 +465,7 @@ export function FinanceDashboardClient({ clients }: { clients: ClientOption[] })
                   </PieChart>
                 </ResponsiveContainer>
               </div>
-              <p className="mt-2 text-xs text-zinc-500">Totals are computed over the selected billing cycle window using approved work, mileage, and expense entries only.</p>
+              <p className="mt-2 text-xs text-zinc-500">Totals are computed over the selected billing cycle window using approved worklogs, mileage, and expense submissions only.</p>
             </div>
 
             <div className="rounded-md border border-zinc-200 p-3">
