@@ -87,6 +87,11 @@ function displayPerson(name?: string | null, email?: string | null) {
   return name?.trim() || email?.trim() || "—";
 }
 
+function personSubtitle(name?: string | null, email?: string | null) {
+  if (!name?.trim() || !email?.trim()) return null;
+  return name.trim() === email.trim() ? null : email.trim();
+}
+
 function ledgerTypeLabel(type: "WORKLOG" | "MILEAGE" | "EXPENSE") {
   if (type === "WORKLOG") return "Work";
   if (type === "MILEAGE") return "Mileage";
@@ -281,12 +286,17 @@ export function RetainersDashboardClient({ initialRows }: { initialRows: ClientR
   }, [detail]);
 
   const employeePie = React.useMemo(() => {
-    if (!detail) return [] as Array<{ employeeId: string; name: string; minutes: number; hours: number; email: string }>;
-    const m: Record<string, { employeeId: string; name: string; email: string; minutes: number }> = {};
+    if (!detail) return [] as Array<{ employeeId: string; name: string; secondaryLabel: string | null; minutes: number; hours: number }>;
+    const m: Record<string, { employeeId: string; name: string; secondaryLabel: string | null; minutes: number }> = {};
     for (const e of detail.entries) {
       const u = e.worklog.user;
       const key = u.id;
-      m[key] = m[key] ?? { employeeId: key, name: u.name?.trim() || u.email, email: u.email, minutes: 0 };
+      m[key] = m[key] ?? {
+        employeeId: key,
+        name: displayPerson(u.name, u.email),
+        secondaryLabel: personSubtitle(u.name, u.email),
+        minutes: 0,
+      };
       m[key].minutes += e.minutes ?? 0;
     }
     return Object.values(m)
@@ -426,7 +436,7 @@ export function RetainersDashboardClient({ initialRows }: { initialRows: ClientR
     <div className="space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-xl font-semibold">Retainer Logs</h1>
+          <h1 className="text-xl font-semibold">Retainers</h1>
           <p className="text-sm text-zinc-600">Visual overview + drill-down by client and cycle.</p>
         </div>
 
@@ -828,7 +838,7 @@ export function RetainersDashboardClient({ initialRows }: { initialRows: ClientR
                       </div>
 
                       <div className="rounded-lg border border-zinc-200 p-3">
-                        <div className="text-xs font-semibold text-zinc-600">Team breakdown (hours)</div>
+                        <div className="text-xs font-semibold text-zinc-600">Team breakdown</div>
                         {(employeePie ?? []).length === 0 ? (
                           <div className="mt-2 text-sm text-zinc-600">No worklog entries yet.</div>
                         ) : (
@@ -859,15 +869,24 @@ export function RetainersDashboardClient({ initialRows }: { initialRows: ClientR
                                 </PieChart>
                               </ResponsiveContainer>
                             </div>
-                            <div className="mt-3 space-y-1 text-xs text-zinc-600">
+                            <div className="mt-3 text-[11px] uppercase tracking-wide text-zinc-500">Tap a slice or legend item to filter the ledger.</div>
+                            <div className="mt-2 space-y-1 text-xs text-zinc-600">
                               {employeePie.slice(0, 6).map((row, i) => (
-                                <div key={row.employeeId} className="flex items-center justify-between gap-3">
+                                <button
+                                  key={row.employeeId}
+                                  type="button"
+                                  onClick={() => setEmployeeFilterId((prev) => (prev === row.employeeId ? null : row.employeeId))}
+                                  className="flex w-full items-center justify-between gap-3 rounded-md px-1 py-1 text-left hover:bg-zinc-50"
+                                >
                                   <div className="flex min-w-0 items-center gap-2">
                                     <span className="inline-block h-2.5 w-2.5 rounded-full" style={{ backgroundColor: PIE_COLORS[i % PIE_COLORS.length] }} />
-                                    <span className="truncate">{row.name}</span>
+                                    <div className="min-w-0">
+                                      <div className="truncate">{row.name}</div>
+                                      {row.secondaryLabel ? <div className="truncate text-[11px] text-zinc-500">{row.secondaryLabel}</div> : null}
+                                    </div>
                                   </div>
                                   <span className="whitespace-nowrap font-medium text-zinc-800">{fmtHours(row.hours)}h</span>
-                                </div>
+                                </button>
                               ))}
                             </div>
                           </>
@@ -877,7 +896,7 @@ export function RetainersDashboardClient({ initialRows }: { initialRows: ClientR
 
                     <div className="rounded-lg border border-zinc-200">
                       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-zinc-200 px-3 py-2">
-                        <div className="text-sm font-semibold">Finance ledger</div>
+                        <div className="text-sm font-semibold">Financial summary</div>
 
                         <div className="flex flex-wrap items-center gap-2 text-xs">
                           {serviceFilterKey ? (

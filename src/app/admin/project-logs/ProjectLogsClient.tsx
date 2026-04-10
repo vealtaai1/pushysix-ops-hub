@@ -108,6 +108,11 @@ function displayPerson(name?: string | null, email?: string | null) {
   return name?.trim() || email?.trim() || "—";
 }
 
+function personSubtitle(name?: string | null, email?: string | null) {
+  if (!name?.trim() || !email?.trim()) return null;
+  return name.trim() === email.trim() ? null : email.trim();
+}
+
 export function ProjectLogsClient({ clients, projects }: { clients: ClientRow[]; projects: ProjectRow[] }) {
   const searchParams = useSearchParams();
 
@@ -202,8 +207,8 @@ export function ProjectLogsClient({ clients, projects }: { clients: ClientRow[];
     const m: Record<string, { employeeId: string; displayName: string; secondaryLabel: string | null; minutes: number; hours: number }> = {};
     for (const w of rows) {
       const key = w.user.id;
-      const displayName = w.user.name ?? w.user.email;
-      const secondaryLabel = w.user.name ? w.user.email : null;
+      const displayName = displayPerson(w.user.name, w.user.email);
+      const secondaryLabel = personSubtitle(w.user.name, w.user.email);
       m[key] = m[key] ?? { employeeId: key, displayName, secondaryLabel, minutes: 0, hours: 0 };
       m[key].minutes += w.minutes ?? 0;
     }
@@ -243,7 +248,7 @@ export function ProjectLogsClient({ clients, projects }: { clients: ClientRow[];
     <div className="space-y-6">
       <div>
         <h1 className="text-xl font-semibold">Project Logs</h1>
-        <p className="text-sm text-zinc-600">One-off projects (non-retainer). Select a client + project to see the full breakdown.</p>
+        <p className="text-sm text-zinc-600">One-off projects, outside retainers. Select a client and project to see the full breakdown.</p>
       </div>
 
       <div className="rounded-lg border border-zinc-200 bg-white p-4">
@@ -313,7 +318,7 @@ export function ProjectLogsClient({ clients, projects }: { clients: ClientRow[];
 
           <div className="grid gap-4 lg:grid-cols-3">
             <div className="rounded-lg border border-zinc-200 bg-white p-4">
-              <div className="text-xs font-semibold text-zinc-600">Service breakdown (hours)</div>
+              <div className="text-xs font-semibold text-zinc-600">Service breakdown</div>
               {(servicePie ?? []).length === 0 ? (
                 <div className="mt-2 text-sm text-zinc-600">No worklog entries yet.</div>
               ) : (
@@ -344,15 +349,21 @@ export function ProjectLogsClient({ clients, projects }: { clients: ClientRow[];
                       </PieChart>
                     </ResponsiveContainer>
                   </div>
-                  <div className="mt-3 space-y-1 text-xs text-zinc-600">
+                  <div className="mt-3 text-[11px] uppercase tracking-wide text-zinc-500">Tap a slice or legend item to filter the ledger.</div>
+                  <div className="mt-2 space-y-1 text-xs text-zinc-600">
                     {servicePie.slice(0, 6).map((row, i) => (
-                      <div key={row.bucketKey} className="flex items-center justify-between gap-3">
+                      <button
+                        key={row.bucketKey}
+                        type="button"
+                        onClick={() => setServiceFilterKey((prev) => (prev === row.bucketKey ? null : row.bucketKey))}
+                        className="flex w-full items-center justify-between gap-3 rounded-md px-1 py-1 text-left hover:bg-zinc-50"
+                      >
                         <div className="flex min-w-0 items-center gap-2">
                           <span className="inline-block h-2.5 w-2.5 rounded-full" style={{ backgroundColor: PIE_COLORS[i % PIE_COLORS.length] }} />
                           <span className="truncate">{row.name}</span>
                         </div>
                         <span className="whitespace-nowrap font-medium text-zinc-800">{fmtHours(row.hours)}h</span>
-                      </div>
+                      </button>
                     ))}
                   </div>
                 </>
@@ -360,7 +371,7 @@ export function ProjectLogsClient({ clients, projects }: { clients: ClientRow[];
             </div>
 
             <div className="rounded-lg border border-zinc-200 bg-white p-4">
-              <div className="text-xs font-semibold text-zinc-600">Team breakdown (hours)</div>
+              <div className="text-xs font-semibold text-zinc-600">Team breakdown</div>
               {(employeePie ?? []).length === 0 ? (
                 <div className="mt-2 text-sm text-zinc-600">No worklog entries yet.</div>
               ) : (
@@ -391,15 +402,24 @@ export function ProjectLogsClient({ clients, projects }: { clients: ClientRow[];
                       </PieChart>
                     </ResponsiveContainer>
                   </div>
-                  <div className="mt-3 space-y-1 text-xs text-zinc-600">
+                  <div className="mt-3 text-[11px] uppercase tracking-wide text-zinc-500">Tap a slice or legend item to filter the ledger.</div>
+                  <div className="mt-2 space-y-1 text-xs text-zinc-600">
                     {employeePie.slice(0, 6).map((row, i) => (
-                      <div key={row.employeeId} className="flex items-center justify-between gap-3">
+                      <button
+                        key={row.employeeId}
+                        type="button"
+                        onClick={() => setEmployeeFilterId((prev) => (prev === row.employeeId ? null : row.employeeId))}
+                        className="flex w-full items-center justify-between gap-3 rounded-md px-1 py-1 text-left hover:bg-zinc-50"
+                      >
                         <div className="flex min-w-0 items-center gap-2">
                           <span className="inline-block h-2.5 w-2.5 rounded-full" style={{ backgroundColor: PIE_COLORS[i % PIE_COLORS.length] }} />
-                          <span className="truncate">{row.displayName}</span>
+                          <div className="min-w-0">
+                            <div className="truncate">{row.displayName}</div>
+                            {row.secondaryLabel ? <div className="truncate text-[11px] text-zinc-500">{row.secondaryLabel}</div> : null}
+                          </div>
                         </div>
                         <span className="whitespace-nowrap font-medium text-zinc-800">{fmtHours(row.hours)}h</span>
-                      </div>
+                      </button>
                     ))}
                   </div>
                 </>
@@ -407,7 +427,7 @@ export function ProjectLogsClient({ clients, projects }: { clients: ClientRow[];
             </div>
 
             <div className="rounded-lg border border-zinc-200 bg-white p-4">
-              <div className="text-xs font-semibold text-zinc-600">Expenses breakdown (CAD)</div>
+              <div className="text-xs font-semibold text-zinc-600">Expense breakdown</div>
               {(expensePie ?? []).length === 0 ? (
                 <div className="mt-2 text-sm text-zinc-600">No expenses yet.</div>
               ) : (
@@ -442,7 +462,7 @@ export function ProjectLogsClient({ clients, projects }: { clients: ClientRow[];
 
           <div className="rounded-lg border border-zinc-200 bg-white">
             <div className="flex flex-wrap items-center justify-between gap-2 border-b border-zinc-200 px-4 py-3">
-              <div className="text-sm font-semibold">Finance ledger</div>
+              <div className="text-sm font-semibold">Financial summary</div>
 
               <div className="flex flex-wrap items-center gap-2 text-xs">
                 {serviceFilterKey ? (
@@ -559,8 +579,8 @@ export function ProjectLogsClient({ clients, projects }: { clients: ClientRow[];
                     <div className="mt-1 text-xs text-zinc-700 break-words">{ex.description}</div>
                     {ex.user ? (
                       <div className="mt-1 text-xs text-zinc-500 break-words">
-                        Logged by: {displayPerson(ex.user.name, ex.user.email)}
-                        {ex.user.name ? <span className="text-zinc-400"> ({ex.user.email})</span> : null}
+                        Logged by {displayPerson(ex.user.name, ex.user.email)}
+                        {personSubtitle(ex.user.name, ex.user.email) ? <span className="text-zinc-400"> · {personSubtitle(ex.user.name, ex.user.email)}</span> : null}
                       </div>
                     ) : null}
                     {ex.vendor ? <div className="mt-1 text-xs text-zinc-500 break-words">Vendor: {ex.vendor}</div> : null}
@@ -580,7 +600,7 @@ export function ProjectLogsClient({ clients, projects }: { clients: ClientRow[];
                   <div key={idx} className="rounded-md border border-zinc-200 p-3 text-sm">
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <div className="min-w-0 font-medium break-words">
-                        {fmtDate(m.workDate)} · {displayPerson(m.user.name, m.user.email)}{m.user.name ? ` (${m.user.email})` : ""}
+                        {fmtDate(m.workDate)} · {displayPerson(m.user.name, m.user.email)}{personSubtitle(m.user.name, m.user.email) ? ` · ${personSubtitle(m.user.name, m.user.email)}` : ""}
                       </div>
                       <div className="whitespace-nowrap">{m.kilometers.toFixed(1)} km</div>
                     </div>
