@@ -78,7 +78,8 @@ export async function POST(req: Request) {
         email: body.email,
         name: body.name,
         role: body.role,
-        hourlyWageCents: body.hourlyWageCents,
+        // Avoid null constraint issues if the DB column is non-null in some environments.
+        hourlyWageCents: body.hourlyWageCents ?? undefined,
       },
       select: { id: true, email: true, name: true, role: true, hourlyWageCents: true, createdAt: true },
     });
@@ -93,12 +94,24 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ ok: true, user, invite: { email: body.email, expiresAt: expiresAt.toISOString() } }, { status: 200 });
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Create user failed";
-    const status = message.toLowerCase().includes("forbidden")
+    const raw = err instanceof Error ? err.message : "Create user failed";
+
+    // Friendly messages
+    let message = raw;
+    if (raw.includes("Null constraint violation") && raw.includes("hourlyWageCents")) {
+      message = "Couldn’t create the user because hourly wage is required in the database. Enter an hourly wage and try again.";
+    } else if (raw.toLowerCase().includes("unique") && raw.toLowerCase().includes("email")) {
+      message = "A user with that email already exists.";
+    }
+
+    const status = raw.toLowerCase().includes("forbidden")
       ? 403
-      : message.toLowerCase().includes("unauthorized")
+      : raw.toLowerCase().includes("unauthorized")
         ? 401
-        : 500;
+        : raw.toLowerCase().includes("already exists")
+          ? 409
+          : 500;
+
     console.error("admin create user failed", err);
     return NextResponse.json({ ok: false, message }, { status });
   }
