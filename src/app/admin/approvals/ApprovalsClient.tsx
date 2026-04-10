@@ -151,8 +151,14 @@ export function ApprovalsClient({ initialPending }: { initialPending: PendingRow
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ id }),
       });
-      const json = (await res.json().catch(() => null)) as any;
-      if (!res.ok || !json?.ok) throw new Error(json?.message ?? `Undo failed (${res.status})`);
+
+      if (handleAuthError(res)) return;
+
+      const { json, text } = await parseJsonOrText(res);
+      if (!res.ok || !json?.ok) {
+        const extra = text ? `\n\n${text.slice(0, 300)}` : "";
+        throw new Error(json?.message ?? `Undo failed (${res.status})${extra}`);
+      }
 
       // easiest: reload the page data by hard refresh
       window.location.reload();

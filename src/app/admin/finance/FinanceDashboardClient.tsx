@@ -327,7 +327,7 @@ export function FinanceDashboardClient({ clients }: { clients: ClientOption[] })
                 <>
                   <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-7">
                     <Stat label="Clients" value={String(data.totals.clients)} />
-                    <Stat label="Logged" value={fmtHours(data.totals.loggedMinutes / 60)} />
+                    <Stat label="Approved logged" value={fmtHours(data.totals.loggedMinutes / 60)} />
                     {isProjectOnlyView ? null : (
                       <Stat label="Revenue (retainers)" value={fmtMoneyFromCents(data.totals.retainerRevenueCents ?? 0, "CAD")} />
                     )}
@@ -338,7 +338,7 @@ export function FinanceDashboardClient({ clients }: { clients: ClientOption[] })
                   </div>
                   <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
                     <Stat label="Total expenses" value={fmtMoneyFromCents(data.totals.totalExpenseCostCents, "CAD")} />
-                    <Stat label="Mileage km" value={`${data.totals.mileageKm.toFixed(1)}km`} />
+                    <Stat label="Approved mileage" value={`${data.totals.mileageKm.toFixed(1)} km`} />
                   </div>
                 </>
               );
@@ -465,7 +465,7 @@ export function FinanceDashboardClient({ clients }: { clients: ClientOption[] })
                   </PieChart>
                 </ResponsiveContainer>
               </div>
-              <p className="mt-2 text-xs text-zinc-500">Totals are computed over the selected billing cycle window.</p>
+              <p className="mt-2 text-xs text-zinc-500">Totals are computed over the selected billing cycle window using approved payroll, mileage, and expense entries only.</p>
             </div>
 
             <div className="rounded-md border border-zinc-200 p-3">
@@ -508,7 +508,7 @@ export function FinanceDashboardClient({ clients }: { clients: ClientOption[] })
               <tr className="border-b border-zinc-200">
                 <th className="py-2 pr-3">Client</th>
                 <th className="py-2 pr-3">Cycle</th>
-                <th className="py-2 pr-3">Logged</th>
+                <th className="py-2 pr-3">Approved logged</th>
                 {isProjectOnlyView ? null : <th className="py-2 pr-3">Retainer fee</th>}
                 <th className="py-2 pr-3">Payroll</th>
                 <th className="py-2 pr-3">Mileage</th>

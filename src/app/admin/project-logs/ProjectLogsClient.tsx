@@ -59,6 +59,7 @@ type LogsResponse = {
     type: "WORKLOG" | "MILEAGE" | "EXPENSE";
     dateISO: string;
     employeeName: string | null;
+    employeeEmail?: string | null;
     minutes: number | null;
     kilometers: number | null;
     amountCents: number | null;
@@ -102,6 +103,10 @@ const PIE_COLORS = [
   "#84cc16",
   "#f97316",
 ];
+
+function displayPerson(name?: string | null, email?: string | null) {
+  return name?.trim() || email?.trim() || "—";
+}
 
 export function ProjectLogsClient({ clients, projects }: { clients: ClientRow[]; projects: ProjectRow[] }) {
   const searchParams = useSearchParams();
@@ -194,11 +199,12 @@ export function ProjectLogsClient({ clients, projects }: { clients: ClientRow[];
 
   const employeePie = React.useMemo(() => {
     const rows = data?.worklogs ?? [];
-    const m: Record<string, { employeeId: string; name: string; email: string; minutes: number; hours: number }> = {};
+    const m: Record<string, { employeeId: string; displayName: string; secondaryLabel: string | null; minutes: number; hours: number }> = {};
     for (const w of rows) {
       const key = w.user.id;
-      const name = w.user.name ?? w.user.email;
-      m[key] = m[key] ?? { employeeId: key, name, email: w.user.email, minutes: 0, hours: 0 };
+      const displayName = w.user.name ?? w.user.email;
+      const secondaryLabel = w.user.name ? w.user.email : null;
+      m[key] = m[key] ?? { employeeId: key, displayName, secondaryLabel, minutes: 0, hours: 0 };
       m[key].minutes += w.minutes ?? 0;
     }
     return Object.values(m)
@@ -282,8 +288,8 @@ export function ProjectLogsClient({ clients, projects }: { clients: ClientRow[];
       {data?.project ? (
         <div className="space-y-4">
           <div className="rounded-lg border border-zinc-200 bg-white p-4">
-            <div className="text-sm font-semibold leading-snug text-zinc-900 break-words">{data.project.code} ({data.project.shortCode}) — {data.project.name}</div>
-            <div className="mt-1 text-xs text-zinc-600">Client: {data.project.client.name} · Status: {data.project.status}</div>
+            <div className="text-sm font-semibold leading-snug text-zinc-900 break-words">{data.project.name}</div>
+            <div className="mt-1 text-xs text-zinc-600">{data.project.code} ({data.project.shortCode}) · Client: {data.project.client.name} · Status: {data.project.status}</div>
 
             <div className="mt-3 grid gap-3 sm:grid-cols-3">
               <div className="rounded-md border border-zinc-200 bg-zinc-50 p-3">
@@ -351,7 +357,7 @@ export function ProjectLogsClient({ clients, projects }: { clients: ClientRow[];
                       <Pie
                         data={employeePie}
                         dataKey="hours"
-                        nameKey="name"
+                        nameKey="displayName"
                         outerRadius={80}
                         onClick={(d) => {
                           const key = (d as { employeeId?: string } | undefined)?.employeeId;
@@ -416,7 +422,7 @@ export function ProjectLogsClient({ clients, projects }: { clients: ClientRow[];
 
                 {employeeFilterId ? (
                   <span className="inline-flex items-center gap-2 rounded-md border border-zinc-200 bg-zinc-50 px-2 py-1 text-zinc-700">
-                    Employee: {employeePie.find((x) => x.employeeId === employeeFilterId)?.name ?? employeeFilterId}
+                    Employee: {employeePie.find((x) => x.employeeId === employeeFilterId)?.displayName ?? employeeFilterId}
                     <button
                       type="button"
                       className="text-zinc-500 hover:text-zinc-900"
@@ -441,7 +447,7 @@ export function ProjectLogsClient({ clients, projects }: { clients: ClientRow[];
                   </button>
                 ) : null}
 
-                <span className="text-zinc-600">Work total: {fmtHours(totalFilteredHours)}h{serviceFilterKey || employeeFilterId ? ` (of ${fmtHours(totalHours)}h)` : ""}</span>
+                <span className="text-zinc-600">Approved work total: {fmtHours(totalFilteredHours)}h{serviceFilterKey || employeeFilterId ? ` (of ${fmtHours(totalHours)}h)` : ""}</span>
               </div>
             </div>
 
@@ -471,16 +477,21 @@ export function ProjectLogsClient({ clients, projects }: { clients: ClientRow[];
                       .filter((row) => {
                         if (row.type === "WORKLOG") {
                           if (serviceFilterKey && row.serviceName !== (servicePie.find((x) => x.bucketKey === serviceFilterKey)?.name ?? row.serviceName)) return false;
-                          if (employeeFilterId && row.employeeName !== (employeePie.find((x) => x.employeeId === employeeFilterId)?.name ?? row.employeeName)) return false;
+                          if (employeeFilterId && row.employeeName !== (employeePie.find((x) => x.employeeId === employeeFilterId)?.displayName ?? row.employeeName)) return false;
                         }
                         return true;
                       })
                       .slice(0, 300)
                       .map((row) => (
                         <tr key={row.id} className="align-top text-sm">
-                          <td className="border-b border-zinc-100 px-4 py-2">{row.dateISO}</td>
+                          <td className="border-b border-zinc-100 px-4 py-2">{fmtDate(row.dateISO)}</td>
                           <td className="border-b border-zinc-100 px-4 py-2">{ledgerTypeLabel(row.type)}</td>
-                          <td className="border-b border-zinc-100 px-4 py-2">{row.employeeName ?? "—"}</td>
+                          <td className="border-b border-zinc-100 px-4 py-2">
+                            <div className="font-medium text-zinc-900">{displayPerson(row.employeeName, row.employeeEmail)}</div>
+                            {row.employeeEmail && row.employeeName && row.employeeName !== row.employeeEmail ? (
+                              <div className="text-xs text-zinc-500 break-all">{row.employeeEmail}</div>
+                            ) : null}
+                          </td>
                           <td className="border-b border-zinc-100 px-4 py-2">{row.serviceName ?? row.category ?? "—"}</td>
                           <td className="border-b border-zinc-100 px-4 py-2">{row.minutes != null ? `${fmtHours(row.minutes / 60)}h` : "—"}</td>
                           <td className="border-b border-zinc-100 px-4 py-2">{row.kilometers != null ? row.kilometers.toFixed(1) : "—"}</td>
@@ -508,7 +519,10 @@ export function ProjectLogsClient({ clients, projects }: { clients: ClientRow[];
                     </div>
                     <div className="mt-1 text-xs text-zinc-700 break-words">{ex.description}</div>
                     {ex.user ? (
-                      <div className="mt-1 text-xs text-zinc-500 break-words">Logged by: {ex.user.name ?? ex.user.email}</div>
+                      <div className="mt-1 text-xs text-zinc-500 break-words">
+                        Logged by: {displayPerson(ex.user.name, ex.user.email)}
+                        {ex.user.name ? <span className="text-zinc-400"> ({ex.user.email})</span> : null}
+                      </div>
                     ) : null}
                     {ex.vendor ? <div className="mt-1 text-xs text-zinc-500 break-words">Vendor: {ex.vendor}</div> : null}
                   </div>
@@ -527,7 +541,7 @@ export function ProjectLogsClient({ clients, projects }: { clients: ClientRow[];
                   <div key={idx} className="rounded-md border border-zinc-200 p-3 text-sm">
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <div className="min-w-0 font-medium break-words">
-                        {fmtDate(m.workDate)} · {m.user.name ?? m.user.email}
+                        {fmtDate(m.workDate)} · {displayPerson(m.user.name, m.user.email)}{m.user.name ? ` (${m.user.email})` : ""}
                       </div>
                       <div className="whitespace-nowrap">{m.kilometers.toFixed(1)} km</div>
                     </div>
