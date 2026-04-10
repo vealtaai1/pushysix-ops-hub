@@ -298,7 +298,7 @@ export function ProjectLogsClient({ clients, projects }: { clients: ClientRow[];
 
             <div className="mt-3 grid gap-3 sm:grid-cols-3">
               <div className="rounded-md border border-zinc-200 bg-zinc-50 p-3">
-                <div className="text-xs text-zinc-600">Hours logged</div>
+                <div className="text-xs text-zinc-600">Approved hours</div>
                 <div className="mt-1 text-lg font-semibold">
                   {(data.financeLedger ? (data.financeLedger.approvedWorklogMinutes ?? 0) / 60 : totalHours).toFixed(2)}
                 </div>
@@ -462,7 +462,7 @@ export function ProjectLogsClient({ clients, projects }: { clients: ClientRow[];
 
           <div className="rounded-lg border border-zinc-200 bg-white">
             <div className="flex flex-wrap items-center justify-between gap-2 border-b border-zinc-200 px-4 py-3">
-              <div className="text-sm font-semibold">Ledger details</div>
+              <div className="text-sm font-semibold">Approved ledger details</div>
 
               <div className="flex flex-wrap items-center gap-2 text-xs">
                 {serviceFilterKey ? (
@@ -506,7 +506,7 @@ export function ProjectLogsClient({ clients, projects }: { clients: ClientRow[];
                   </button>
                 ) : null}
 
-                <span className="text-zinc-600">Approved work total: {fmtHours(totalFilteredHours)}h{serviceFilterKey || employeeFilterId ? ` (of ${fmtHours(totalHours)}h)` : ""}</span>
+                <span className="text-zinc-600">Approved work total: {fmtHours(totalFilteredHours)} hrs{serviceFilterKey || employeeFilterId ? ` (of ${fmtHours(totalHours)} hrs)` : ""}</span>
               </div>
             </div>
 
@@ -558,7 +558,7 @@ export function ProjectLogsClient({ clients, projects }: { clients: ClientRow[];
                             ) : null}
                           </td>
                           <td className="border-b border-zinc-100 px-4 py-2">{row.serviceName ?? row.category ?? "—"}</td>
-                          <td className="border-b border-zinc-100 px-4 py-2">{row.minutes != null ? `${fmtHours(row.minutes / 60)}h` : "—"}</td>
+                          <td className="border-b border-zinc-100 px-4 py-2">{row.minutes != null ? `${fmtHours(row.minutes / 60)} hrs` : "—"}</td>
                           <td className="border-b border-zinc-100 px-4 py-2">{row.kilometers != null ? row.kilometers.toFixed(1) : "—"}</td>
                           <td className="border-b border-zinc-100 px-4 py-2">{row.amountCents != null ? fmtMoneyCADFromCents(row.amountCents) : "—"}</td>
                           <td className="border-b border-zinc-100 px-4 py-2">{row.vendor ? `${row.vendor} · ` : ""}{row.description ?? ""}</td>

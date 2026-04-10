@@ -93,6 +93,10 @@ function personSubtitle(name?: string | null, email?: string | null) {
   return name.trim() === email.trim() ? null : email.trim();
 }
 
+function fmtDate(iso: string) {
+  return iso.slice(0, 10);
+}
+
 function ledgerTypeLabel(type: "WORKLOG" | "MILEAGE" | "EXPENSE") {
   if (type === "WORKLOG") return "Work";
   if (type === "MILEAGE") return "Mileage";
@@ -768,11 +772,11 @@ export function RetainersDashboardClient({ initialRows }: { initialRows: ClientR
 
                       {detail.financeLedger ? (
                         <div className="mt-3 rounded-md border border-zinc-200 bg-white px-3 py-2">
-                          <div className="text-xs font-semibold text-zinc-700">Approved finance ledger (this cycle)</div>
+                          <div className="text-xs font-semibold text-zinc-700">Approved totals (this cycle)</div>
                           <div className="mt-1 grid gap-1 text-sm sm:grid-cols-3">
                             <div className="flex items-baseline justify-between gap-2">
                               <span className="text-zinc-600">Work</span>
-                              <span className="font-semibold text-zinc-900">{fmtHours((detail.financeLedger.approvedWorklogMinutes ?? 0) / 60)}h</span>
+                              <span className="font-semibold text-zinc-900">{fmtHours((detail.financeLedger.approvedWorklogMinutes ?? 0) / 60)} hrs</span>
                             </div>
                             <div className="flex items-baseline justify-between gap-2">
                               <span className="text-zinc-600">Mileage</span>
@@ -897,7 +901,7 @@ export function RetainersDashboardClient({ initialRows }: { initialRows: ClientR
 
                     <div className="rounded-lg border border-zinc-200">
                       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-zinc-200 px-3 py-2">
-                        <div className="text-sm font-semibold">Ledger details</div>
+                        <div className="text-sm font-semibold">Approved ledger details</div>
 
                         <div className="flex flex-wrap items-center gap-2 text-xs">
                           {serviceFilterKey ? (
@@ -942,8 +946,8 @@ export function RetainersDashboardClient({ initialRows }: { initialRows: ClientR
                           ) : null}
 
                           <span className="text-zinc-600">
-                            Work total: {fmtHours(totalFilteredDetailHours)}h
-                            {serviceFilterKey || employeeFilterId ? ` (of ${fmtHours(totalAllDetailHours)}h)` : ""}
+                            Work total: {fmtHours(totalFilteredDetailHours)} hrs
+                            {serviceFilterKey || employeeFilterId ? ` (of ${fmtHours(totalAllDetailHours)} hrs)` : ""}
                           </span>
                         </div>
                       </div>
@@ -989,7 +993,7 @@ export function RetainersDashboardClient({ initialRows }: { initialRows: ClientR
                                 })
                                 .map((row) => (
                                   <tr key={row.id} className="align-top text-sm">
-                                    <td className="border-b border-zinc-100 px-3 py-2">{row.dateISO.slice(0, 10)}</td>
+                                    <td className="border-b border-zinc-100 px-3 py-2">{fmtDate(row.dateISO)}</td>
                                     <td className="border-b border-zinc-100 px-3 py-2">{ledgerTypeLabel(row.type)}</td>
                                     <td className="border-b border-zinc-100 px-3 py-2">
                                       <div className="font-medium text-zinc-900">{displayPerson(row.employeeName, row.employeeEmail ?? null)}</div>
@@ -998,7 +1002,7 @@ export function RetainersDashboardClient({ initialRows }: { initialRows: ClientR
                                       ) : null}
                                     </td>
                                     <td className="border-b border-zinc-100 px-3 py-2">{row.serviceName ?? row.category ?? "—"}</td>
-                                    <td className="border-b border-zinc-100 px-3 py-2">{row.minutes != null ? `${fmtHours(row.minutes / 60)}h` : "—"}</td>
+                                    <td className="border-b border-zinc-100 px-3 py-2">{row.minutes != null ? `${fmtHours(row.minutes / 60)} hrs` : "—"}</td>
                                     <td className="border-b border-zinc-100 px-3 py-2">{row.kilometers != null ? row.kilometers.toFixed(1) : "—"}</td>
                                     <td className="border-b border-zinc-100 px-3 py-2">{row.amountCents != null ? fmtMoneyCADFromCents(row.amountCents) : "—"}</td>
                                     <td className="border-b border-zinc-100 px-3 py-2">{row.vendor ? `${row.vendor} · ` : ""}{row.description ?? ""}</td>
