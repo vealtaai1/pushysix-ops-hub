@@ -874,7 +874,7 @@ export function RetainersDashboardClient({ initialRows }: { initialRows: ClientR
                                 </PieChart>
                               </ResponsiveContainer>
                             </div>
-                            <div className="mt-3 text-[11px] uppercase tracking-wide text-zinc-500">Tap a slice or legend item to filter the ledger.</div>
+                            <div className="mt-3 text-[11px] uppercase tracking-wide text-zinc-500">Tap a slice or a team member row to filter the ledger.</div>
                             <div className="mt-2 space-y-1 text-xs text-zinc-600">
                               {employeePie.slice(0, 6).map((row, i) => (
                                 <button
