@@ -946,8 +946,8 @@ export function RetainersDashboardClient({ initialRows }: { initialRows: ClientR
                           ) : null}
 
                           <span className="text-zinc-600">
-                            Work total: {fmtHours(totalFilteredDetailHours)} hrs
-                            {serviceFilterKey || employeeFilterId ? ` (of ${fmtHours(totalAllDetailHours)} hrs)` : ""}
+                            Work total: {fmtHours(totalFilteredDetailHours)} hours
+                            {serviceFilterKey || employeeFilterId ? ` (of ${fmtHours(totalAllDetailHours)} hours)` : ""}
                           </span>
                         </div>
                       </div>
@@ -1002,7 +1002,7 @@ export function RetainersDashboardClient({ initialRows }: { initialRows: ClientR
                                       ) : null}
                                     </td>
                                     <td className="border-b border-zinc-100 px-3 py-2">{row.serviceName ?? row.category ?? "—"}</td>
-                                    <td className="border-b border-zinc-100 px-3 py-2">{row.minutes != null ? `${fmtHours(row.minutes / 60)} hrs` : "—"}</td>
+                                    <td className="border-b border-zinc-100 px-3 py-2">{row.minutes != null ? `${fmtHours(row.minutes / 60)} hours` : "—"}</td>
                                     <td className="border-b border-zinc-100 px-3 py-2">{row.kilometers != null ? row.kilometers.toFixed(1) : "—"}</td>
                                     <td className="border-b border-zinc-100 px-3 py-2">{row.amountCents != null ? fmtMoneyCADFromCents(row.amountCents) : "—"}</td>
                                     <td className="border-b border-zinc-100 px-3 py-2">{row.vendor ? `${row.vendor} · ` : ""}{row.description ?? ""}</td>

@@ -506,7 +506,7 @@ export function ProjectLogsClient({ clients, projects }: { clients: ClientRow[];
                   </button>
                 ) : null}
 
-                <span className="text-zinc-600">Approved work total: {fmtHours(totalFilteredHours)} hrs{serviceFilterKey || employeeFilterId ? ` (of ${fmtHours(totalHours)} hrs)` : ""}</span>
+                <span className="text-zinc-600">Approved work total: {fmtHours(totalFilteredHours)} hours{serviceFilterKey || employeeFilterId ? ` (of ${fmtHours(totalHours)} hours)` : ""}</span>
               </div>
             </div>
 
@@ -558,7 +558,7 @@ export function ProjectLogsClient({ clients, projects }: { clients: ClientRow[];
                             ) : null}
                           </td>
                           <td className="border-b border-zinc-100 px-4 py-2">{row.serviceName ?? row.category ?? "—"}</td>
-                          <td className="border-b border-zinc-100 px-4 py-2">{row.minutes != null ? `${fmtHours(row.minutes / 60)} hrs` : "—"}</td>
+                          <td className="border-b border-zinc-100 px-4 py-2">{row.minutes != null ? `${fmtHours(row.minutes / 60)} hours` : "—"}</td>
                           <td className="border-b border-zinc-100 px-4 py-2">{row.kilometers != null ? row.kilometers.toFixed(1) : "—"}</td>
                           <td className="border-b border-zinc-100 px-4 py-2">{row.amountCents != null ? fmtMoneyCADFromCents(row.amountCents) : "—"}</td>
                           <td className="border-b border-zinc-100 px-4 py-2">{row.vendor ? `${row.vendor} · ` : ""}{row.description ?? ""}</td>
