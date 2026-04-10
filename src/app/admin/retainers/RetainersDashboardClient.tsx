@@ -83,6 +83,10 @@ function fmtMoneyCADFromCents(cents: number): string {
   return new Intl.NumberFormat("en-CA", { style: "currency", currency: "CAD" }).format(v);
 }
 
+function displayPerson(name?: string | null, email?: string | null) {
+  return name?.trim() || email?.trim() || "—";
+}
+
 function ledgerTypeLabel(type: "WORKLOG" | "MILEAGE" | "EXPENSE") {
   if (type === "WORKLOG") return "Work";
   if (type === "MILEAGE") return "Mileage";
@@ -282,7 +286,7 @@ export function RetainersDashboardClient({ initialRows }: { initialRows: ClientR
     for (const e of detail.entries) {
       const u = e.worklog.user;
       const key = u.id;
-      m[key] = m[key] ?? { employeeId: key, name: u.name ?? u.email, email: u.email, minutes: 0 };
+      m[key] = m[key] ?? { employeeId: key, name: u.name?.trim() || u.email, email: u.email, minutes: 0 };
       m[key].minutes += e.minutes ?? 0;
     }
     return Object.values(m)
@@ -778,62 +782,96 @@ export function RetainersDashboardClient({ initialRows }: { initialRows: ClientR
                     <div className="grid gap-4 sm:grid-cols-2">
                       <div className="rounded-lg border border-zinc-200 p-3">
                         <div className="text-xs font-semibold text-zinc-600">Service breakdown (hours)</div>
-                        <div className="mt-2 h-56">
-                          <ResponsiveContainer width="100%" height="100%">
-                            <PieChart>
-                              <Pie
-                                data={servicePie}
-                                dataKey="hours"
-                                nameKey="name"
-                                outerRadius={80}
-                                onClick={(data) => {
-                                  const key = (data as { bucketKey?: string } | undefined)?.bucketKey;
-                                  if (!key) return;
-                                  setServiceFilterKey((prev) => (prev === key ? null : key));
-                                }}
-                              >
-                                {servicePie.map((d, i) => (
-                                  <Cell
-                                    key={d.bucketKey}
-                                    fill={PIE_COLORS[i % PIE_COLORS.length]}
-                                    opacity={serviceFilterKey && d.bucketKey !== serviceFilterKey ? 0.25 : 1}
-                                  />
-                                ))}
-                              </Pie>
-                              <Tooltip formatter={(v: unknown) => `${fmtHours(Number(v))}h`} />
-                            </PieChart>
-                          </ResponsiveContainer>
-                        </div>
+                        {(servicePie ?? []).length === 0 ? (
+                          <div className="mt-2 text-sm text-zinc-600">No worklog entries yet.</div>
+                        ) : (
+                          <>
+                            <div className="mt-2 h-56">
+                              <ResponsiveContainer width="100%" height="100%">
+                                <PieChart>
+                                  <Pie
+                                    data={servicePie}
+                                    dataKey="hours"
+                                    nameKey="name"
+                                    outerRadius={80}
+                                    onClick={(data) => {
+                                      const key = (data as { bucketKey?: string } | undefined)?.bucketKey;
+                                      if (!key) return;
+                                      setServiceFilterKey((prev) => (prev === key ? null : key));
+                                    }}
+                                  >
+                                    {servicePie.map((d, i) => (
+                                      <Cell
+                                        key={d.bucketKey}
+                                        fill={PIE_COLORS[i % PIE_COLORS.length]}
+                                        opacity={serviceFilterKey && d.bucketKey !== serviceFilterKey ? 0.25 : 1}
+                                      />
+                                    ))}
+                                  </Pie>
+                                  <Tooltip formatter={(v: unknown) => `${fmtHours(Number(v))}h`} />
+                                </PieChart>
+                              </ResponsiveContainer>
+                            </div>
+                            <div className="mt-3 space-y-1 text-xs text-zinc-600">
+                              {servicePie.slice(0, 6).map((row, i) => (
+                                <div key={row.bucketKey} className="flex items-center justify-between gap-3">
+                                  <div className="flex min-w-0 items-center gap-2">
+                                    <span className="inline-block h-2.5 w-2.5 rounded-full" style={{ backgroundColor: PIE_COLORS[i % PIE_COLORS.length] }} />
+                                    <span className="truncate">{row.name}</span>
+                                  </div>
+                                  <span className="whitespace-nowrap font-medium text-zinc-800">{fmtHours(row.hours)}h</span>
+                                </div>
+                              ))}
+                            </div>
+                          </>
+                        )}
                       </div>
 
                       <div className="rounded-lg border border-zinc-200 p-3">
-                        <div className="text-xs font-semibold text-zinc-600">Employee breakdown (hours)</div>
-                        <div className="mt-2 h-56">
-                          <ResponsiveContainer width="100%" height="100%">
-                            <PieChart>
-                              <Pie
-                                data={employeePie}
-                                dataKey="hours"
-                                nameKey="name"
-                                outerRadius={80}
-                                onClick={(data) => {
-                                  const key = (data as { employeeId?: string } | undefined)?.employeeId;
-                                  if (!key) return;
-                                  setEmployeeFilterId((prev) => (prev === key ? null : key));
-                                }}
-                              >
-                                {employeePie.map((d, i) => (
-                                  <Cell
-                                    key={d.employeeId}
-                                    fill={PIE_COLORS[i % PIE_COLORS.length]}
-                                    opacity={employeeFilterId && d.employeeId !== employeeFilterId ? 0.25 : 1}
-                                  />
-                                ))}
-                              </Pie>
-                              <Tooltip formatter={(v: unknown) => `${fmtHours(Number(v))}h`} />
-                            </PieChart>
-                          </ResponsiveContainer>
-                        </div>
+                        <div className="text-xs font-semibold text-zinc-600">Team breakdown (hours)</div>
+                        {(employeePie ?? []).length === 0 ? (
+                          <div className="mt-2 text-sm text-zinc-600">No worklog entries yet.</div>
+                        ) : (
+                          <>
+                            <div className="mt-2 h-56">
+                              <ResponsiveContainer width="100%" height="100%">
+                                <PieChart>
+                                  <Pie
+                                    data={employeePie}
+                                    dataKey="hours"
+                                    nameKey="name"
+                                    outerRadius={80}
+                                    onClick={(data) => {
+                                      const key = (data as { employeeId?: string } | undefined)?.employeeId;
+                                      if (!key) return;
+                                      setEmployeeFilterId((prev) => (prev === key ? null : key));
+                                    }}
+                                  >
+                                    {employeePie.map((d, i) => (
+                                      <Cell
+                                        key={d.employeeId}
+                                        fill={PIE_COLORS[i % PIE_COLORS.length]}
+                                        opacity={employeeFilterId && d.employeeId !== employeeFilterId ? 0.25 : 1}
+                                      />
+                                    ))}
+                                  </Pie>
+                                  <Tooltip formatter={(v: unknown) => `${fmtHours(Number(v))}h`} />
+                                </PieChart>
+                              </ResponsiveContainer>
+                            </div>
+                            <div className="mt-3 space-y-1 text-xs text-zinc-600">
+                              {employeePie.slice(0, 6).map((row, i) => (
+                                <div key={row.employeeId} className="flex items-center justify-between gap-3">
+                                  <div className="flex min-w-0 items-center gap-2">
+                                    <span className="inline-block h-2.5 w-2.5 rounded-full" style={{ backgroundColor: PIE_COLORS[i % PIE_COLORS.length] }} />
+                                    <span className="truncate">{row.name}</span>
+                                  </div>
+                                  <span className="whitespace-nowrap font-medium text-zinc-800">{fmtHours(row.hours)}h</span>
+                                </div>
+                              ))}
+                            </div>
+                          </>
+                        )}
                       </div>
                     </div>
 
@@ -858,7 +896,7 @@ export function RetainersDashboardClient({ initialRows }: { initialRows: ClientR
 
                           {employeeFilterId ? (
                             <span className="inline-flex items-center gap-2 rounded-md border border-zinc-200 bg-zinc-50 px-2 py-1 text-zinc-700">
-                              Employee: {employeePie.find((x) => x.employeeId === employeeFilterId)?.name ?? employeeFilterId}
+                              Team member: {employeePie.find((x) => x.employeeId === employeeFilterId)?.name ?? employeeFilterId}
                               <button
                                 type="button"
                                 className="text-zinc-500 hover:text-zinc-900"
@@ -895,7 +933,7 @@ export function RetainersDashboardClient({ initialRows }: { initialRows: ClientR
                             <tr className="text-left text-xs font-semibold text-zinc-600">
                               <th className="border-b border-zinc-200 px-3 py-2">Date</th>
                               <th className="border-b border-zinc-200 px-3 py-2">Type</th>
-                              <th className="border-b border-zinc-200 px-3 py-2">Employee</th>
+                              <th className="border-b border-zinc-200 px-3 py-2">Team member</th>
                               <th className="border-b border-zinc-200 px-3 py-2">Service / Category</th>
                               <th className="border-b border-zinc-200 px-3 py-2">Hours</th>
                               <th className="border-b border-zinc-200 px-3 py-2">Km</th>
@@ -933,7 +971,9 @@ export function RetainersDashboardClient({ initialRows }: { initialRows: ClientR
                                   <tr key={row.id} className="align-top text-sm">
                                     <td className="border-b border-zinc-100 px-3 py-2">{row.dateISO}</td>
                                     <td className="border-b border-zinc-100 px-3 py-2">{ledgerTypeLabel(row.type)}</td>
-                                    <td className="border-b border-zinc-100 px-3 py-2">{row.employeeName ?? "—"}</td>
+                                    <td className="border-b border-zinc-100 px-3 py-2">
+                                      <div className="font-medium text-zinc-900">{displayPerson(row.employeeName, null)}</div>
+                                    </td>
                                     <td className="border-b border-zinc-100 px-3 py-2">{row.serviceName ?? row.category ?? "—"}</td>
                                     <td className="border-b border-zinc-100 px-3 py-2">{row.minutes != null ? fmtHours(row.minutes / 60) : "—"}</td>
                                     <td className="border-b border-zinc-100 px-3 py-2">{row.kilometers != null ? row.kilometers.toFixed(1) : "—"}</td>
