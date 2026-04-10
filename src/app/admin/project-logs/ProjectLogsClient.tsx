@@ -518,7 +518,7 @@ export function ProjectLogsClient({ clients, projects }: { clients: ClientRow[];
                     <th className="border-b border-zinc-200 px-4 py-2">Type</th>
                     <th className="border-b border-zinc-200 px-4 py-2">Team member</th>
                     <th className="border-b border-zinc-200 px-4 py-2">Service / Category</th>
-                    <th className="border-b border-zinc-200 px-4 py-2">Hours</th>
+                    <th className="border-b border-zinc-200 px-4 py-2">Hrs</th>
                     <th className="border-b border-zinc-200 px-4 py-2">Km</th>
                     <th className="border-b border-zinc-200 px-4 py-2">Amount</th>
                     <th className="border-b border-zinc-200 px-4 py-2">Details</th>
