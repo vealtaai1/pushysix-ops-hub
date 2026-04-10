@@ -896,7 +896,7 @@ export function RetainersDashboardClient({ initialRows }: { initialRows: ClientR
 
                     <div className="rounded-lg border border-zinc-200">
                       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-zinc-200 px-3 py-2">
-                        <div className="text-sm font-semibold">Financial summary</div>
+                        <div className="text-sm font-semibold">Ledger details</div>
 
                         <div className="flex flex-wrap items-center gap-2 text-xs">
                           {serviceFilterKey ? (
@@ -988,13 +988,13 @@ export function RetainersDashboardClient({ initialRows }: { initialRows: ClientR
                                 })
                                 .map((row) => (
                                   <tr key={row.id} className="align-top text-sm">
-                                    <td className="border-b border-zinc-100 px-3 py-2">{row.dateISO}</td>
+                                    <td className="border-b border-zinc-100 px-3 py-2">{row.dateISO.slice(0, 10)}</td>
                                     <td className="border-b border-zinc-100 px-3 py-2">{ledgerTypeLabel(row.type)}</td>
                                     <td className="border-b border-zinc-100 px-3 py-2">
                                       <div className="font-medium text-zinc-900">{displayPerson(row.employeeName, null)}</div>
                                     </td>
                                     <td className="border-b border-zinc-100 px-3 py-2">{row.serviceName ?? row.category ?? "—"}</td>
-                                    <td className="border-b border-zinc-100 px-3 py-2">{row.minutes != null ? fmtHours(row.minutes / 60) : "—"}</td>
+                                    <td className="border-b border-zinc-100 px-3 py-2">{row.minutes != null ? `${fmtHours(row.minutes / 60)}h` : "—"}</td>
                                     <td className="border-b border-zinc-100 px-3 py-2">{row.kilometers != null ? row.kilometers.toFixed(1) : "—"}</td>
                                     <td className="border-b border-zinc-100 px-3 py-2">{row.amountCents != null ? fmtMoneyCADFromCents(row.amountCents) : "—"}</td>
                                     <td className="border-b border-zinc-100 px-3 py-2">{row.vendor ? `${row.vendor} · ` : ""}{row.description ?? ""}</td>

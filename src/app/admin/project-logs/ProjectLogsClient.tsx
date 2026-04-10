@@ -462,7 +462,7 @@ export function ProjectLogsClient({ clients, projects }: { clients: ClientRow[];
 
           <div className="rounded-lg border border-zinc-200 bg-white">
             <div className="flex flex-wrap items-center justify-between gap-2 border-b border-zinc-200 px-4 py-3">
-              <div className="text-sm font-semibold">Financial summary</div>
+              <div className="text-sm font-semibold">Ledger details</div>
 
               <div className="flex flex-wrap items-center gap-2 text-xs">
                 {serviceFilterKey ? (
@@ -525,7 +525,13 @@ export function ProjectLogsClient({ clients, projects }: { clients: ClientRow[];
                   </tr>
                 </thead>
                 <tbody>
-                  {(data.ledgerRows ?? []).length === 0 ? (
+                  {(data.ledgerRows ?? []).filter((row) => {
+                    if (row.type === "WORKLOG") {
+                      if (serviceFilterKey && row.serviceName !== (servicePie.find((x) => x.bucketKey === serviceFilterKey)?.name ?? row.serviceName)) return false;
+                      if (employeeFilterId && row.employeeName !== (employeePie.find((x) => x.employeeId === employeeFilterId)?.displayName ?? row.employeeName)) return false;
+                    }
+                    return true;
+                  }).length === 0 ? (
                     <tr>
                       <td className="px-4 py-8 text-sm text-zinc-600" colSpan={8}>
                         No ledger entries match the current filter(s).
