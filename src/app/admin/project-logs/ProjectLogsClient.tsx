@@ -317,32 +317,45 @@ export function ProjectLogsClient({ clients, projects }: { clients: ClientRow[];
               {(servicePie ?? []).length === 0 ? (
                 <div className="mt-2 text-sm text-zinc-600">No worklog entries yet.</div>
               ) : (
-                <div className="mt-2 h-56">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                      <Pie
-                        data={servicePie}
-                        dataKey="hours"
-                        nameKey="name"
-                        outerRadius={80}
-                        onClick={(d) => {
-                          const key = (d as { bucketKey?: string } | undefined)?.bucketKey;
-                          if (!key) return;
-                          setServiceFilterKey((prev) => (prev === key ? null : key));
-                        }}
-                      >
-                        {servicePie.map((d, i) => (
-                          <Cell
-                            key={d.bucketKey}
-                            fill={PIE_COLORS[i % PIE_COLORS.length]}
-                            opacity={serviceFilterKey && d.bucketKey !== serviceFilterKey ? 0.25 : 1}
-                          />
-                        ))}
-                      </Pie>
-                      <Tooltip formatter={(v: unknown) => `${fmtHours(Number(v))}h`} />
-                    </PieChart>
-                  </ResponsiveContainer>
-                </div>
+                <>
+                  <div className="mt-2 h-56">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie
+                          data={servicePie}
+                          dataKey="hours"
+                          nameKey="name"
+                          outerRadius={80}
+                          onClick={(d) => {
+                            const key = (d as { bucketKey?: string } | undefined)?.bucketKey;
+                            if (!key) return;
+                            setServiceFilterKey((prev) => (prev === key ? null : key));
+                          }}
+                        >
+                          {servicePie.map((d, i) => (
+                            <Cell
+                              key={d.bucketKey}
+                              fill={PIE_COLORS[i % PIE_COLORS.length]}
+                              opacity={serviceFilterKey && d.bucketKey !== serviceFilterKey ? 0.25 : 1}
+                            />
+                          ))}
+                        </Pie>
+                        <Tooltip formatter={(v: unknown) => `${fmtHours(Number(v))}h`} />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  </div>
+                  <div className="mt-3 space-y-1 text-xs text-zinc-600">
+                    {servicePie.slice(0, 6).map((row, i) => (
+                      <div key={row.bucketKey} className="flex items-center justify-between gap-3">
+                        <div className="flex min-w-0 items-center gap-2">
+                          <span className="inline-block h-2.5 w-2.5 rounded-full" style={{ backgroundColor: PIE_COLORS[i % PIE_COLORS.length] }} />
+                          <span className="truncate">{row.name}</span>
+                        </div>
+                        <span className="whitespace-nowrap font-medium text-zinc-800">{fmtHours(row.hours)}h</span>
+                      </div>
+                    ))}
+                  </div>
+                </>
               )}
             </div>
 
@@ -351,32 +364,45 @@ export function ProjectLogsClient({ clients, projects }: { clients: ClientRow[];
               {(employeePie ?? []).length === 0 ? (
                 <div className="mt-2 text-sm text-zinc-600">No worklog entries yet.</div>
               ) : (
-                <div className="mt-2 h-56">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                      <Pie
-                        data={employeePie}
-                        dataKey="hours"
-                        nameKey="displayName"
-                        outerRadius={80}
-                        onClick={(d) => {
-                          const key = (d as { employeeId?: string } | undefined)?.employeeId;
-                          if (!key) return;
-                          setEmployeeFilterId((prev) => (prev === key ? null : key));
-                        }}
-                      >
-                        {employeePie.map((d, i) => (
-                          <Cell
-                            key={d.employeeId}
-                            fill={PIE_COLORS[i % PIE_COLORS.length]}
-                            opacity={employeeFilterId && d.employeeId !== employeeFilterId ? 0.25 : 1}
-                          />
-                        ))}
-                      </Pie>
-                      <Tooltip formatter={(v: unknown) => `${fmtHours(Number(v))}h`} />
-                    </PieChart>
-                  </ResponsiveContainer>
-                </div>
+                <>
+                  <div className="mt-2 h-56">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie
+                          data={employeePie}
+                          dataKey="hours"
+                          nameKey="displayName"
+                          outerRadius={80}
+                          onClick={(d) => {
+                            const key = (d as { employeeId?: string } | undefined)?.employeeId;
+                            if (!key) return;
+                            setEmployeeFilterId((prev) => (prev === key ? null : key));
+                          }}
+                        >
+                          {employeePie.map((d, i) => (
+                            <Cell
+                              key={d.employeeId}
+                              fill={PIE_COLORS[i % PIE_COLORS.length]}
+                              opacity={employeeFilterId && d.employeeId !== employeeFilterId ? 0.25 : 1}
+                            />
+                          ))}
+                        </Pie>
+                        <Tooltip formatter={(v: unknown) => `${fmtHours(Number(v))}h`} />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  </div>
+                  <div className="mt-3 space-y-1 text-xs text-zinc-600">
+                    {employeePie.slice(0, 6).map((row, i) => (
+                      <div key={row.employeeId} className="flex items-center justify-between gap-3">
+                        <div className="flex min-w-0 items-center gap-2">
+                          <span className="inline-block h-2.5 w-2.5 rounded-full" style={{ backgroundColor: PIE_COLORS[i % PIE_COLORS.length] }} />
+                          <span className="truncate">{row.displayName}</span>
+                        </div>
+                        <span className="whitespace-nowrap font-medium text-zinc-800">{fmtHours(row.hours)}h</span>
+                      </div>
+                    ))}
+                  </div>
+                </>
               )}
             </div>
 
@@ -385,18 +411,31 @@ export function ProjectLogsClient({ clients, projects }: { clients: ClientRow[];
               {(expensePie ?? []).length === 0 ? (
                 <div className="mt-2 text-sm text-zinc-600">No expenses yet.</div>
               ) : (
-                <div className="mt-2 h-56">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                      <Pie data={expensePie} dataKey="dollars" nameKey="category" outerRadius={80}>
-                        {expensePie.map((d, i) => (
-                          <Cell key={d.category} fill={PIE_COLORS[i % PIE_COLORS.length]} />
-                        ))}
-                      </Pie>
-                      <Tooltip formatter={(v: unknown) => cad.format(Number(v))} />
-                    </PieChart>
-                  </ResponsiveContainer>
-                </div>
+                <>
+                  <div className="mt-2 h-56">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie data={expensePie} dataKey="dollars" nameKey="category" outerRadius={80}>
+                          {expensePie.map((d, i) => (
+                            <Cell key={d.category} fill={PIE_COLORS[i % PIE_COLORS.length]} />
+                          ))}
+                        </Pie>
+                        <Tooltip formatter={(v: unknown) => cad.format(Number(v))} />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  </div>
+                  <div className="mt-3 space-y-1 text-xs text-zinc-600">
+                    {expensePie.slice(0, 6).map((row, i) => (
+                      <div key={row.category} className="flex items-center justify-between gap-3">
+                        <div className="flex min-w-0 items-center gap-2">
+                          <span className="inline-block h-2.5 w-2.5 rounded-full" style={{ backgroundColor: PIE_COLORS[i % PIE_COLORS.length] }} />
+                          <span className="truncate">{row.category}</span>
+                        </div>
+                        <span className="whitespace-nowrap font-medium text-zinc-800">{cad.format(row.dollars)}</span>
+                      </div>
+                    ))}
+                  </div>
+                </>
               )}
             </div>
           </div>
