@@ -516,7 +516,7 @@ export function RetainersDashboardClient({ initialRows }: { initialRows: ClientR
                 <div className="flex items-baseline justify-between text-xs text-zinc-600">
                   <span>Total usage</span>
                   <span className={r.overAny ? "font-semibold text-red-700" : "font-semibold text-zinc-800"}>
-                    {fmtHours(r.totalUsedHours)}h / {fmtHours(r.totalLimitHours)}h
+                    {fmtHours(r.totalUsedHours)} hours / {fmtHours(r.totalLimitHours)} hours
                   </span>
                 </div>
                 <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-zinc-100">
@@ -528,7 +528,7 @@ export function RetainersDashboardClient({ initialRows }: { initialRows: ClientR
                 <div className="mt-2 flex flex-wrap gap-2">
                   {r.totalUsedHours > r.totalLimitHours ? (
                     <span className={"rounded-md border px-2 py-1 text-xs " + badgeClass("bad")}>
-                      Over +{fmtHours(overBy)}h
+                      Over by {fmtHours(overBy)} hours
                     </span>
                   ) : percent != null && percent >= 90 ? (
                     <span className={"rounded-md border px-2 py-1 text-xs " + badgeClass("warn")}>
@@ -704,7 +704,7 @@ export function RetainersDashboardClient({ initialRows }: { initialRows: ClientR
                             <div className={"rounded-md border px-3 py-2 " + summaryTileClass(kind)}>
                               <div className="text-xs font-semibold">Total hours</div>
                               <div className="mt-0.5 text-sm font-semibold">
-                                {fmtHours(cycleSummary.total.usedHours)}h / {fmtHours(cycleSummary.total.limitHours)}h
+                                {fmtHours(cycleSummary.total.usedHours)} hours / {fmtHours(cycleSummary.total.limitHours)} hours
                               </div>
                               {cycleSummary.total.percentUsed != null ? (
                                 <div className="text-xs opacity-80">{Math.round(cycleSummary.total.percentUsed)}% used</div>
@@ -730,7 +730,7 @@ export function RetainersDashboardClient({ initialRows }: { initialRows: ClientR
                             <div className={"rounded-md border px-3 py-2 " + summaryTileClass(kind)}>
                               <div className="text-xs font-semibold">Capture hours</div>
                               <div className="mt-0.5 text-sm font-semibold">
-                                {fmtHours(cycleSummary.capture.usedHours)}h / {cycleSummary.capture.limitHours == null ? "—" : `${fmtHours(cycleSummary.capture.limitHours)}h`}
+                                {fmtHours(cycleSummary.capture.usedHours)} hours / {cycleSummary.capture.limitHours == null ? "—" : `${fmtHours(cycleSummary.capture.limitHours)} hours`}
                               </div>
                               {cycleSummary.capture.percentUsed != null ? (
                                 <div className="text-xs opacity-80">{Math.round(cycleSummary.capture.percentUsed)}% used</div>
@@ -776,7 +776,7 @@ export function RetainersDashboardClient({ initialRows }: { initialRows: ClientR
                           <div className="mt-1 grid gap-1 text-sm sm:grid-cols-3">
                             <div className="flex items-baseline justify-between gap-2">
                               <span className="text-zinc-600">Work</span>
-                              <span className="font-semibold text-zinc-900">{fmtHours((detail.financeLedger.approvedWorklogMinutes ?? 0) / 60)} hrs</span>
+                              <span className="font-semibold text-zinc-900">{fmtHours((detail.financeLedger.approvedWorklogMinutes ?? 0) / 60)} hours</span>
                             </div>
                             <div className="flex items-baseline justify-between gap-2">
                               <span className="text-zinc-600">Mileage</span>
@@ -823,7 +823,7 @@ export function RetainersDashboardClient({ initialRows }: { initialRows: ClientR
                                       />
                                     ))}
                                   </Pie>
-                                  <Tooltip formatter={(v: unknown) => `${fmtHours(Number(v))}h`} />
+                                  <Tooltip formatter={(v: unknown) => `${fmtHours(Number(v))} hours`} />
                                 </PieChart>
                               </ResponsiveContainer>
                             </div>
@@ -834,7 +834,7 @@ export function RetainersDashboardClient({ initialRows }: { initialRows: ClientR
                                     <span className="inline-block h-2.5 w-2.5 rounded-full" style={{ backgroundColor: PIE_COLORS[i % PIE_COLORS.length] }} />
                                     <span className="truncate">{row.name}</span>
                                   </div>
-                                  <span className="whitespace-nowrap font-medium text-zinc-800">{fmtHours(row.hours)}h</span>
+                                  <span className="whitespace-nowrap font-medium text-zinc-800">{fmtHours(row.hours)} hours</span>
                                 </div>
                               ))}
                             </div>
@@ -870,7 +870,7 @@ export function RetainersDashboardClient({ initialRows }: { initialRows: ClientR
                                       />
                                     ))}
                                   </Pie>
-                                  <Tooltip formatter={(v: unknown) => `${fmtHours(Number(v))}h`} />
+                                  <Tooltip formatter={(v: unknown) => `${fmtHours(Number(v))} hours`} />
                                 </PieChart>
                               </ResponsiveContainer>
                             </div>
@@ -890,7 +890,7 @@ export function RetainersDashboardClient({ initialRows }: { initialRows: ClientR
                                       {row.secondaryLabel ? <div className="truncate text-[11px] text-zinc-500">{row.secondaryLabel}</div> : null}
                                     </div>
                                   </div>
-                                  <span className="whitespace-nowrap font-medium text-zinc-800">{fmtHours(row.hours)}h</span>
+                                  <span className="whitespace-nowrap font-medium text-zinc-800">{fmtHours(row.hours)} hours</span>
                                 </button>
                               ))}
                             </div>
@@ -1027,21 +1027,21 @@ export function RetainersDashboardClient({ initialRows }: { initialRows: ClientR
                           <>
                             <div className="flex items-baseline justify-between">
                               <span className="text-zinc-600">Burn rate</span>
-                              <span className="font-semibold text-zinc-900">{fmtHours(burnProjection.burnRateHoursPerDay)}h/day</span>
+                              <span className="font-semibold text-zinc-900">{fmtHours(burnProjection.burnRateHoursPerDay)} hours/day</span>
                             </div>
                             <div className="flex items-baseline justify-between">
                               <span className="text-zinc-600">Projected total</span>
-                              <span className="font-semibold text-zinc-900">{fmtHours(burnProjection.projectedHours)}h</span>
+                              <span className="font-semibold text-zinc-900">{fmtHours(burnProjection.projectedHours)} hours</span>
                             </div>
                             <div className="flex items-baseline justify-between">
                               <span className="text-zinc-600">Retainer limit</span>
-                              <span className="font-semibold text-zinc-900">{fmtHours(burnProjection.limitHours)}h</span>
+                              <span className="font-semibold text-zinc-900">{fmtHours(burnProjection.limitHours)} hours</span>
                             </div>
                             <div className="flex items-baseline justify-between">
                               <span className="text-zinc-600">Projected over/under</span>
                               <span className={"font-semibold " + (burnProjection.projectedOverByHours > 0 ? "text-red-700" : "text-emerald-700")}>
                                 {burnProjection.projectedOverByHours > 0 ? "+" : ""}
-                                {fmtHours(burnProjection.projectedOverByHours)}h
+                                {fmtHours(burnProjection.projectedOverByHours)} hours
                               </span>
                             </div>
 

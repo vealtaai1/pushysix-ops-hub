@@ -345,7 +345,7 @@ export function ProjectLogsClient({ clients, projects }: { clients: ClientRow[];
                             />
                           ))}
                         </Pie>
-                        <Tooltip formatter={(v: unknown) => `${fmtHours(Number(v))}h`} />
+                        <Tooltip formatter={(v: unknown) => `${fmtHours(Number(v))} hours`} />
                       </PieChart>
                     </ResponsiveContainer>
                   </div>
@@ -362,7 +362,7 @@ export function ProjectLogsClient({ clients, projects }: { clients: ClientRow[];
                           <span className="inline-block h-2.5 w-2.5 rounded-full" style={{ backgroundColor: PIE_COLORS[i % PIE_COLORS.length] }} />
                           <span className="truncate">{row.name}</span>
                         </div>
-                        <span className="whitespace-nowrap font-medium text-zinc-800">{fmtHours(row.hours)}h</span>
+                        <span className="whitespace-nowrap font-medium text-zinc-800">{fmtHours(row.hours)} hours</span>
                       </button>
                     ))}
                   </div>
@@ -398,7 +398,7 @@ export function ProjectLogsClient({ clients, projects }: { clients: ClientRow[];
                             />
                           ))}
                         </Pie>
-                        <Tooltip formatter={(v: unknown) => `${fmtHours(Number(v))}h`} />
+                        <Tooltip formatter={(v: unknown) => `${fmtHours(Number(v))} hours`} />
                       </PieChart>
                     </ResponsiveContainer>
                   </div>
@@ -418,7 +418,7 @@ export function ProjectLogsClient({ clients, projects }: { clients: ClientRow[];
                             {row.secondaryLabel ? <div className="truncate text-[11px] text-zinc-500">{row.secondaryLabel}</div> : null}
                           </div>
                         </div>
-                        <span className="whitespace-nowrap font-medium text-zinc-800">{fmtHours(row.hours)}h</span>
+                        <span className="whitespace-nowrap font-medium text-zinc-800">{fmtHours(row.hours)} hours</span>
                       </button>
                     ))}
                   </div>
