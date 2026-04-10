@@ -8,14 +8,14 @@ type Tile = { href: string; title: string; desc: string; adminOnly?: boolean };
 
 const ADMIN_TILES: Tile[] = [
   { href: "/admin/retainers", title: "Retainers", desc: "Review retainer usage, cycle pacing, and approved ledger totals." },
-  { href: "/admin/project-logs", title: "Projects", desc: "Review project activity, approved work, mileage, and expenses." },
-  { href: "/admin/clients", title: "Clients", desc: "Client list, contacts, and configuration." },
-  { href: "/admin/worklogs", title: "Worklogs", desc: "Review submitted worklogs." },
-  { href: "/admin/approvals", title: "Approvals", desc: "Approve worklogs and requests." },
-  { href: "/admin/finance", title: "Finance", desc: "Approved revenue, cost, and margin reporting by cycle." },
-  { href: "/admin/equipment", title: "Equipment", desc: "Admin equipment views and utilities." },
-  { href: "/admin/payroll", title: "Payroll", desc: "Payroll exports and reports.", adminOnly: true },
-  { href: "/admin/users", title: "Users", desc: "View/manage roles.", adminOnly: true },
+  { href: "/admin/project-logs", title: "Project Logs", desc: "Review project activity, approved work, mileage, and expenses." },
+  { href: "/admin/clients", title: "Clients", desc: "Manage client records, contacts, and configuration." },
+  { href: "/admin/worklogs", title: "Worklogs", desc: "Review submitted worklogs across the team." },
+  { href: "/admin/approvals", title: "Approvals", desc: "Approve or reject worklogs and related requests." },
+  { href: "/admin/finance", title: "Finance", desc: "Review approved revenue, cost, and margin by cycle." },
+  { href: "/admin/equipment", title: "Equipment", desc: "View equipment records and admin utilities." },
+  { href: "/admin/payroll", title: "Payroll", desc: "Export payroll data and review payroll reports.", adminOnly: true },
+  { href: "/admin/users", title: "Users", desc: "Manage users, roles, and access.", adminOnly: true },
 ];
 
 function TileCard({ href, title, desc }: { href: string; title: string; desc: string }) {
@@ -41,7 +41,7 @@ export default async function AdminDashboardPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-xl font-semibold">Admin Dashboard</h1>
-        <p className="text-sm text-zinc-600">Admin tools and reporting.</p>
+        <p className="text-sm text-zinc-600">Administrative tools, reporting, and controls.</p>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
