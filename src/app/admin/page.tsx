@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 type Tile = { href: string; title: string; desc: string; adminOnly?: boolean };
 
 const ADMIN_TILES: Tile[] = [
-  { href: "/admin/retainers", title: "Retainers", desc: "Review retainer usage, cycle pacing, and approved ledger totals." },
+  { href: "/admin/retainers", title: "Retainer Logs", desc: "Review retainer usage, cycle pacing, and approved ledger totals." },
   { href: "/admin/project-logs", title: "Project Logs", desc: "Review project activity, approved worklogs, mileage, and expenses." },
   { href: "/admin/clients", title: "Clients", desc: "Manage client records, contacts, and configuration." },
   { href: "/admin/worklogs", title: "Worklogs", desc: "Review submitted worklogs across the team." },

@@ -16,6 +16,7 @@ export function AddRetainerClient({ clientId, clientName }: AddRetainerClientPro
 
   const [billingCycleStartDay, setBillingCycleStartDay] = React.useState<BillingCycleStartDay>("FIRST");
   const [monthlyRetainerHours, setMonthlyRetainerHours] = React.useState<string>("10");
+  const [monthlyRetainerFee, setMonthlyRetainerFee] = React.useState<string>("");
   const [monthlyAdSpend, setMonthlyAdSpend] = React.useState<string>("");
   const [maxShootsPerCycle, setMaxShootsPerCycle] = React.useState<string>("");
   const [maxCaptureHoursPerCycle, setMaxCaptureHoursPerCycle] = React.useState<string>("");
@@ -37,6 +38,8 @@ export function AddRetainerClient({ clientId, clientName }: AddRetainerClientPro
       const body = {
         billingCycleStartDay,
         monthlyRetainerHours: Number(monthlyRetainerHours),
+        monthlyRetainerFeeCents: monthlyRetainerFee.trim() === "" ? null : dollarsToCents(monthlyRetainerFee),
+        monthlyRetainerFeeCurrency: "CAD",
         maxShootsPerCycle: maxShootsPerCycle.trim() === "" ? null : Number(maxShootsPerCycle),
         maxCaptureHoursPerCycle: maxCaptureHoursPerCycle.trim() === "" ? null : Number(maxCaptureHoursPerCycle),
       };
@@ -148,6 +151,18 @@ export function AddRetainerClient({ clientId, clientName }: AddRetainerClientPro
                     inputMode="numeric"
                   />
                   <div className="text-xs text-zinc-500">Retainer settings are admin-only.</div>
+                </label>
+
+                <label className="grid gap-1">
+                  <span className="text-xs font-semibold text-zinc-600">Monthly Retainer Fee (CAD, optional)</span>
+                  <input
+                    value={monthlyRetainerFee}
+                    onChange={(e) => setMonthlyRetainerFee(e.target.value)}
+                    className="h-10 rounded-md border border-zinc-300 bg-white px-3"
+                    inputMode="decimal"
+                    placeholder="0.00"
+                  />
+                  <div className="text-xs text-zinc-500">The monthly retainer fee charged to the client.</div>
                 </label>
 
                 <label className="grid gap-1">

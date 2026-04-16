@@ -189,20 +189,20 @@ export function ClientHubClient({ client, initialProjects, canCloseProjects, pro
                 <div className="col-span-1 text-right">
                   <div className="flex flex-col items-end gap-1">
                     {projectLinkMode === "admin" ? (
-                      <>
+                      <div className="grid w-full max-w-[10rem] gap-1">
                         <Link
                           href={projectHref}
-                          className="inline-flex h-8 items-center justify-center rounded-md border border-zinc-300 bg-white px-2.5 text-xs font-semibold leading-none text-zinc-800 hover:bg-zinc-50 whitespace-nowrap"
+                          className="inline-flex min-h-8 w-full items-center justify-center rounded-md border border-zinc-300 bg-white px-2.5 py-1 text-center text-xs font-semibold leading-tight text-zinc-800 hover:bg-zinc-50"
                         >
-                          Project logs
+                          <span className="block truncate">Project Logs</span>
                         </Link>
                         <Link
                           href={projectFinanceHref}
-                          className="inline-flex h-8 items-center justify-center rounded-md border border-zinc-300 bg-white px-2.5 text-xs font-semibold leading-none text-zinc-800 hover:bg-zinc-50 whitespace-nowrap"
+                          className="inline-flex min-h-8 w-full items-center justify-center rounded-md border border-zinc-300 bg-white px-2.5 py-1 text-center text-xs font-semibold leading-tight text-zinc-800 hover:bg-zinc-50"
                         >
-                          Project finance
+                          <span className="block truncate">Project Finance</span>
                         </Link>
-                      </>
+                      </div>
                     ) : null}
 
                     {canCloseProjects ? (

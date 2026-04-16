@@ -3,7 +3,7 @@ import Link from "next/link";
 export const dynamic = "force-dynamic";
 
 const LINKS: Array<{ href: string; title: string; desc: string }> = [
-  { href: "/management/retainers", title: "Retainers", desc: "Review retainer usage, pacing, and approved totals." },
+  { href: "/management/retainers", title: "Retainer Logs", desc: "Review retainer usage, pacing, and approved totals." },
   { href: "/management/project-logs", title: "Project Logs", desc: "Review project activity, approved worklogs, mileage, and expenses." },
   // Clients live under /ops/clients (client hub).
   { href: "/management/approvals", title: "Approvals", desc: "Approve or reject late worklogs, resubmissions, and day-off requests." },

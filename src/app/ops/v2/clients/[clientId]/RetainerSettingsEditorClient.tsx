@@ -23,6 +23,7 @@ export function RetainerSettingsEditorClient({
   initial: {
     billingCycleStartDay: BillingCycleStartDay;
     monthlyRetainerHours: number;
+    monthlyRetainerFeeCents: number | null;
     maxShootsPerCycle: number | null;
     maxCaptureHoursPerCycle: number | null;
   };
@@ -33,6 +34,9 @@ export function RetainerSettingsEditorClient({
 
   const [billingCycleStartDay, setBillingCycleStartDay] = React.useState<BillingCycleStartDay>(initial.billingCycleStartDay);
   const [monthlyRetainerHours, setMonthlyRetainerHours] = React.useState<string>(String(initial.monthlyRetainerHours));
+  const [monthlyRetainerFee, setMonthlyRetainerFee] = React.useState<string>(
+    initial.monthlyRetainerFeeCents == null ? "" : centsToDollars(initial.monthlyRetainerFeeCents),
+  );
   const [maxShootsPerCycle, setMaxShootsPerCycle] = React.useState<string>(initial.maxShootsPerCycle == null ? "" : String(initial.maxShootsPerCycle));
   const [maxCaptureHoursPerCycle, setMaxCaptureHoursPerCycle] = React.useState<string>(
     initial.maxCaptureHoursPerCycle == null ? "" : String(initial.maxCaptureHoursPerCycle),
@@ -50,6 +54,7 @@ export function RetainerSettingsEditorClient({
 
     setBillingCycleStartDay(initial.billingCycleStartDay);
     setMonthlyRetainerHours(String(initial.monthlyRetainerHours));
+    setMonthlyRetainerFee(initial.monthlyRetainerFeeCents == null ? "" : centsToDollars(initial.monthlyRetainerFeeCents));
     setMaxShootsPerCycle(initial.maxShootsPerCycle == null ? "" : String(initial.maxShootsPerCycle));
     setMaxCaptureHoursPerCycle(initial.maxCaptureHoursPerCycle == null ? "" : String(initial.maxCaptureHoursPerCycle));
     setError(null);
@@ -119,6 +124,8 @@ export function RetainerSettingsEditorClient({
       const body = {
         billingCycleStartDay,
         monthlyRetainerHours: Number(monthlyRetainerHours),
+        monthlyRetainerFeeCents: monthlyRetainerFee.trim() === "" ? null : dollarsToCents(monthlyRetainerFee),
+        monthlyRetainerFeeCurrency: "CAD",
         maxShootsPerCycle: maxShootsPerCycle.trim() === "" ? null : Number(maxShootsPerCycle),
         maxCaptureHoursPerCycle: maxCaptureHoursPerCycle.trim() === "" ? null : Number(maxCaptureHoursPerCycle),
       };
@@ -221,6 +228,18 @@ export function RetainerSettingsEditorClient({
                     onChange={(e) => setMonthlyRetainerHours(e.target.value)}
                     className="h-10 rounded-md border border-zinc-300 bg-white px-3"
                     inputMode="numeric"
+                    disabled={pending}
+                  />
+                </label>
+
+                <label className="grid gap-1">
+                  <span className="text-xs font-semibold text-zinc-600">Monthly Retainer Fee (CAD, optional)</span>
+                  <input
+                    value={monthlyRetainerFee}
+                    onChange={(e) => setMonthlyRetainerFee(e.target.value)}
+                    className="h-10 rounded-md border border-zinc-300 bg-white px-3"
+                    inputMode="decimal"
+                    placeholder="0.00"
                     disabled={pending}
                   />
                 </label>

@@ -127,6 +127,7 @@ export async function RetainersSection({ client, quotaItems }: RetainersSectionP
                     initial={{
                       billingCycleStartDay: client.billingCycleStartDay,
                       monthlyRetainerHours: client.monthlyRetainerHours,
+                      monthlyRetainerFeeCents: client.monthlyRetainerFeeCents,
                       maxShootsPerCycle: client.maxShootsPerCycle,
                       maxCaptureHoursPerCycle: client.maxCaptureHoursPerCycle,
                     }}
@@ -155,7 +156,7 @@ export async function RetainersSection({ client, quotaItems }: RetainersSectionP
             <div className="grid grid-cols-12 gap-2 px-4 py-3 text-sm border-t border-zinc-200">
               <div className="col-span-6 font-medium">Monthly retainer fee</div>
               <div className="col-span-3 whitespace-nowrap">{fmtMoneyFromCents(client.monthlyRetainerFeeCents, client.monthlyRetainerFeeCurrency)}</div>
-              <div className="col-span-3 text-zinc-600">Fee includes all expenses</div>
+              <div className="col-span-3 text-zinc-600">Shown on finance vs total cycle cost</div>
             </div>
 
             <div className="grid grid-cols-12 gap-2 px-4 py-3 text-sm border-t border-zinc-200">

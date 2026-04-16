@@ -114,6 +114,12 @@ function fmtHours(hours: number): string {
   return `${hours.toFixed(1)}h`;
 }
 
+function fmtSignedMoneyFromCents(cents: number, currency: string): string {
+  const normalized = normalizeCents(cents);
+  const sign = normalized > 0 ? "+" : normalized < 0 ? "-" : "";
+  return `${sign}${fmtMoneyFromCents(Math.abs(normalized), currency)}`;
+}
+
 function shortISO(iso: string): string {
   // iso: YYYY-MM-DD → M/D
   const [y, m, d] = iso.split("-");
@@ -440,6 +446,19 @@ export function FinanceDashboardClient({ clients }: { clients: ClientOption[] })
                     <Stat label="Total costs" value={fmtMoneyFromCents(data.totals.totalExpenseCostCents, "CAD")} />
                     <Stat label="Approved mileage" value={`${data.totals.mileageKm.toFixed(1)} km`} />
                   </div>
+
+                  {clientId && engagementKey === "RETAINER" && selectedCycleClient ? (
+                    <div className="mt-3 rounded-md border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm text-zinc-700">
+                      <span className="font-medium">Retainer fee:</span> {fmtMoneyFromCents(selectedCycleClient.monthlyRetainerFeeCents ?? 0, selectedCycleClient.monthlyRetainerFeeCurrency)}
+                      <span className="px-2 text-zinc-400">/</span>
+                      <span className="font-medium">Total cost:</span> {fmtMoneyFromCents(selectedCycleClient.totalExpenseCostCents, "CAD")}
+                      <span className="px-2 text-zinc-400">/</span>
+                      <span className="font-medium">Delta:</span>{" "}
+                      <span className={(selectedCycleClient.monthlyRetainerFeeCents ?? 0) - selectedCycleClient.totalExpenseCostCents >= 0 ? "text-emerald-700" : "text-red-700"}>
+                        {fmtSignedMoneyFromCents((selectedCycleClient.monthlyRetainerFeeCents ?? 0) - selectedCycleClient.totalExpenseCostCents, selectedCycleClient.monthlyRetainerFeeCurrency)}
+                      </span>
+                    </div>
+                  ) : null}
                 </>
               );
             })()}
