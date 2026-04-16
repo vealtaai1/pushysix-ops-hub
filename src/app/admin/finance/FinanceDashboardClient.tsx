@@ -65,7 +65,7 @@ type FinanceAnalyticsResponse = {
     expenseCents: number;
     totalExpenseCostCents: number;
     grossMarginCents: number | null;
-    missingWageUsers: Array<{ userId: string; minutes: number }>;
+    missingWageUsers: Array<{ userId: string; userName: string | null; userEmail: string | null; minutes: number }>;
   }>;
   daily: Array<{
     dateISO: string;
@@ -130,6 +130,28 @@ function moneyTick(cents: number): string {
   return `$${dollars.toFixed(0)}`;
 }
 
+type FinanceLedgerRow = {
+  id: string;
+  type: "WORKLOG" | "MILEAGE" | "EXPENSE";
+  dateISO: string;
+  employeeName: string | null;
+  employeeEmail?: string | null;
+  minutes: number | null;
+  kilometers: number | null;
+  amountCents: number | null;
+  serviceName: string | null;
+  category: string | null;
+  vendor: string | null;
+  description: string | null;
+};
+
+type FinanceLedgerResponse = {
+  ok: boolean;
+  message?: string;
+  range?: { startISO?: string; endISO?: string; fromISO?: string; toISO?: string };
+  ledgerRows?: FinanceLedgerRow[];
+};
+
 function expenseCategoryLabel(key: string): string {
   switch (key) {
     case "HOTEL_ACCOMMODATION":
@@ -159,6 +181,20 @@ function expenseCategoryLabel(key: string): string {
     default:
       return key;
   }
+}
+
+function fmtDate(iso: string): string {
+  return iso.slice(0, 10);
+}
+
+function displayPerson(name?: string | null, email?: string | null) {
+  return name?.trim() || email?.trim() || "—";
+}
+
+function ledgerTypeLabel(type: FinanceLedgerRow["type"]) {
+  if (type === "WORKLOG") return "Work";
+  if (type === "MILEAGE") return "Mileage";
+  return "Expense";
 }
 
 export function FinanceDashboardClient({ clients }: { clients: ClientOption[] }) {
@@ -212,6 +248,9 @@ export function FinanceDashboardClient({ clients }: { clients: ClientOption[] })
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [data, setData] = useState<FinanceAnalyticsResponse | null>(null);
+  const [ledgerLoading, setLedgerLoading] = useState(false);
+  const [ledgerError, setLedgerError] = useState<string | null>(null);
+  const [ledgerRows, setLedgerRows] = useState<FinanceLedgerRow[]>([]);
 
   const expenseCategoryPieData = useMemo(() => {
     const obj = data?.expenseByCategoryCents ?? {};
@@ -220,6 +259,11 @@ export function FinanceDashboardClient({ clients }: { clients: ClientOption[] })
       .filter((x) => x.value > 0)
       .sort((a, b) => b.value - a.value);
   }, [data]);
+
+  const selectedCycleClient = useMemo(() => {
+    if (!clientId) return null;
+    return (data?.clients ?? []).find((c) => c.clientId === clientId) ?? null;
+  }, [clientId, data]);
 
   useEffect(() => {
     let alive = true;
@@ -266,6 +310,62 @@ export function FinanceDashboardClient({ clients }: { clients: ClientOption[] })
       alive = false;
     };
   }, [referenceDate, clientId, engagementKey]);
+
+  useEffect(() => {
+    let alive = true;
+
+    async function runLedger() {
+      if (!clientId) {
+        setLedgerRows([]);
+        setLedgerError(null);
+        setLedgerLoading(false);
+        return;
+      }
+
+      const projectId = engagementKey.startsWith("PROJECT:") ? engagementKey.slice("PROJECT:".length) : null;
+      const isRetainer = engagementKey === "RETAINER";
+      const cycle = selectedCycleClient?.cycle ?? null;
+
+      if (isRetainer && !cycle) {
+        setLedgerRows([]);
+        setLedgerError(null);
+        setLedgerLoading(false);
+        return;
+      }
+
+      setLedgerLoading(true);
+      setLedgerError(null);
+      try {
+        const endpoint = isRetainer
+          ? `/api/admin/retainers/detail?clientId=${encodeURIComponent(clientId)}&startISO=${encodeURIComponent(cycle!.startISO)}&endISO=${encodeURIComponent(cycle!.endISO)}`
+          : `/api/ops/v2/projects/${encodeURIComponent(projectId ?? "")}/logs`;
+
+        const res = await fetch(endpoint, { cache: "no-store", credentials: "include" });
+        const raw = await res.text();
+        let json: FinanceLedgerResponse | null = null;
+        try {
+          json = raw ? (JSON.parse(raw) as FinanceLedgerResponse) : null;
+        } catch {
+          throw new Error(`Unexpected non-JSON response (${res.status}).`);
+        }
+        if (!res.ok || !json?.ok) throw new Error(json?.message ?? `Request failed (${res.status})`);
+        if (!alive) return;
+        setLedgerRows(json.ledgerRows ?? []);
+      } catch (e) {
+        if (!alive) return;
+        setLedgerRows([]);
+        setLedgerError(e instanceof Error ? e.message : String(e));
+      } finally {
+        if (!alive) return;
+        setLedgerLoading(false);
+      }
+    }
+
+    void runLedger();
+    return () => {
+      alive = false;
+    };
+  }, [clientId, engagementKey, selectedCycleClient]);
 
   return (
     <div className="space-y-6">
@@ -496,6 +596,69 @@ export function FinanceDashboardClient({ clients }: { clients: ClientOption[] })
               <p className="mt-2 text-xs text-zinc-500">Only includes categorized expense entries (not payroll or mileage).</p>
             </div>
           </div>
+        </section>
+      ) : null}
+
+      {clientId ? (
+        <section className="rounded-lg border border-zinc-200 bg-white p-4">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <h2 className="text-sm font-semibold text-zinc-900">Approved finance ledger</h2>
+              <p className="mt-1 text-xs text-zinc-500">
+                {engagementKey === "RETAINER"
+                  ? selectedCycleClient
+                    ? `Retainer cycle ${selectedCycleClient.cycle.startISO} → ${selectedCycleClient.cycle.endISO}`
+                    : "Current retainer cycle"
+                  : "Approved-only project ledger"}
+              </p>
+            </div>
+            <div className="text-xs text-zinc-500">
+              {ledgerLoading ? "Loading ledger…" : `${ledgerRows.length} row${ledgerRows.length === 1 ? "" : "s"}`}
+            </div>
+          </div>
+
+          {ledgerError ? <div className="mt-3 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-900">{ledgerError}</div> : null}
+
+          {!ledgerError ? (
+            <div className="mt-3 overflow-auto">
+              <table className="min-w-[980px] w-full text-left text-sm">
+                <thead className="text-xs text-zinc-500">
+                  <tr className="border-b border-zinc-200">
+                    <th className="py-2 pr-3">Date</th>
+                    <th className="py-2 pr-3">Type</th>
+                    <th className="py-2 pr-3">Team member</th>
+                    <th className="py-2 pr-3">Service / Category</th>
+                    <th className="py-2 pr-3">Hours</th>
+                    <th className="py-2 pr-3">Km</th>
+                    <th className="py-2 pr-3">Amount</th>
+                    <th className="py-2 pr-3">Details</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {!ledgerLoading && ledgerRows.length === 0 ? (
+                    <tr>
+                      <td colSpan={8} className="py-6 text-center text-zinc-500">
+                        No approved ledger rows found for this selection.
+                      </td>
+                    </tr>
+                  ) : (
+                    ledgerRows.slice(0, 300).map((row) => (
+                      <tr key={row.id} className="border-b border-zinc-100 align-top">
+                        <td className="py-2 pr-3 text-zinc-700">{fmtDate(row.dateISO)}</td>
+                        <td className="py-2 pr-3 text-zinc-700">{ledgerTypeLabel(row.type)}</td>
+                        <td className="py-2 pr-3 text-zinc-700">{displayPerson(row.employeeName, row.employeeEmail)}</td>
+                        <td className="py-2 pr-3 text-zinc-700">{row.serviceName ?? (row.category ? expenseCategoryLabel(row.category) : "—")}</td>
+                        <td className="py-2 pr-3 text-zinc-700">{row.minutes != null ? fmtHours(row.minutes / 60) : "—"}</td>
+                        <td className="py-2 pr-3 text-zinc-700">{row.kilometers != null ? row.kilometers.toFixed(1) : "—"}</td>
+                        <td className="py-2 pr-3 text-zinc-700">{row.amountCents != null ? fmtMoneyFromCents(row.amountCents, "CAD") : "—"}</td>
+                        <td className="py-2 pr-3 text-zinc-700">{row.vendor ? `${row.vendor} · ` : ""}{row.description ?? "—"}</td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          ) : null}
         </section>
       ) : null}
 

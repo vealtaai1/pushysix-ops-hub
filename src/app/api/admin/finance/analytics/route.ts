@@ -157,6 +157,8 @@ export async function GET(req: Request) {
           userId: true,
           user: {
             select: {
+              name: true,
+              email: true,
               hourlyWageCents: true,
               hourlyWageCurrency: true,
             },
@@ -230,7 +232,7 @@ export async function GET(req: Request) {
 
     grossMarginCents: number | null;
 
-    missingWageUsers: Array<{ userId: string; minutes: number }>;
+    missingWageUsers: Array<{ userId: string; userName: string | null; userEmail: string | null; minutes: number }>;
   };
 
   const cycleByClientId = new Map<string, { startISO: string; endISO: string }>();
@@ -271,7 +273,7 @@ export async function GET(req: Request) {
   }
 
   // Track missing wage users per client.
-  const missingWageMap = new Map<string, Map<string, number>>(); // clientId -> (userId -> minutes)
+  const missingWageMap = new Map<string, Map<string, { minutes: number; userName: string | null; userEmail: string | null }>>(); // clientId -> (userId -> user summary)
 
   for (const e of entries) {
     const c = clientById.get(e.clientId);
@@ -288,8 +290,13 @@ export async function GET(req: Request) {
 
     const wage = e.worklog.user.hourlyWageCents;
     if (wage == null) {
-      const perClient = missingWageMap.get(e.clientId) ?? new Map<string, number>();
-      perClient.set(e.worklog.userId, (perClient.get(e.worklog.userId) ?? 0) + e.minutes);
+      const perClient = missingWageMap.get(e.clientId) ?? new Map<string, { minutes: number; userName: string | null; userEmail: string | null }>();
+      const existing = perClient.get(e.worklog.userId);
+      perClient.set(e.worklog.userId, {
+        minutes: (existing?.minutes ?? 0) + e.minutes,
+        userName: e.worklog.user.name ?? existing?.userName ?? null,
+        userEmail: e.worklog.user.email ?? existing?.userEmail ?? null,
+      });
       missingWageMap.set(e.clientId, perClient);
       continue;
     }
@@ -302,7 +309,7 @@ export async function GET(req: Request) {
     const agg = aggByClientId.get(clientId);
     if (!agg) continue;
     agg.missingWageUsers = Array.from(userMap.entries())
-      .map(([userId, minutes]) => ({ userId, minutes }))
+      .map(([userId, info]) => ({ userId, userName: info.userName, userEmail: info.userEmail, minutes: info.minutes }))
       .sort((a, b) => b.minutes - a.minutes);
   }
 

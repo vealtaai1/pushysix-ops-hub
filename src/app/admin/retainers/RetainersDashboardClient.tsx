@@ -56,6 +56,7 @@ type DetailPayload = {
     id: string;
     type: "WORKLOG" | "MILEAGE" | "EXPENSE";
     dateISO: string;
+    employeeId?: string | null;
     employeeName: string | null;
     employeeEmail?: string | null;
     minutes: number | null;
@@ -969,9 +970,8 @@ export function RetainersDashboardClient({ initialRows }: { initialRows: ClientR
                             {(detail.ledgerRows ?? []).filter((row) => {
                               if (row.type === "WORKLOG") {
                                 const serviceName = servicePie.find((x) => x.bucketKey === serviceFilterKey)?.name ?? null;
-                                const employeeName = employeePie.find((x) => x.employeeId === employeeFilterId)?.name ?? null;
                                 if (serviceFilterKey && row.serviceName !== serviceName) return false;
-                                if (employeeFilterId && row.employeeName !== employeeName) return false;
+                                if (employeeFilterId && row.employeeId !== employeeFilterId) return false;
                               }
                               return true;
                             }).length === 0 ? (
@@ -985,9 +985,8 @@ export function RetainersDashboardClient({ initialRows }: { initialRows: ClientR
                                 .filter((row) => {
                                   if (row.type === "WORKLOG") {
                                     const serviceName = servicePie.find((x) => x.bucketKey === serviceFilterKey)?.name ?? null;
-                                    const employeeName = employeePie.find((x) => x.employeeId === employeeFilterId)?.name ?? null;
                                     if (serviceFilterKey && row.serviceName !== serviceName) return false;
-                                    if (employeeFilterId && row.employeeName !== employeeName) return false;
+                                    if (employeeFilterId && row.employeeId !== employeeFilterId) return false;
                                   }
                                   return true;
                                 })

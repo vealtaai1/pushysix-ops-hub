@@ -2,10 +2,10 @@ Current Change Log (Paul) — working sheet
 Prod: https://ops.pushysix.com
 Rule: Task wording must remain EXACTLY as provided. All items UNAPPROVED until Paul explicitly approves.
 
-1. When adding a retainer, one of the fields should be “Monthly Ad Spend” (it appears when editing a retainer, but not when adding one)
+1. When adding a retainer, one of the fields should be "Monthly Ad Spend" (it appears when editing a retainer, but not when adding one)
 Status: Completed (deployed) — UNAPPROVED
 Notes:
-- Added “Monthly Ad Spend (optional)” to the Add Retainer modal; it seeds the current cycle lumped ad spend quota.
+- Added "Monthly Ad Spend (optional)" to the Add Retainer modal; it seeds the current cycle lumped ad spend quota.
 
 2. Worklog - when a receipt is uploaded, or a photo taken, we should be able to delete that receipt.
 Status: Completed (deployed) — UNAPPROVED
@@ -23,28 +23,28 @@ Status: Completed (deployed) — UNAPPROVED
 Notes:
 - Admin client open page projects now click-through to Project Logs and preselect the exact project.
 
-5. On the admin > client > open Page, remove “manage retainers” button
+5. On the admin > client > open Page, remove "manage retainers" button
 Status: Completed (deployed) — UNAPPROVED
 
-6. On the admin > client > open page, EVERY project AND retainer that exists under that client should have the following buttons: - “Retainer Log” - redirects to the retainer logs page, with that retainer log open, - “Retainer Finance” - redirects to the finance page with that retainer open - “Project Log” - redirects to the project logs page with that project open - “Project Finance” - redirects to the finance page with that project open.
+6. On the admin > client > open page, EVERY project AND retainer that exists under that client should have the following buttons: - "Retainer Log" - redirects to the retainer logs page, with that retainer log open, - "Retainer Finance" - redirects to the finance page with that retainer open - "Project Log" - redirects to the project logs page with that project open - "Project Finance" - redirects to the finance page with that project open.
 Status: Completed (deployed) — UNAPPROVED
 Notes:
 - Added Retainer Log/Finance buttons and Project Log/Finance buttons (with deep links that preselect the right client/project).
 
-7. The “recent expenses” module on the admin > client > open page should be removed. These should be logged under the finance page and are not required here.
+7. The "recent expenses" module on the admin > client > open page should be removed. These should be logged under the finance page and are not required here.
 Status: Completed (deployed) — UNAPPROVED
 
 8. Under admin > client > open, if the client has a retainer, the ad spend quote should be visible under the retainer breakdown
 Status: Completed (deployed) — UNAPPROVED
 Notes:
-- Added “Monthly ad spend (quote)” row under the retainer breakdown (current cycle quota).
+- Added "Monthly ad spend (quote)" row under the retainer breakdown (current cycle quota).
 
 9. RECEIPT SHOULD NOT BE REQUIRED ON WORKLOG PAGE. THIS IS OPTIONAL TO UPLOAD OR TAKE A PICTURE.
 Status: Completed (deployed) — UNAPPROVED
 Notes:
 - Receipt is optional; worklog submit no longer requires receiptUrl.
 
-10. Logs are still logging against projects in the finance page prior to approval. They shouldn’t factor into Retainer logs, project logs, or the finance logs before they’re approved. (I think expenses are not, but worklog hours ARE counting prematurely).
+10. Logs are still logging against projects in the finance page prior to approval. They shouldn't factor into Retainer logs, project logs, or the finance logs before they're approved. (I think expenses are not, but worklog hours ARE counting prematurely).
 Status: In progress — UNAPPROVED
 Notes:
 - Implemented: filters to only count entries linked to APPROVED worklogs across Retainer Logs / Project Logs / Finance.
@@ -54,3 +54,84 @@ Notes:
 Status: Completed (deployed) — UNAPPROVED
 Notes:
 - Added an Ad spend stat to the Finance top module.
+
+--- NEW ITEMS (from Paul's PDF, 2026-04-16) ---
+
+12. On the ADD Retainer functionality, AND the EDIT retainer functionality (Under admin > clients), there should be a place where we can add in the total retainer spend (amount the client pays monthly.
+Status: To do — UNAPPROVED
+Notes:
+- Need to add "Monthly Retainer Fee" field to both Add and Edit retainer modals/forms.
+
+13. The Monthly Retainer Fee INCLUDES all expenses - advertising spend, all mileage, payroll, all expenses. Please make sure this is consistent with how things are calculated on the finance page. (I'm not sure whether this already happening or not - needs to be confirmed)
+Status: To do — UNAPPROVED
+Notes:
+- Audit finance page calculations to confirm total cost includes all: payroll, mileage, expenses, ad spend.
+- Store retainer fee on the retainer model; surface it vs. total cost so over/under-spend is visible.
+
+14. On the finance page - for both retainers and projects - we should be able to see a ledger of all expense that have been logged to that project, or to that cycle of the retainer that is showing. This should include mileage logs as well as expenses.
+Status: In progress (local, uncommitted) — UNAPPROVED
+Notes:
+- Finance ledger table being built in FinanceDashboardClient.tsx; API calls retainers/detail and project logs endpoints.
+- Need to commit and deploy.
+
+15. UI issue on the client page under projects - Project Logs and Project Finance buttons look shitty (text issue)
+Status: To do — UNAPPROVED
+Notes:
+- Fix button label/text overflow on admin > client > open project rows.
+
+16. Logs are still logging against projects in the finance page prior to approval. They shouldn't factor into Retainer logs, project logs, or the finance logs before they're approved. (I think expenses are not, but worklog hours ARE counting prematurely towards values in the finance page).
+Status: In progress — UNAPPROVED
+Notes:
+- Same as item 10 above; continuing to verify all code paths filter for APPROVED status only.
+
+17. Ad spend should be visible in the top module of the admin > finance page (for retainers and projects)
+Status: Completed (deployed) — UNAPPROVED
+Notes:
+- Same as item 11 above; already done.
+
+18. ENSURE THIS HAPPENS: - When expenses are deleted or rejected, they NO LONGER log against any project or retainer. - When worklogs are changed (resubmitted etc) - the OLD worklog no longer logs against any project or retainer. Only the updated one.
+Status: To do — UNAPPROVED
+Notes:
+- Audit expense delete/reject handlers; ensure cascade to remove from all log aggregations.
+- Audit worklog resubmit handler; ensure old version is excluded from logs when superseded.
+
+19. Under employee > worklogs, we need to add the following task categories: Management Administration
+Status: To do — UNAPPROVED
+Notes:
+- Add "Management" and "Administration" to the worklog task category enum/list.
+
+20. Retainers shouldn't be editable within the "retainer logs" page - only within the admin > client > open. Remove the retainer settings from the retainer logs.
+Status: To do — UNAPPROVED
+Notes:
+- Remove retainer settings/edit controls from admin/management retainer logs page.
+
+21. Issue with text that's appearing when u fail to add info to a invite user
+Status: To do — UNAPPROVED
+Notes:
+- Fix validation error message display in the invite user flow.
+
+22. This part - signed in as paul@pushysix.com (header on all pages) - I think this should feel a bit more premium and clean. Not just text. Sign out should appear as a badge and not just text.
+Status: To do — UNAPPROVED
+Notes:
+- Redesign header auth section: avatar/badge style for user identity, styled sign-out button.
+
+23. We need a "profile" area where you can reset your password, change your name, upload a profile picture, etc. Perhaps the profile pic should show up in the top right
+Status: To do — UNAPPROVED
+Notes:
+- Create /profile page with: password reset, name change, avatar upload.
+- Show avatar in header top-right.
+
+24. Ugly UI issues on users page we need to resolve this. There's also a horizontal scroll at some screen configurations that we need to eliminate.
+Status: In progress (local, uncommitted) — UNAPPROVED
+Notes:
+- Mobile card layout added; table made responsive; break-all on email; flex-wrap on actions.
+
+25. On users page, Edit button should ONLY appear once on each user - it takes you to the same interface so having it twice doesn't make sense.
+Status: To do — UNAPPROVED
+Notes:
+- Remove duplicate Edit button from users table/card.
+
+26. Retainers Page (for both the management and admin modes) should be change from "Retainers" To "Retainer Logs"
+Status: To do — UNAPPROVED
+Notes:
+- Rename nav label and page heading from "Retainers" to "Retainer Logs" in both admin and management modes.

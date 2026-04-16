@@ -58,6 +58,7 @@ type LogsResponse = {
     id: string;
     type: "WORKLOG" | "MILEAGE" | "EXPENSE";
     dateISO: string;
+    employeeId?: string | null;
     employeeName: string | null;
     employeeEmail?: string | null;
     minutes: number | null;
@@ -528,7 +529,7 @@ export function ProjectLogsClient({ clients, projects }: { clients: ClientRow[];
                   {(data.ledgerRows ?? []).filter((row) => {
                     if (row.type === "WORKLOG") {
                       if (serviceFilterKey && row.serviceName !== (servicePie.find((x) => x.bucketKey === serviceFilterKey)?.name ?? row.serviceName)) return false;
-                      if (employeeFilterId && row.employeeName !== (employeePie.find((x) => x.employeeId === employeeFilterId)?.displayName ?? row.employeeName)) return false;
+                      if (employeeFilterId && row.employeeId !== employeeFilterId) return false;
                     }
                     return true;
                   }).length === 0 ? (
@@ -542,7 +543,7 @@ export function ProjectLogsClient({ clients, projects }: { clients: ClientRow[];
                       .filter((row) => {
                         if (row.type === "WORKLOG") {
                           if (serviceFilterKey && row.serviceName !== (servicePie.find((x) => x.bucketKey === serviceFilterKey)?.name ?? row.serviceName)) return false;
-                          if (employeeFilterId && row.employeeName !== (employeePie.find((x) => x.employeeId === employeeFilterId)?.displayName ?? row.employeeName)) return false;
+                          if (employeeFilterId && row.employeeId !== employeeFilterId) return false;
                         }
                         return true;
                       })
