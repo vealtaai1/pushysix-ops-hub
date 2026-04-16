@@ -27,6 +27,7 @@ const ROLE_ACCOUNT_MANAGER = "ACCOUNT_MANAGER" as unknown as UserRole;
 
 export function UsersClient() {
   const [status, setStatus] = useState<string | null>(null);
+  const [inviteError, setInviteError] = useState<string | null>(null);
 
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteName, setInviteName] = useState("");
@@ -174,9 +175,28 @@ export function UsersClient() {
 
   async function createUserAndInvite() {
     const email = inviteEmail.trim();
-    if (!email) return;
+    const hourlyWage = inviteHourlyWage.trim();
+
+    if (!email) {
+      setInviteError("Email is required.");
+      setStatus(null);
+      return;
+    }
+
+    if (!/^\S+@\S+\.\S+$/.test(email)) {
+      setInviteError("Enter a valid email address.");
+      setStatus(null);
+      return;
+    }
+
+    if (hourlyWage && Number.isNaN(Number(hourlyWage.replace(/[$,\s]/g, "")))) {
+      setInviteError("Hourly wage must be a valid number, for example 25 or 25.00.");
+      setStatus(null);
+      return;
+    }
 
     setInviteLoading(true);
+    setInviteError(null);
     setStatus(null);
     setLastInvite(null);
     try {
@@ -187,7 +207,7 @@ export function UsersClient() {
           email,
           name: inviteName.trim() || null,
           role: inviteRole,
-          hourlyWage: inviteHourlyWage.trim() || null,
+          hourlyWage: hourlyWage || null,
         }),
       });
       const json = (await res.json().catch(() => null)) as any;
@@ -203,7 +223,7 @@ export function UsersClient() {
       setInviteRole(ROLE_EMPLOYEE);
       await refreshUsers();
     } catch (e) {
-      setStatus(e instanceof Error ? e.message : "Create user failed");
+      setInviteError(e instanceof Error ? e.message : "Create user failed");
     } finally {
       setInviteLoading(false);
     }
@@ -244,9 +264,12 @@ export function UsersClient() {
               <label className="mb-1 block text-xs font-semibold text-zinc-700">Email</label>
               <input
                 value={inviteEmail}
-                onChange={(e) => setInviteEmail(e.target.value)}
+                onChange={(e) => {
+                  setInviteEmail(e.target.value);
+                  if (inviteError) setInviteError(null);
+                }}
                 placeholder="name@company.com"
-                className="h-9 w-full rounded-md border border-zinc-300 bg-white px-3 text-sm"
+                className={`h-9 w-full rounded-md bg-white px-3 text-sm ${inviteError ? "border border-red-300 focus:border-red-500 focus:outline-none focus:ring-2 focus:ring-red-200" : "border border-zinc-300"}`}
                 type="email"
                 autoComplete="off"
               />
@@ -255,7 +278,10 @@ export function UsersClient() {
               <label className="mb-1 block text-xs font-semibold text-zinc-700">Name</label>
               <input
                 value={inviteName}
-                onChange={(e) => setInviteName(e.target.value)}
+                onChange={(e) => {
+                  setInviteName(e.target.value);
+                  if (inviteError) setInviteError(null);
+                }}
                 placeholder="Optional"
                 className="h-9 w-full rounded-md border border-zinc-300 bg-white px-3 text-sm"
                 type="text"
@@ -266,14 +292,23 @@ export function UsersClient() {
               <label className="mb-1 block text-xs font-semibold text-zinc-700">Hourly wage (CAD)</label>
               <input
                 value={inviteHourlyWage}
-                onChange={(e) => setInviteHourlyWage(e.target.value)}
+                onChange={(e) => {
+                  setInviteHourlyWage(e.target.value);
+                  if (inviteError) setInviteError(null);
+                }}
                 placeholder="$25.00"
-                className="h-9 w-full rounded-md border border-zinc-300 bg-white px-3 text-sm"
+                className={`h-9 w-full rounded-md bg-white px-3 text-sm ${inviteError ? "border border-red-300 focus:border-red-500 focus:outline-none focus:ring-2 focus:ring-red-200" : "border border-zinc-300"}`}
                 type="text"
                 autoComplete="off"
               />
             </div>
           </div>
+
+          {inviteError ? (
+            <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+              {inviteError}
+            </div>
+          ) : null}
 
           <div className="flex flex-wrap items-end gap-2">
             <div>
@@ -292,7 +327,7 @@ export function UsersClient() {
             <button
               type="button"
               onClick={createUserAndInvite}
-              disabled={inviteLoading || !inviteEmail.trim()}
+              disabled={inviteLoading}
               className="h-9 rounded-md bg-zinc-900 px-3 text-sm font-semibold text-white disabled:opacity-50"
             >
               {inviteLoading ? "Creating…" : "Create user + send invite"}
@@ -315,181 +350,180 @@ export function UsersClient() {
           <div className="text-sm text-zinc-600">No users found.</div>
         ) : (
           <>
-            <div className="space-y-3 md:hidden">
+            <div className="space-y-3 xl:hidden">
               {users.map((u) => (
-                <div key={u.id} className="rounded-lg border border-zinc-200 p-3">
-                  <div className="break-all text-sm font-medium text-zinc-900">{u.email}</div>
-                  <div className="mt-2 grid gap-2 text-sm text-zinc-700">
-                    <div>
-                      <div className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">Name</div>
-                      <div>{u.name ?? "—"}</div>
+                <div key={u.id} className="rounded-xl border border-zinc-200 bg-zinc-50/40 p-4">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                    <div className="min-w-0 space-y-2">
+                      <div>
+                        <div className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">Email</div>
+                        <div className="truncate text-sm font-medium text-zinc-900" title={u.email}>
+                          {u.email}
+                        </div>
+                      </div>
+                      <div className="grid gap-2 text-sm text-zinc-700 sm:grid-cols-3">
+                        <div className="min-w-0">
+                          <div className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">Name</div>
+                          <div className="truncate" title={u.name ?? undefined}>{u.name ?? "—"}</div>
+                        </div>
+                        <div>
+                          <div className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">Role</div>
+                          <span
+                            className={
+                              "mt-1 inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold " +
+                              (u.role === ROLE_ADMIN
+                                ? "bg-blue-50 text-blue-700"
+                                : u.role === ROLE_ACCOUNT_MANAGER
+                                  ? "bg-emerald-50 text-emerald-700"
+                                  : "bg-zinc-50 text-zinc-700")
+                            }
+                          >
+                            {u.role}
+                          </span>
+                        </div>
+                        <div>
+                          <div className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">Hourly wage</div>
+                          <div>{fmtCadCents(u.hourlyWageCents)}</div>
+                        </div>
+                      </div>
                     </div>
-                    <div>
-                      <div className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">Role</div>
-                      <span
-                        className={
-                          "mt-1 inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold " +
-                          (u.role === ROLE_ADMIN
-                            ? "bg-blue-50 text-blue-700"
-                            : u.role === ROLE_ACCOUNT_MANAGER
-                              ? "bg-emerald-50 text-emerald-700"
-                              : "bg-zinc-50 text-zinc-700")
-                        }
-                      >
-                        {u.role}
-                      </span>
-                    </div>
-                    <div>
-                      <div className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">Hourly wage</div>
-                      <div>{fmtCadCents(u.hourlyWageCents)}</div>
-                    </div>
-                  </div>
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    <button
-                      type="button"
-                      className="h-8 rounded-md border border-zinc-300 bg-white px-2.5 text-xs font-semibold text-zinc-800 hover:bg-zinc-50"
-                      onClick={() => setEditUserId(u.id)}
-                    >
-                      Edit user
-                    </button>
-                    {u.role !== ROLE_ADMIN ? (
+
+                    <div className="grid gap-2 sm:min-w-[220px] sm:grid-cols-2">
                       <button
                         type="button"
-                        onClick={() => setRole(u.id, ROLE_ADMIN)}
-                        className="h-8 rounded-md bg-zinc-900 px-2.5 text-xs font-semibold text-white"
-                      >
-                        Make admin
-                      </button>
-                    ) : null}
-                    {u.role !== ROLE_ACCOUNT_MANAGER ? (
-                      <button
-                        type="button"
-                        onClick={() => setRole(u.id, ROLE_ACCOUNT_MANAGER)}
-                        className="h-8 rounded-md border border-emerald-200 bg-white px-2.5 text-xs font-semibold text-emerald-800 hover:bg-emerald-50"
-                      >
-                        Make account manager
-                      </button>
-                    ) : null}
-                    {u.role !== ROLE_EMPLOYEE ? (
-                      <button
-                        type="button"
-                        onClick={() => setRole(u.id, ROLE_EMPLOYEE)}
                         className="h-8 rounded-md border border-zinc-300 bg-white px-2.5 text-xs font-semibold text-zinc-800 hover:bg-zinc-50"
+                        onClick={() => setEditUserId(u.id)}
                       >
-                        Make employee
+                        Edit user
                       </button>
-                    ) : null}
-                    <button
-                      type="button"
-                      onClick={() => deleteUser(u.id)}
-                      disabled={u.role === ROLE_ADMIN && adminsCount <= 1}
-                      className="h-8 rounded-md border border-red-200 bg-white px-2.5 text-xs font-semibold text-red-700 hover:bg-red-50 disabled:opacity-50"
-                    >
-                      Delete
-                    </button>
+                      {u.role !== ROLE_ADMIN ? (
+                        <button
+                          type="button"
+                          onClick={() => setRole(u.id, ROLE_ADMIN)}
+                          className="h-8 rounded-md bg-zinc-900 px-2.5 text-xs font-semibold text-white"
+                        >
+                          Make admin
+                        </button>
+                      ) : null}
+                      {u.role !== ROLE_ACCOUNT_MANAGER ? (
+                        <button
+                          type="button"
+                          onClick={() => setRole(u.id, ROLE_ACCOUNT_MANAGER)}
+                          className="h-8 rounded-md border border-emerald-200 bg-white px-2.5 text-xs font-semibold text-emerald-800 hover:bg-emerald-50"
+                        >
+                          Make account manager
+                        </button>
+                      ) : null}
+                      {u.role !== ROLE_EMPLOYEE ? (
+                        <button
+                          type="button"
+                          onClick={() => setRole(u.id, ROLE_EMPLOYEE)}
+                          className="h-8 rounded-md border border-zinc-300 bg-white px-2.5 text-xs font-semibold text-zinc-800 hover:bg-zinc-50"
+                        >
+                          Make employee
+                        </button>
+                      ) : null}
+                      <button
+                        type="button"
+                        onClick={() => deleteUser(u.id)}
+                        disabled={u.role === ROLE_ADMIN && adminsCount <= 1}
+                        className="h-8 rounded-md border border-red-200 bg-white px-2.5 text-xs font-semibold text-red-700 hover:bg-red-50 disabled:opacity-50"
+                      >
+                        Delete
+                      </button>
+                    </div>
                   </div>
                 </div>
               ))}
             </div>
 
-            <div className="hidden md:block">
+            <div className="hidden xl:block">
               <table className="w-full table-fixed border-separate border-spacing-0">
-              <thead>
-                <tr className="text-left text-xs text-zinc-600">
-                  <th className="border-b border-zinc-200 px-3 py-2">Email</th>
-                  <th className="border-b border-zinc-200 px-3 py-2">Name</th>
-                  <th className="border-b border-zinc-200 px-3 py-2">Role</th>
-                  <th className="border-b border-zinc-200 px-3 py-2">Hourly wage</th>
-                  <th className="border-b border-zinc-200 px-3 py-2">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {users.map((u) => (
-                  <tr key={u.id} className="text-sm">
-                    <td className="border-b border-zinc-100 px-3 py-2 break-all">{u.email}</td>
-                    <td className="border-b border-zinc-100 px-3 py-2">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className="break-words">{u.name ?? "—"}</span>
-                        <button
-                          type="button"
-                          className="h-7 rounded-md border border-zinc-300 bg-white px-2 text-xs font-semibold text-zinc-800 hover:bg-zinc-50"
-                          onClick={() => setEditUserId(u.id)}
-                        >
-                          Edit
-                        </button>
-                      </div>
-                    </td>
-                    <td className="border-b border-zinc-100 px-3 py-2">
-                      <span
-                        className={
-                          "inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold " +
-                          (u.role === ROLE_ADMIN
-                            ? "bg-blue-50 text-blue-700"
-                            : u.role === ROLE_ACCOUNT_MANAGER
-                              ? "bg-emerald-50 text-emerald-700"
-                              : "bg-zinc-50 text-zinc-700")
-                        }
-                      >
-                        {u.role}
-                      </span>
-                    </td>
-                    <td className="border-b border-zinc-100 px-3 py-2">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span>{fmtCadCents(u.hourlyWageCents)}</span>
-                        <button
-                          type="button"
-                          className="h-7 rounded-md border border-zinc-300 bg-white px-2 text-xs font-semibold text-zinc-800 hover:bg-zinc-50"
-                          onClick={() => setEditUserId(u.id)}
-                        >
-                          Edit
-                        </button>
-                      </div>
-                    </td>
-                    <td className="border-b border-zinc-100 px-3 py-2">
-                      <div className="flex flex-wrap items-center gap-2">
-                        {u.role !== ROLE_ADMIN ? (
-                          <button
-                            type="button"
-                            onClick={() => setRole(u.id, ROLE_ADMIN)}
-                            className="h-8 rounded-md bg-zinc-900 px-2.5 text-xs font-semibold text-white"
-                          >
-                            Make admin
-                          </button>
-                        ) : null}
-
-                        {u.role !== ROLE_ACCOUNT_MANAGER ? (
-                          <button
-                            type="button"
-                            onClick={() => setRole(u.id, ROLE_ACCOUNT_MANAGER)}
-                            className="h-8 rounded-md border border-emerald-200 bg-white px-2.5 text-xs font-semibold text-emerald-800 hover:bg-emerald-50"
-                          >
-                            Make account manager
-                          </button>
-                        ) : null}
-
-                        {u.role !== ROLE_EMPLOYEE ? (
-                          <button
-                            type="button"
-                            onClick={() => setRole(u.id, ROLE_EMPLOYEE)}
-                            className="h-8 rounded-md border border-zinc-300 bg-white px-2.5 text-xs font-semibold text-zinc-800 hover:bg-zinc-50"
-                          >
-                            Make employee
-                          </button>
-                        ) : null}
-
-                        <button
-                          type="button"
-                          onClick={() => deleteUser(u.id)}
-                          disabled={u.role === ROLE_ADMIN && adminsCount <= 1}
-                          className="h-8 rounded-md border border-red-200 bg-white px-2.5 text-xs font-semibold text-red-700 hover:bg-red-50 disabled:opacity-50"
-                        >
-                          Delete
-                        </button>
-                      </div>
-                    </td>
+                <thead>
+                  <tr className="text-left text-xs text-zinc-600">
+                    <th className="w-[28%] border-b border-zinc-200 px-3 py-2">Email</th>
+                    <th className="w-[18%] border-b border-zinc-200 px-3 py-2">Name</th>
+                    <th className="w-[16%] border-b border-zinc-200 px-3 py-2">Role</th>
+                    <th className="w-[14%] border-b border-zinc-200 px-3 py-2">Hourly wage</th>
+                    <th className="w-[24%] border-b border-zinc-200 px-3 py-2">Actions</th>
                   </tr>
-                ))}
-              </tbody>
+                </thead>
+                <tbody>
+                  {users.map((u) => (
+                    <tr key={u.id} className="text-sm align-top">
+                      <td className="border-b border-zinc-100 px-3 py-3">
+                        <div className="truncate text-zinc-900" title={u.email}>{u.email}</div>
+                      </td>
+                      <td className="border-b border-zinc-100 px-3 py-3">
+                        <div className="truncate text-zinc-800" title={u.name ?? undefined}>{u.name ?? "—"}</div>
+                      </td>
+                      <td className="border-b border-zinc-100 px-3 py-3">
+                        <span
+                          className={
+                            "inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold " +
+                            (u.role === ROLE_ADMIN
+                              ? "bg-blue-50 text-blue-700"
+                              : u.role === ROLE_ACCOUNT_MANAGER
+                                ? "bg-emerald-50 text-emerald-700"
+                                : "bg-zinc-50 text-zinc-700")
+                          }
+                        >
+                          {u.role}
+                        </span>
+                      </td>
+                      <td className="border-b border-zinc-100 px-3 py-3 text-zinc-800">{fmtCadCents(u.hourlyWageCents)}</td>
+                      <td className="border-b border-zinc-100 px-3 py-3">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <button
+                            type="button"
+                            className="h-8 rounded-md border border-zinc-300 bg-white px-2.5 text-xs font-semibold text-zinc-800 hover:bg-zinc-50"
+                            onClick={() => setEditUserId(u.id)}
+                          >
+                            Edit user
+                          </button>
+                          {u.role !== ROLE_ADMIN ? (
+                            <button
+                              type="button"
+                              onClick={() => setRole(u.id, ROLE_ADMIN)}
+                              className="h-8 rounded-md bg-zinc-900 px-2.5 text-xs font-semibold text-white"
+                            >
+                              Make admin
+                            </button>
+                          ) : null}
+
+                          {u.role !== ROLE_ACCOUNT_MANAGER ? (
+                            <button
+                              type="button"
+                              onClick={() => setRole(u.id, ROLE_ACCOUNT_MANAGER)}
+                              className="h-8 rounded-md border border-emerald-200 bg-white px-2.5 text-xs font-semibold text-emerald-800 hover:bg-emerald-50"
+                            >
+                              Make account manager
+                            </button>
+                          ) : null}
+
+                          {u.role !== ROLE_EMPLOYEE ? (
+                            <button
+                              type="button"
+                              onClick={() => setRole(u.id, ROLE_EMPLOYEE)}
+                              className="h-8 rounded-md border border-zinc-300 bg-white px-2.5 text-xs font-semibold text-zinc-800 hover:bg-zinc-50"
+                            >
+                              Make employee
+                            </button>
+                          ) : null}
+
+                          <button
+                            type="button"
+                            onClick={() => deleteUser(u.id)}
+                            disabled={u.role === ROLE_ADMIN && adminsCount <= 1}
+                            className="h-8 rounded-md border border-red-200 bg-white px-2.5 text-xs font-semibold text-red-700 hover:bg-red-50 disabled:opacity-50"
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
               </table>
             </div>
           </>

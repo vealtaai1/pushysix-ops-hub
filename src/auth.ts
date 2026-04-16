@@ -76,7 +76,7 @@ export const {
 
         const user = await prisma.user.findUnique({
           where: { email },
-          select: { id: true, email: true, name: true, role: true, passwordHash: true },
+          select: { id: true, email: true, name: true, image: true, role: true, passwordHash: true },
         });
 
         if (!user?.passwordHash) return null;
@@ -84,7 +84,7 @@ export const {
         const ok = await verifyPassword(password, user.passwordHash);
         if (!ok) return null;
 
-        return { id: user.id, email: user.email, name: user.name, role: user.role };
+        return { id: user.id, email: user.email, name: user.name, image: user.image, role: user.role };
       },
     }),
   ],
@@ -95,17 +95,26 @@ export const {
       if (user) {
         token.id = user.id;
         token.role = ((user as { role?: UserRole }).role ?? "EMPLOYEE") as UserRole;
+        token.name = user.name;
+        token.email = user.email;
+        token.picture = (user as { image?: string | null }).image ?? null;
         return token;
       }
 
-      // If a token exists from a previous session but is missing role (common
-      // after adding new roles like ACCOUNT_MANAGER), backfill it once.
-      if (token.id && !token.role) {
+      if (token.id) {
         const dbUser = await prisma.user.findUnique({
           where: { id: token.id as string },
-          select: { role: true },
+          select: { role: true, name: true, email: true, image: true },
         });
-        token.role = (dbUser?.role ?? "EMPLOYEE") as UserRole;
+
+        if (dbUser) {
+          token.role = dbUser.role as UserRole;
+          token.name = dbUser.name;
+          token.email = dbUser.email;
+          token.picture = dbUser.image;
+        } else if (!token.role) {
+          token.role = "EMPLOYEE" as UserRole;
+        }
       }
 
       return token;
@@ -121,6 +130,9 @@ export const {
         ...(session.user ?? {}),
         id: id ?? "",
         role,
+        name: typeof token.name === "string" ? token.name : null,
+        email: typeof token.email === "string" ? token.email : "",
+        image: typeof token.picture === "string" ? token.picture : null,
       };
 
       return session;
