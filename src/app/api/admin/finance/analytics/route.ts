@@ -176,10 +176,11 @@ export async function GET(req: Request) {
     where: {
       clientId: { in: clients.map((c) => c.id) },
       expenseDate: { gte: fromDate, lt: toDateExclusive },
-      // Only count:
-      // - worklog-linked expenses where the worklog is APPROVED
-      // - non-worklog expenses (e.g. employee submissions) only when the expense itself is APPROVED
-      OR: [{ worklog: { status: "APPROVED" } }, { worklogId: null, status: "APPROVED" }],
+      status: "APPROVED",
+      // Approved-only policy:
+      // - all expenses must themselves be APPROVED
+      // - worklog-linked expenses also require an APPROVED parent worklog
+      OR: [{ worklog: { status: "APPROVED" } }, { worklogId: null }],
       // NOTE: We intentionally do NOT filter by projectId at query-time.
       // Reason: deployed DBs may have drift; filtering in-memory is safer.
     },
@@ -201,6 +202,8 @@ export async function GET(req: Request) {
     },
     select: {
       clientId: true,
+      engagementType: true,
+      projectId: true,
       kilometers: true,
       worklog: { select: { workDate: true } },
     },
@@ -346,6 +349,14 @@ export async function GET(req: Request) {
   }
 
   for (const m of mileageEntries) {
+    if (engagementTypeParam) {
+      if (engagementTypeParam === "RETAINER" && m.engagementType !== "RETAINER") continue;
+      if (engagementTypeParam === "MISC_PROJECT") {
+        if (m.engagementType !== "MISC_PROJECT") continue;
+        if (projectId && m.projectId !== projectId) continue;
+      }
+    }
+
     const cycle = cycleByClientId.get(m.clientId ?? "");
     if (!cycle) continue;
     const iso = m.worklog.workDate.toISOString().slice(0, 10);
@@ -461,6 +472,14 @@ export async function GET(req: Request) {
   }
 
   for (const m of mileageEntries) {
+    if (engagementTypeParam) {
+      if (engagementTypeParam === "RETAINER" && m.engagementType !== "RETAINER") continue;
+      if (engagementTypeParam === "MISC_PROJECT") {
+        if (m.engagementType !== "MISC_PROJECT") continue;
+        if (projectId && m.projectId !== projectId) continue;
+      }
+    }
+
     const cycle = cycleByClientId.get(m.clientId ?? "");
     if (!cycle) continue;
 

@@ -32,6 +32,14 @@ export async function getApprovedFinanceLedgerTotals(params: FinanceLedgerParams
     : Prisma.empty;
 
   const whereProjectWorklog = projectId ? Prisma.sql`AND e."projectId" = ${projectId}` : Prisma.empty;
+  const whereEngagementMileage = engagementType
+    ? Prisma.sql`AND m."engagementType" = ${engagementType}`
+    : Prisma.empty;
+  const whereProjectMileage = projectId ? Prisma.sql`AND m."projectId" = ${projectId}` : Prisma.empty;
+  const whereEngagementExpense = engagementType
+    ? Prisma.sql`AND x."engagementType" = ${engagementType}`
+    : Prisma.empty;
+  const whereProjectExpense = projectId ? Prisma.sql`AND x."projectId" = ${projectId}` : Prisma.empty;
 
   // Worklogs (minutes) are always tied to a Worklog and must be APPROVED.
   const worklog = prisma
@@ -59,13 +67,13 @@ export async function getApprovedFinanceLedgerTotals(params: FinanceLedgerParams
         w."workDate" >= ${from} AND w."workDate" < ${toExclusive}
         AND w."status" = 'APPROVED'
         ${clientId ? Prisma.sql`AND m."clientId" = ${clientId}` : Prisma.empty}
+        ${whereEngagementMileage}
+        ${whereProjectMileage}
     `)
     .then((r) => r[0]?.km ?? 0);
 
-  // Expenses:
-  // - If linked to a worklog, only count when that worklog is APPROVED.
-  // - If not linked to a worklog, only count when the expense itself is APPROVED.
-  // NOTE: We still apply client/date filters, and filter engagement/project in-memory is handled by callers today.
+  // Expenses must always be APPROVED.
+  // If linked to a worklog, the parent worklog must also be APPROVED.
   const expenses = prisma
     .$queryRaw<Array<{ cents: bigint | number | null }>>(Prisma.sql`
       SELECT COALESCE(SUM(x."amountCents"), 0) AS cents
@@ -74,10 +82,13 @@ export async function getApprovedFinanceLedgerTotals(params: FinanceLedgerParams
       WHERE
         x."expenseDate" >= ${from} AND x."expenseDate" < ${toExclusive}
         ${clientId ? Prisma.sql`AND x."clientId" = ${clientId}` : Prisma.empty}
+        ${whereEngagementExpense}
+        ${whereProjectExpense}
+        AND x."status" = 'APPROVED'
         AND (
           (x."worklogId" IS NOT NULL AND w."status" = 'APPROVED')
           OR
-          (x."worklogId" IS NULL AND x."status" = 'APPROVED')
+          x."worklogId" IS NULL
         )
     `)
     .then((r) => r[0]?.cents ?? 0);
@@ -92,4 +103,3 @@ export async function getApprovedFinanceLedgerTotals(params: FinanceLedgerParams
     approvedExpenseCents: toNum(approvedExpenseCents),
   };
 }
-

@@ -131,6 +131,8 @@ export async function GET(req: Request) {
   const mileageEntries = await prisma.mileageEntry.findMany({
     where: {
       clientId,
+      engagementType: "RETAINER",
+      projectId: null,
       worklog: {
         workDate: { gte: startUTC, lt: endExclusiveUTC },
         status: "APPROVED",
@@ -153,9 +155,11 @@ export async function GET(req: Request) {
   const expenseEntries = await prisma.expenseEntry.findMany({
     where: {
       clientId,
+      engagementType: "RETAINER",
       projectId: null,
       expenseDate: { gte: startUTC, lt: endExclusiveUTC },
-      OR: [{ worklog: { status: "APPROVED" } }, { worklogId: null, status: "APPROVED" }],
+      status: "APPROVED",
+      OR: [{ worklog: { status: "APPROVED" } }, { worklogId: null }],
     },
     orderBy: [{ expenseDate: "asc" }, { createdAt: "asc" }],
     select: {
