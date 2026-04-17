@@ -14,7 +14,8 @@
   --brand-blue: #2ea3f2;
 }
 
-/* Employee-facing dark theme (Option A: Stealth Gold) */
+/* Dark mode — toggled via DarkModeToggle, stored in localStorage */
+html.theme-dark,
 .theme-dark {
   --background: #07080a;
   --foreground: #f4f4f5;
@@ -44,3 +45,49 @@ body {
 .ui-muted {
   color: var(--muted);
 }
+
+/* Dark mode surface overrides */
+html.theme-dark body,
+.theme-dark body {
+  background: var(--background);
+  color: var(--foreground);
+}
+
+html.theme-dark .dark-header,
+.theme-dark .dark-header {
+  background: #0e1014;
+  border-color: #27272a;
+}
+
+html.theme-dark .dark-btn,
+.theme-dark .dark-btn {
+  background: #1c1c20;
+  border-color: #3f3f46;
+  color: #a1a1aa;
+}
+
+html.theme-dark .dark-btn:hover,
+.theme-dark .dark-btn:hover {
+  background: #27272a;
+  border-color: #52525b;
+  color: #e4e4e7;
+}
+
+/* Dark mode: zinc overrides for inline Tailwind classes */
+html.theme-dark .bg-white { background-color: #0e1014 !important; }
+html.theme-dark .bg-zinc-50 { background-color: #07080a !important; }
+html.theme-dark .bg-zinc-100 { background-color: #18181b !important; }
+html.theme-dark .bg-zinc-200 { background-color: #27272a !important; }
+html.theme-dark .border-zinc-200 { border-color: #27272a !important; }
+html.theme-dark .border-zinc-100 { border-color: #1c1c20 !important; }
+html.theme-dark .text-zinc-950 { color: #f4f4f5 !important; }
+html.theme-dark .text-zinc-900 { color: #e4e4e7 !important; }
+html.theme-dark .text-zinc-800 { color: #d4d4d8 !important; }
+html.theme-dark .text-zinc-700 { color: #a1a1aa !important; }
+html.theme-dark .text-zinc-600 { color: #71717a !important; }
+html.theme-dark .text-zinc-500 { color: #52525b !important; }
+html.theme-dark .hover\:bg-zinc-50:hover { background-color: #18181b !important; }
+html.theme-dark .hover\:bg-zinc-100:hover { background-color: #27272a !important; }
+html.theme-dark .hover\:text-zinc-900:hover { color: #f4f4f5 !important; }
+
+/* Prevent flash of unstyled content - script runs before React hydration */
