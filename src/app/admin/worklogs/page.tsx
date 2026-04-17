@@ -96,14 +96,14 @@ export default async function AdminWorklogsPage({
       <div className="grid gap-6 md:grid-cols-2">
         <section className="space-y-3">
           <h2 className="text-sm font-semibold">Recent worklogs</h2>
-          <div className="overflow-auto rounded-lg border border-zinc-200">
-            <table className="w-full min-w-[650px] border-separate border-spacing-0">
+          <div className="overflow-x-auto rounded-lg border border-zinc-200">
+            <table className="w-full min-w-[760px] border-separate border-spacing-0">
               <thead>
                 <tr className="text-left text-xs text-zinc-600">
                   <th className="border-b border-zinc-200 px-3 py-2">Date</th>
                   <th className="border-b border-zinc-200 px-3 py-2">User</th>
                   <th className="border-b border-zinc-200 px-3 py-2">Status</th>
-                  <th className="border-b border-zinc-200 px-3 py-2">Lines</th>
+                  <th className="min-w-[280px] border-b border-zinc-200 px-3 py-2">Lines</th>
                 </tr>
               </thead>
               <tbody>
@@ -112,7 +112,7 @@ export default async function AdminWorklogsPage({
                     <td className="border-b border-zinc-100 px-3 py-2 text-sm">{isoDay(w.workDate)}</td>
                     <td className="border-b border-zinc-100 px-3 py-2 text-sm">{w.user.name ?? w.user.email}</td>
                     <td className="border-b border-zinc-100 px-3 py-2 text-sm font-medium">{w.status}</td>
-                    <td className="border-b border-zinc-100 px-3 py-2 text-xs text-zinc-700">
+                    <td className="min-w-[280px] border-b border-zinc-100 px-3 py-2 text-xs text-zinc-700">
                       <div className="space-y-1">
                         {w.entries.slice(0, 5).map((e) => (
                           <div key={e.id}>

@@ -601,16 +601,16 @@ export function WorklogForm({
           </button>
         </div>
 
-        <div className="overflow-x-hidden">
-          <table className="w-full table-fixed border-separate border-spacing-0">
+        <div className="overflow-x-auto pb-1">
+          <table className="w-full min-w-[980px] border-separate border-spacing-0">
             <thead>
               <tr className="text-left text-xs text-zinc-600">
-                <th className="border-b border-zinc-200 px-3 py-2">Client</th>
-                <th className="border-b border-zinc-200 px-3 py-2">Engagement</th>
-                <th className="border-b border-zinc-200 px-3 py-2">Task category</th>
-                <th className="border-b border-zinc-200 px-3 py-2">Hours</th>
-                <th className="border-b border-zinc-200 px-3 py-2">Notes</th>
-                <th className="border-b border-zinc-200 px-3 py-2"></th>
+                <th className="min-w-[180px] border-b border-zinc-200 px-3 py-2">Client</th>
+                <th className="min-w-[220px] border-b border-zinc-200 px-3 py-2">Engagement</th>
+                <th className="min-w-[180px] border-b border-zinc-200 px-3 py-2">Task category</th>
+                <th className="min-w-[120px] border-b border-zinc-200 px-3 py-2">Hours</th>
+                <th className="min-w-[260px] border-b border-zinc-200 px-3 py-2">Notes</th>
+                <th className="w-[1%] border-b border-zinc-200 px-3 py-2"></th>
               </tr>
             </thead>
             <tbody>
@@ -730,7 +730,8 @@ export function WorklogForm({
                           setTasks((prev) => prev.map((x) => (x.id === t.id ? { ...x, hoursText: e.target.value } : x)))
                         }
                         className={
-                          "h-10 w-32 rounded-md border bg-white px-3 " + (hoursInvalid ? "border-red-300" : "border-zinc-300")
+                          "h-10 w-full min-w-[96px] rounded-md border bg-white px-3 " +
+                          (hoursInvalid ? "border-red-300" : "border-zinc-300")
                         }
                       />
                       <div className="mt-1 text-xs text-zinc-500">0.25 increments (0.25–20, or 0)</div>
@@ -799,14 +800,14 @@ export function WorklogForm({
             </button>
           </div>
 
-          <div className="overflow-x-hidden">
-            <table className="w-full table-fixed border-separate border-spacing-0">
+          <div className="overflow-x-auto pb-1">
+            <table className="w-full min-w-[760px] border-separate border-spacing-0">
               <thead>
                 <tr className="text-left text-xs text-zinc-600">
-                  <th className="border-b border-zinc-200 px-3 py-2">Client</th>
-                  <th className="border-b border-zinc-200 px-3 py-2">Engagement</th>
-                  <th className="border-b border-zinc-200 px-3 py-2">Kilometers</th>
-                  <th className="border-b border-zinc-200 px-3 py-2"></th>
+                  <th className="min-w-[180px] border-b border-zinc-200 px-3 py-2">Client</th>
+                  <th className="min-w-[240px] border-b border-zinc-200 px-3 py-2">Engagement</th>
+                  <th className="min-w-[140px] border-b border-zinc-200 px-3 py-2">Kilometers</th>
+                  <th className="w-[1%] border-b border-zinc-200 px-3 py-2"></th>
                 </tr>
               </thead>
               <tbody>

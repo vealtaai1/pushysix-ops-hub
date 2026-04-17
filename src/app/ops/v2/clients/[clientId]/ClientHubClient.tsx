@@ -147,8 +147,8 @@ export function ClientHubClient({ client, initialProjects, canCloseProjects, pro
         )}
       </div>
 
-      <div className="overflow-hidden rounded-lg border border-zinc-200">
-        <div className="grid grid-cols-12 gap-2 bg-zinc-50 px-4 py-2 text-xs font-semibold text-zinc-600">
+      <div className="overflow-x-auto rounded-lg border border-zinc-200">
+        <div className="grid min-w-[820px] grid-cols-12 gap-2 bg-zinc-50 px-4 py-2 text-xs font-semibold text-zinc-600">
           <div className="col-span-2">Code</div>
           <div className="col-span-2">Short code</div>
           <div className="col-span-6">Name</div>
@@ -168,7 +168,7 @@ export function ClientHubClient({ client, initialProjects, canCloseProjects, pro
             const projectFinanceHref = `/admin/finance?clientId=${encodeURIComponent(client.id)}&engagementType=MISC_PROJECT&projectId=${encodeURIComponent(p.id)}`;
 
             return (
-              <div key={p.id} className="grid grid-cols-12 gap-2 border-t border-zinc-200 px-4 py-3 text-sm">
+              <div key={p.id} className="grid min-w-[820px] grid-cols-12 gap-2 border-t border-zinc-200 px-4 py-3 text-sm">
                 <div className="col-span-2">
                   <Link href={projectHref} className="text-sm font-medium text-zinc-900 hover:underline">
                     {p.code}
@@ -189,18 +189,18 @@ export function ClientHubClient({ client, initialProjects, canCloseProjects, pro
                 <div className="col-span-1 text-right">
                   <div className="flex flex-col items-end gap-1">
                     {projectLinkMode === "admin" ? (
-                      <div className="grid w-full max-w-[10rem] gap-1">
+                      <div className="flex w-full max-w-[13rem] flex-wrap justify-end gap-1">
                         <Link
                           href={projectHref}
-                          className="inline-flex min-h-8 w-full items-center justify-center rounded-md border border-zinc-300 bg-white px-2.5 py-1 text-center text-xs font-semibold leading-tight text-zinc-800 hover:bg-zinc-50"
+                          className="inline-flex min-h-8 min-w-[120px] items-center justify-center rounded-md border border-zinc-300 bg-white px-3 py-1 text-center text-xs font-semibold leading-tight text-zinc-800 hover:bg-zinc-50"
                         >
-                          <span className="block truncate">Project Logs</span>
+                          <span className="whitespace-nowrap">Project Logs</span>
                         </Link>
                         <Link
                           href={projectFinanceHref}
-                          className="inline-flex min-h-8 w-full items-center justify-center rounded-md border border-zinc-300 bg-white px-2.5 py-1 text-center text-xs font-semibold leading-tight text-zinc-800 hover:bg-zinc-50"
+                          className="inline-flex min-h-8 min-w-[120px] items-center justify-center rounded-md border border-zinc-300 bg-white px-3 py-1 text-center text-xs font-semibold leading-tight text-zinc-800 hover:bg-zinc-50"
                         >
-                          <span className="block truncate">Project Finance</span>
+                          <span className="whitespace-nowrap">Project Finance</span>
                         </Link>
                       </div>
                     ) : null}

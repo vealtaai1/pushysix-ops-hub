@@ -37,6 +37,7 @@ export async function AuthButtons() {
       </Link>
 
       <form
+        className="hidden sm:inline-flex"
         action={async () => {
           "use server";
           await signOut({ redirectTo: "/login" });
