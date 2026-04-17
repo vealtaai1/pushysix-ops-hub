@@ -56,7 +56,9 @@ export default async function RootLayout({
 
               <nav className="flex items-center gap-2 text-sm">
                 <ModeSwitcherServer />
-                <DarkModeToggle />
+                <div className="hidden sm:block">
+                  <DarkModeToggle />
+                </div>
                 <AuthButtons />
               </nav>
             </div>

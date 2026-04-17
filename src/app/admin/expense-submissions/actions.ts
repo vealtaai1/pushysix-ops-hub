@@ -14,8 +14,6 @@ export async function approveExpenseSubmission(formData: FormData) {
   await requireAdminOrThrow({ message: "Unauthorized: admin access required." });
 
   const expenseEntryId = asString(formData.get("expenseEntryId")).trim();
-  const noteRaw = asString(formData.get("note")).trim();
-  const note = noteRaw || null;
 
   if (!expenseEntryId) return;
 
@@ -50,7 +48,7 @@ export async function approveExpenseSubmission(formData: FormData) {
           status: ApprovalStatus.APPROVED,
           reviewedAt: now,
           reviewedByUserId: reviewerId,
-          reviewNote: note,
+          reviewNote: null,
           workDate: ex.expenseDate,
         },
       });
@@ -64,7 +62,7 @@ export async function approveExpenseSubmission(formData: FormData) {
           requestedByUserId,
           reviewedAt: now,
           reviewedByUserId: reviewerId,
-          reviewNote: note,
+          reviewNote: null,
           expenseEntryId,
         },
       });
@@ -80,8 +78,6 @@ export async function rejectExpenseSubmission(formData: FormData) {
   await requireAdminOrThrow({ message: "Unauthorized: admin access required." });
 
   const expenseEntryId = asString(formData.get("expenseEntryId")).trim();
-  const noteRaw = asString(formData.get("note")).trim();
-  const note = noteRaw || "Rejected";
 
   if (!expenseEntryId) return;
 
@@ -115,7 +111,7 @@ export async function rejectExpenseSubmission(formData: FormData) {
           status: ApprovalStatus.REJECTED,
           reviewedAt: now,
           reviewedByUserId: reviewerId,
-          reviewNote: note,
+          reviewNote: "Rejected",
           workDate: ex.expenseDate,
         },
       });
@@ -129,7 +125,7 @@ export async function rejectExpenseSubmission(formData: FormData) {
           requestedByUserId,
           reviewedAt: now,
           reviewedByUserId: reviewerId,
-          reviewNote: note,
+          reviewNote: "Rejected",
           expenseEntryId,
         },
       });

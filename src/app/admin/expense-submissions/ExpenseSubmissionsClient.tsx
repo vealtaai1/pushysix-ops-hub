@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { approveExpenseSubmission, hardDeleteExpense, rejectExpenseSubmission } from "./actions";
 
 type Item = {
@@ -47,8 +47,6 @@ export function ExpenseSubmissionsClient({
   employees: Array<{ id: string; email: string; name: string | null }>;
   statuses: string[];
 }) {
-  const [noteById, setNoteById] = useState<Record<string, string>>({});
-
   const totals = useMemo(() => {
     const sum = items.reduce((acc, e) => acc + (e.amountCents || 0), 0);
     return { count: items.length, sum };
@@ -148,7 +146,6 @@ export function ExpenseSubmissionsClient({
           </thead>
           <tbody>
             {items.map((e) => {
-              const note = noteById[e.id] ?? "";
               const who = e.employeeEmail || e.submittedByEmail || "(unknown)";
 
               return (
@@ -179,18 +176,10 @@ export function ExpenseSubmissionsClient({
                   </td>
                   <td className="border-b border-zinc-100 px-3 py-2 text-sm font-medium">{e.status}</td>
                   <td className="min-w-0 border-b border-zinc-100 px-3 py-2 text-sm">
-                    <div className="min-w-0 space-y-2">
-                      <input
-                        className="block h-8 w-full min-w-0 rounded-md border border-zinc-300 px-2 text-xs"
-                        placeholder="Review note (optional)"
-                        value={note}
-                        onChange={(ev) => setNoteById((m) => ({ ...m, [e.id]: ev.target.value }))}
-                      />
-
+                    <div className="min-w-0">
                       <div className="flex flex-wrap gap-2">
                         <form action={approveExpenseSubmission}>
                           <input type="hidden" name="expenseEntryId" value={e.id} />
-                          <input type="hidden" name="note" value={note} />
                           <button className="h-8 rounded-md bg-emerald-600 px-3 text-xs font-semibold text-white hover:bg-emerald-700">
                             Approve
                           </button>
@@ -203,7 +192,6 @@ export function ExpenseSubmissionsClient({
                           }}
                         >
                           <input type="hidden" name="expenseEntryId" value={e.id} />
-                          <input type="hidden" name="note" value={note} />
                           <button className="h-8 rounded-md bg-amber-600 px-3 text-xs font-semibold text-white hover:bg-amber-700">
                             Reject
                           </button>

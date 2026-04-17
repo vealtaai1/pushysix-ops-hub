@@ -95,8 +95,9 @@ function ClientTypeahead(props: {
   valueName: string;
   onSelect: (c: Client) => void;
   placeholder?: string;
+  className?: string;
 }) {
-  const { clients, valueName, onSelect, placeholder } = props;
+  const { clients, valueName, onSelect, placeholder, className } = props;
 
   const inputRef = React.useRef<HTMLInputElement | null>(null);
   const [open, setOpen] = React.useState(false);
@@ -152,7 +153,7 @@ function ClientTypeahead(props: {
           window.setTimeout(() => setOpen(false), 120);
         }}
         placeholder={placeholder ?? "Search client…"}
-        className="h-10 w-full rounded-md border border-zinc-300 bg-white px-3"
+        className={"h-10 w-full rounded-md border bg-white px-3 " + (className ?? "border-zinc-300")}
       />
 
       {open && menuBox
@@ -460,6 +461,8 @@ export function WorklogForm({
   }, [mileageRequired, mileage, allocatedKm, totalKm]);
 
   const targetHoursValid = Number.isFinite(targetHours) && targetHours > 0;
+  const targetHoursMissing = showValidation && targetHoursText.trim() === "";
+  const targetHoursInvalid = showValidation && !targetHoursMissing && !targetHoursValid;
 
   const canSubmit =
     emailOk &&
@@ -470,6 +473,7 @@ export function WorklogForm({
     !hasNotesViolations &&
     !hasClientViolations &&
     !hasBucketViolations &&
+    !hasTaskEngagementViolations &&
     mileageComplete &&
     expensesComplete;
 
@@ -504,8 +508,10 @@ export function WorklogForm({
               step={0.25}
               value={targetHoursText}
               onChange={(e) => setTargetHoursText(e.target.value)}
-              className="h-10 rounded-md border border-zinc-300 bg-white px-3"
+              className={"h-10 rounded-md border bg-white px-3 " + (targetHoursMissing || targetHoursInvalid ? "border-red-300" : "border-zinc-300")}
             />
+            {targetHoursMissing ? <div className="text-xs text-red-700">Required</div> : null}
+            {targetHoursInvalid ? <div className="text-xs text-red-700">Must be &gt; 0</div> : null}
           </label>
 
           <label className="grid gap-1">
@@ -540,25 +546,6 @@ export function WorklogForm({
           </div>
         </div>
 
-        <div className="mt-4 flex flex-wrap items-center gap-3 text-sm">
-          {showValidation && !targetHoursValid ? <div className="text-red-700">Total hours must be greater than 0.</div> : null}
-          {showValidation && hasTaskHoursViolations ? (
-            <div className="text-red-700">Task hours must be 0 or 0.25–20.00 in 0.25 increments.</div>
-          ) : null}
-          {showValidation && hasClientViolations ? (
-            <div className="text-red-700">Client is required for any task with hours &gt; 0.</div>
-          ) : null}
-          {showValidation && hasBucketViolations ? (
-            <div className="text-red-700">Task category is required for any task with hours &gt; 0.</div>
-          ) : null}
-          {showValidation && hasTaskEngagementViolations ? (
-            <div className="text-red-700">Engagement must be set to Retainer (if configured) or a specific open project.</div>
-          ) : null}
-          {showValidation && hasNotesViolations ? <div className="text-red-700">Notes are required for any task with hours &gt; 0.</div> : null}
-          {showValidation && mileageRequired && !mileageComplete ? (
-            <div className="text-red-700">Mileage must be allocated to match Total km.</div>
-          ) : null}
-        </div>
       </div>
 
       <div className="rounded-lg border border-zinc-200 p-4">
@@ -618,6 +605,16 @@ export function WorklogForm({
                 const hoursNum = parseNumberText(t.hoursText);
                 const notesRequired = Number.isFinite(hoursNum) && hoursNum > 0;
                 const hoursInvalid = taskHoursInvalid[idx] ?? false;
+                const clientInvalid = showValidation && notesRequired && !t.clientId;
+                const bucketInvalid = showValidation && notesRequired && t.bucketKey.trim().length === 0;
+                const engagementInvalid =
+                  showValidation &&
+                  notesRequired &&
+                  !!t.clientId &&
+                  ((t.engagementType === "RETAINER" && !hasRetainerByClientId.has(t.clientId)) ||
+                    (t.engagementType === "MISC_PROJECT" && !t.projectId));
+                const hoursMissing = showValidation && t.hoursText.trim() === "";
+                const notesInvalid = showValidation && notesRequired && t.notes.trim().length === 0;
 
                 return (
                   <tr key={t.id} className="align-top">
@@ -626,6 +623,7 @@ export function WorklogForm({
                         clients={clients}
                         valueName={t.clientName}
                         placeholder="Search client…"
+                        className={clientInvalid ? "border-red-300" : "border-zinc-300"}
                         onSelect={(c) => {
                           const hasRetainer = hasRetainerByClientId.has(c.id);
                           const openProjects = projectsByClient.get(c.id) ?? [];
@@ -645,7 +643,8 @@ export function WorklogForm({
                           );
                         }}
                       />
-                      {t.clientId ? null : <div className="mt-1 text-xs text-zinc-500">Choose a client</div>}
+                      {clientInvalid ? <p className="mt-1 text-xs text-red-600">Required</p> : null}
+                      {!clientInvalid && !t.clientId ? <div className="mt-1 text-xs text-zinc-500">Choose a client</div> : null}
                     </td>
 
                     <td className="border-b border-zinc-100 px-3 py-2">
@@ -668,7 +667,7 @@ export function WorklogForm({
                           }
                         }}
                         disabled={!t.clientId}
-                        className="h-10 w-full rounded-md border border-zinc-300 bg-white px-3 disabled:bg-zinc-50"
+                        className={"h-10 w-full rounded-md border bg-white px-3 disabled:bg-zinc-50 " + (engagementInvalid ? "border-red-300" : "border-zinc-300")}
                       >
                         {t.clientId ? (
                           <>
@@ -699,7 +698,8 @@ export function WorklogForm({
                           </option>
                         )}
                       </select>
-                      <div className="mt-1 text-xs text-zinc-500">Choose retainer or a specific open project.</div>
+                      {engagementInvalid ? <p className="mt-1 text-xs text-red-600">Required</p> : null}
+                      {!engagementInvalid ? <div className="mt-1 text-xs text-zinc-500">Choose retainer or a specific open project.</div> : null}
                     </td>
 
                     <td className="border-b border-zinc-100 px-3 py-2">
@@ -708,7 +708,7 @@ export function WorklogForm({
                         onChange={(e) =>
                           setTasks((prev) => prev.map((x) => (x.id === t.id ? { ...x, bucketKey: e.target.value } : x)))
                         }
-                        className="h-10 w-full rounded-md border border-zinc-300 bg-white px-3"
+                        className={"h-10 w-full rounded-md border bg-white px-3 " + (bucketInvalid ? "border-red-300" : "border-zinc-300")}
                       >
                         <option value="">(select)</option>
                         {BUCKETS.map((b) => (
@@ -717,6 +717,7 @@ export function WorklogForm({
                           </option>
                         ))}
                       </select>
+                      {bucketInvalid ? <p className="mt-1 text-xs text-red-600">Required</p> : null}
                     </td>
 
                     <td className="border-b border-zinc-100 px-3 py-2">
@@ -731,9 +732,11 @@ export function WorklogForm({
                         }
                         className={
                           "h-10 w-full min-w-[96px] rounded-md border bg-white px-3 " +
-                          (hoursInvalid ? "border-red-300" : "border-zinc-300")
+                          (showValidation && (hoursMissing || hoursInvalid) ? "border-red-300" : "border-zinc-300")
                         }
                       />
+                      {hoursMissing ? <p className="mt-1 text-xs text-red-600">Required</p> : null}
+                      {!hoursMissing && showValidation && hoursInvalid ? <p className="mt-1 text-xs text-red-600">Must be &gt; 0</p> : null}
                       <div className="mt-1 text-xs text-zinc-500">0.25 increments (0.25–20, or 0)</div>
                     </td>
 
@@ -744,9 +747,10 @@ export function WorklogForm({
                         placeholder="What did you work on?"
                         className={
                           "min-h-20 w-full rounded-md border bg-white px-3 py-2 " +
-                          (notesRequired && t.notes.trim().length === 0 ? "border-red-300" : "border-zinc-300")
+                          (notesInvalid ? "border-red-300" : "border-zinc-300")
                         }
                       />
+                      {notesInvalid ? <p className="mt-1 text-xs text-red-600">Required</p> : null}
                     </td>
 
                     <td className="border-b border-zinc-100 px-3 py-2">
@@ -811,13 +815,27 @@ export function WorklogForm({
                 </tr>
               </thead>
               <tbody>
-                {mileage.map((m) => (
+                {mileage.map((m) => {
+                  const km = parseNumberText(m.kilometersText);
+                  const kmRequired = mileageRequired;
+                  const kmMissing = showValidation && kmRequired && m.kilometersText.trim() === "";
+                  const kmInvalid = showValidation && m.kilometersText.trim() !== "" && (!Number.isFinite(km) || km < 0);
+                  const clientInvalid = showValidation && kmRequired && !m.clientId;
+                  const engagementInvalid =
+                    showValidation &&
+                    kmRequired &&
+                    !!m.clientId &&
+                    ((m.engagementType === "RETAINER" && !hasRetainerByClientId.has(m.clientId)) ||
+                      (m.engagementType === "MISC_PROJECT" && !m.projectId));
+
+                  return (
                   <tr key={m.id} className="align-top">
                     <td className="border-b border-zinc-100 px-3 py-2">
                       <ClientTypeahead
                         clients={clients}
                         valueName={m.clientName}
                         placeholder="Search client…"
+                        className={clientInvalid ? "border-red-300" : "border-zinc-300"}
                         onSelect={(c) => {
                           const hasRetainer = hasRetainerByClientId.has(c.id);
                           const openProjects = projectsByClient.get(c.id) ?? [];
@@ -835,6 +853,7 @@ export function WorklogForm({
                           );
                         }}
                       />
+                      {clientInvalid ? <p className="mt-1 text-xs text-red-600">Required</p> : null}
                     </td>
 
                     <td className="border-b border-zinc-100 px-3 py-2">
@@ -859,7 +878,7 @@ export function WorklogForm({
                           }
                         }}
                         disabled={!m.clientId}
-                        className="h-10 w-full min-w-0 sm:w-72 rounded-md border border-zinc-300 bg-white px-3 disabled:bg-zinc-50"
+                        className={"h-10 w-full min-w-0 sm:w-72 rounded-md border bg-white px-3 disabled:bg-zinc-50 " + (engagementInvalid ? "border-red-300" : "border-zinc-300")}
                       >
                         {m.clientId ? (
                           <>
@@ -890,6 +909,7 @@ export function WorklogForm({
                           </option>
                         )}
                       </select>
+                      {engagementInvalid ? <p className="mt-1 text-xs text-red-600">Required</p> : null}
                       <div className="mt-1 text-xs text-zinc-500">Choose retainer or a specific project number.</div>
                     </td>
 
@@ -905,8 +925,10 @@ export function WorklogForm({
                         onChange={(e) =>
                           setMileage((prev) => prev.map((x) => (x.id === m.id ? { ...x, kilometersText: e.target.value } : x)))
                         }
-                        className="h-10 w-full min-w-0 sm:w-40 rounded-md border border-zinc-300 bg-white px-3"
+                        className={"h-10 w-full min-w-0 sm:w-40 rounded-md border bg-white px-3 " + (kmMissing || kmInvalid ? "border-red-300" : "border-zinc-300")}
                       />
+                      {kmMissing ? <p className="mt-1 text-xs text-red-600">Required</p> : null}
+                      {!kmMissing && kmInvalid ? <p className="mt-1 text-xs text-red-600">Must be 0 or more</p> : null}
                     </td>
 
                     <td className="border-b border-zinc-100 px-3 py-2">
@@ -919,7 +941,7 @@ export function WorklogForm({
                       </button>
                     </td>
                   </tr>
-                ))}
+                );})}
               </tbody>
             </table>
           </div>
@@ -995,6 +1017,7 @@ export function WorklogForm({
                         clients={clients}
                         valueName={ex.clientName}
                         placeholder="Search client…"
+                        className={showValidation && isActive && !ex.clientId ? "border-red-300" : "border-zinc-300"}
                         onSelect={(c) => {
                           const hasRetainer = hasRetainerByClientId.has(c.id);
                           const openProjects = projectsByClient.get(c.id) ?? [];
@@ -1015,7 +1038,7 @@ export function WorklogForm({
                         }}
                       />
                       {showValidation && isActive && !ex.clientId ? (
-                        <div className="mt-1 text-xs text-red-700">Client is required for an expense line.</div>
+                        <div className="mt-1 text-xs text-red-700">Required</div>
                       ) : null}
                     </div>
 
@@ -1040,7 +1063,7 @@ export function WorklogForm({
                           }
                         }}
                         disabled={!ex.clientId}
-                        className="h-10 w-full rounded-md border border-zinc-300 bg-white px-3 disabled:bg-zinc-50"
+                        className={"h-10 w-full rounded-md border bg-white px-3 disabled:bg-zinc-50 " + (showValidation && isActive && ex.engagementType === "MISC_PROJECT" && !ex.projectId ? "border-red-300" : "border-zinc-300")}
                       >
                         {ex.clientId ? (
                           <>
@@ -1072,7 +1095,7 @@ export function WorklogForm({
                         )}
                       </select>
                       {showValidation && isActive && ex.engagementType === "MISC_PROJECT" && !ex.projectId ? (
-                        <div className="mt-1 text-xs text-red-700">Project is required when logging to a project engagement.</div>
+                        <div className="mt-1 text-xs text-red-700">Required</div>
                       ) : null}
                     </div>
 
@@ -1102,6 +1125,7 @@ export function WorklogForm({
                         }
                         placeholder="What was this for?"
                       />
+                      {showValidation && isActive && ex.description.trim().length === 0 ? <div className="mt-1 text-xs text-red-700">Required</div> : null}
                     </div>
 
                     <div className="md:col-span-2">
@@ -1213,24 +1237,6 @@ export function WorklogForm({
             setSubmitState(null);
 
             if (!canSubmitWithResubmitRules) {
-              // Keep button clickable; block submit and show validation + a single summary message.
-              const msg =
-                !emailOk
-                  ? "Missing email (must be provided by portal/session)."
-                  : isFutureDate
-                    ? "Future dates aren’t allowed."
-                    : !targetHoursValid
-                      ? "Total hours must be greater than 0."
-                      : !hoursMatch
-                        ? "Allocated task hours must add up to Total hours."
-                        : mileageRequired && !mileageComplete
-                          ? "Mileage must be allocated to match Total km."
-                          : !expensesComplete
-                            ? "Expenses have missing fields (amount, client/engagement, description, and receipt). Complete them or remove the row(s)."
-                            : !resubmitReasonOk
-                              ? "Resubmission requires a reason."
-                              : "Please fix the highlighted items before submitting.";
-              setSubmitState({ ok: false, message: msg });
               return;
             }
 

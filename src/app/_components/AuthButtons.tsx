@@ -29,7 +29,7 @@ export async function AuthButtons() {
         className="group flex max-w-[240px] items-center gap-2 rounded-full border border-zinc-200 bg-zinc-50 px-2 py-1.5 text-left transition hover:border-zinc-300 hover:bg-zinc-100"
       >
         <AuthProfileAvatar image={session.user.image} initial={initial} label={label} />
-        <span className="min-w-0">
+        <span className="hidden min-w-0 sm:block">
           <span className="block truncate text-xs font-semibold text-zinc-900">{label}</span>
           {sublabel ? <span className="block truncate text-[11px] text-zinc-500">{sublabel}</span> : null}
         </span>

@@ -3,6 +3,7 @@
 import Image from "next/image";
 import { upload } from "@vercel/blob/client";
 import { useMemo, useState } from "react";
+import { DarkModeToggle } from "@/app/_components/DarkModeToggle";
 
 type ProfileClientProps = {
   user: {
@@ -238,6 +239,20 @@ export function ProfileClient({ user }: ProfileClientProps) {
             {savingPassword ? "Updating…" : "Update password"}
           </button>
           {passwordStatus ? <p className="text-sm text-zinc-600">{passwordStatus}</p> : null}
+        </div>
+      </section>
+
+      <section className="rounded-xl border border-zinc-200 bg-white p-5 shadow-sm">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <h2 className="text-base font-semibold text-zinc-900">Appearance</h2>
+            <p className="mt-1 text-sm text-zinc-600">Adjust how the Ops Hub looks on this device.</p>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <span className="text-sm font-medium text-zinc-900">Dark mode</span>
+            <DarkModeToggle />
+          </div>
         </div>
       </section>
     </div>
