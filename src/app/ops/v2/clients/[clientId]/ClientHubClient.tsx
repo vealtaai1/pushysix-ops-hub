@@ -148,12 +148,12 @@ export function ClientHubClient({ client, initialProjects, canCloseProjects, pro
       </div>
 
       <div className="overflow-x-auto rounded-lg border border-zinc-200">
-        <div className="grid min-w-[820px] grid-cols-12 gap-2 bg-zinc-50 px-4 py-2 text-xs font-semibold text-zinc-600">
+        <div className="grid min-w-[860px] grid-cols-12 gap-2 bg-zinc-50 px-4 py-2 text-xs font-semibold text-zinc-600">
           <div className="col-span-2">Code</div>
-          <div className="col-span-2">Short code</div>
-          <div className="col-span-6">Name</div>
+          <div className="col-span-1">Short code</div>
+          <div className="col-span-4">Name</div>
           <div className="col-span-1">Status</div>
-          <div className="col-span-1 text-right">Action</div>
+          <div className="col-span-4 text-right">Action</div>
         </div>
 
         {initialProjects.length === 0 ? (
@@ -168,41 +168,41 @@ export function ClientHubClient({ client, initialProjects, canCloseProjects, pro
             const projectFinanceHref = `/admin/finance?clientId=${encodeURIComponent(client.id)}&engagementType=MISC_PROJECT&projectId=${encodeURIComponent(p.id)}`;
 
             return (
-              <div key={p.id} className="grid min-w-[820px] grid-cols-12 gap-2 border-t border-zinc-200 px-4 py-3 text-sm">
+              <div key={p.id} className="grid min-w-[860px] grid-cols-12 items-start gap-2 border-t border-zinc-200 px-4 py-3 text-sm">
                 <div className="col-span-2">
                   <Link href={projectHref} className="text-sm font-medium text-zinc-900 hover:underline">
                     {p.code}
                   </Link>
                 </div>
-                <div className="col-span-2">
+                <div className="col-span-1">
                   <Link href={projectHref} className="text-sm text-zinc-600 hover:underline">
                     {p.shortCode}
                   </Link>
                 </div>
-                <div className="col-span-6">
+                <div className="col-span-4">
                   <Link href={projectHref} className="font-medium text-zinc-900 hover:underline">
                     {p.name}
                   </Link>
                   {p.shortDescription ? <div className="mt-0.5 text-xs text-zinc-500 line-clamp-2">{p.shortDescription}</div> : null}
                 </div>
-                <div className="col-span-1 text-zinc-700">{p.status}</div>
-                <div className="col-span-1 text-right">
-                  <div className="flex flex-col items-end gap-1">
+                <div className="col-span-1 pt-1 text-zinc-700">{p.status}</div>
+                <div className="col-span-4">
+                  <div className="flex flex-wrap justify-end gap-1">
                     {projectLinkMode === "admin" ? (
-                      <div className="flex w-full max-w-[13rem] flex-wrap justify-end gap-1">
+                      <>
                         <Link
                           href={projectHref}
-                          className="inline-flex min-h-8 min-w-[120px] items-center justify-center rounded-md border border-zinc-300 bg-white px-3 py-1 text-center text-xs font-semibold leading-tight text-zinc-800 hover:bg-zinc-50"
+                          className="inline-flex h-8 items-center rounded-md border border-zinc-300 bg-white px-3 text-xs font-semibold whitespace-nowrap text-zinc-800 hover:bg-zinc-50"
                         >
-                          <span className="whitespace-nowrap">Project Logs</span>
+                          Project Logs
                         </Link>
                         <Link
                           href={projectFinanceHref}
-                          className="inline-flex min-h-8 min-w-[120px] items-center justify-center rounded-md border border-zinc-300 bg-white px-3 py-1 text-center text-xs font-semibold leading-tight text-zinc-800 hover:bg-zinc-50"
+                          className="inline-flex h-8 items-center rounded-md border border-zinc-300 bg-white px-3 text-xs font-semibold whitespace-nowrap text-zinc-800 hover:bg-zinc-50"
                         >
-                          <span className="whitespace-nowrap">Project Finance</span>
+                          Project Finance
                         </Link>
-                      </div>
+                      </>
                     ) : null}
 
                     {canCloseProjects ? (
