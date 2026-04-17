@@ -135,3 +135,66 @@ Notes:
 Status: To do — UNAPPROVED
 Notes:
 - Rename nav label and page heading from "Retainers" to "Retainer Logs" in both admin and management modes.
+
+--- NEW ITEMS (from Paul's PDF, 2026-04-16 batch 2) ---
+
+27. UI issue on the client page under projects - Project Logs and Project Finance buttons look shitty (text issue)
+Status: To do — UNAPPROVED
+Notes:
+- Fix button label/text overflow on admin > client > open project rows (same as item 15, confirm fix is live).
+
+28. On the admin > users page, let's remove the Make Admin… Make Employee… Make account manager buttons. These can be set in the employee edit menu and are redundant.
+Status: To do — UNAPPROVED
+Notes:
+- Remove role-change quick buttons from the users table/card list. Keep only the Edit button.
+
+29. In the admin > users > edit popup, there is a typo on the Account Manager option. Shouldn't be an underscore appearing
+Status: To do — UNAPPROVED
+Notes:
+- Fix "ACCOUNT_MANAGER" display label in the edit user modal - show "Account Manager" not the enum value.
+
+30. If someone enters the ops hub through an invite link, they should automatically be logged out if they're already logged in on another account.
+Status: To do — UNAPPROVED
+Notes:
+- On the set-password / invite flow, sign out any existing session before rendering the form.
+
+31. UI issue on worklogs - fields clashing (overlapping)
+Status: To do — UNAPPROVED
+Notes:
+- Fix overlapping/clashing input fields on the worklog form.
+
+32. We should change Approvals to "Worklog Approvals" (in both management and admin)
+Status: To do — UNAPPROVED
+Notes:
+- Rename nav label and page heading from "Approvals" to "Worklog Approvals" in both admin and management.
+
+33. UI issue on the admin worklogs page. Lines column is cut off on the right hand side
+Status: To do — UNAPPROVED
+Notes:
+- Fix right-side column cutoff on admin worklogs page table.
+
+34. In mobile mode, let's just remove the sign out button altogether. Let's add a sign out button within the user profile menu.
+Status: To do — UNAPPROVED
+Notes:
+- Hide sign out button on mobile (sm breakpoint and below).
+- Add sign out option inside the /profile page or the profile dropdown.
+
+35. Under Admin > Expense submissions, we should put a Red notification number representing how many entries require approval.
+Status: To do — UNAPPROVED
+Notes:
+- Fetch pending expense count and show a red badge on the nav link and/or page heading.
+
+36. On the admin > expense submissions page, for expenses, we should mention which engagement the expense is submitted for (retainer, project etc)
+Status: To do — UNAPPROVED
+Notes:
+- Add engagement type/name column or label to each expense row in the submissions list.
+
+37. Admin > expense submissions - the review note field is being cut off on the right hand side.
+Status: To do — UNAPPROVED
+Notes:
+- Fix overflow on the review note field in the expense submissions UI.
+
+38. Profile picture isn't showing up in the top header badge when it's set.
+Status: To do — UNAPPROVED
+Notes:
+- AuthButtons should show the user's avatar image instead of the monogram when a profile pic is set.
