@@ -1,11 +1,11 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import Image from "next/image";
 import { Open_Sans } from "next/font/google";
 import "./globals.css";
 import { AuthButtons } from "@/app/_components/AuthButtons";
 import { ModeSwitcherServer } from "@/app/_components/ModeSwitcherServer";
 import { DarkModeToggle } from "@/app/_components/DarkModeToggle";
+import { HeaderLogo } from "@/app/_components/HeaderLogo";
 import { auth } from "@/auth";
 
 const openSans = Open_Sans({
@@ -43,21 +43,12 @@ export default async function RootLayout({
 
               {/* Logo + wordmark */}
               <Link href={homeHref} className="group flex min-w-0 items-center gap-3" aria-label="Pushysix Operations Hub">
-                <div className="relative flex h-9 w-9 shrink-0 items-center justify-center">
-                  <Image
-                    src="/brand/pushysix-hex.png"
-                    alt=""
-                    width={36}
-                    height={36}
-                    priority
-                    className="h-9 w-9 transition-opacity group-hover:opacity-80"
-                  />
-                </div>
+                <HeaderLogo />
                 <div className="min-w-0">
-                  <div className="truncate text-[13px] font-bold tracking-[0.12em] text-zinc-900">
+                  <div className="truncate text-base font-bold tracking-[0.1em] text-zinc-900">
                     PUSHYSIX
                   </div>
-                  <div className="truncate text-[11px] font-medium tracking-wide" style={{ color: "var(--brand-gold)" }}>
+                  <div className="truncate text-[12px] font-semibold tracking-wide" style={{ color: "var(--brand-gold)" }}>
                     Operations Hub
                   </div>
                 </div>
