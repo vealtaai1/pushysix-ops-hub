@@ -11,7 +11,7 @@ const ADMIN_LINKS: Array<{ href: string; label: string }> = [
   { href: "/admin/clients", label: "Clients" },
   { href: "/admin/worklogs", label: "Worklogs" },
   { href: "/admin/expense-submissions", label: "Expense Submissions" },
-  { href: "/admin/approvals", label: "Approvals" },
+  { href: "/admin/approvals", label: "Worklog Approvals" },
   { href: "/admin/equipment", label: "Equipment" },
   { href: "/admin/payroll", label: "Payroll" },
   { href: "/admin/finance", label: "Finance" },
@@ -45,7 +45,10 @@ export default async function AdminLayout({ children }: { children: ReactNode })
     );
   }
 
-  const pendingApprovalsCount = await prisma.approvalRequest.count({ where: { status: "PENDING" } });
+  const [pendingApprovalsCount, pendingExpenseSubmissionsCount] = await Promise.all([
+    prisma.approvalRequest.count({ where: { status: "PENDING" } }),
+    prisma.expenseEntry.count({ where: { status: "SUBMITTED" } }),
+  ]);
 
   // Admin stays light theme regardless of global employee theme.
   // NOTE: RootLayout already renders the global app header. To avoid a duplicated header
@@ -71,7 +74,10 @@ export default async function AdminLayout({ children }: { children: ReactNode })
 
         <nav className="flex flex-wrap items-center gap-2">
           {links.map((l) => {
-            const showBadge = l.href === "/admin/approvals" && pendingApprovalsCount > 0;
+            const approvalBadge = l.href === "/admin/approvals" ? pendingApprovalsCount : 0;
+            const expenseBadge = l.href === "/admin/expense-submissions" ? pendingExpenseSubmissionsCount : 0;
+            const badgeCount = approvalBadge || expenseBadge;
+            const badgeLabel = l.href === "/admin/approvals" ? "pending approvals" : "pending expense submissions";
 
             return (
               <Link
@@ -81,13 +87,13 @@ export default async function AdminLayout({ children }: { children: ReactNode })
               >
                 <span className="flex items-center gap-2">
                   <span>{l.label}</span>
-                  {showBadge ? (
+                  {badgeCount > 0 ? (
                     <span
                       className="inline-flex min-w-5 items-center justify-center rounded-full bg-red-600 px-1.5 text-[11px] font-semibold leading-5 text-white"
-                      aria-label={`${pendingApprovalsCount} pending approvals`}
-                      title={`${pendingApprovalsCount} pending approvals`}
+                      aria-label={`${badgeCount} ${badgeLabel}`}
+                      title={`${badgeCount} ${badgeLabel}`}
                     >
-                      {pendingApprovalsCount}
+                      {badgeCount}
                     </span>
                   ) : null}
                 </span>

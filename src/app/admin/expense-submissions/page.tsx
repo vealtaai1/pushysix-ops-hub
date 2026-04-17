@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/db";
-import { ExpenseEntryStatus } from "@prisma/client";
+import { ExpenseEntryStatus, WorklogEngagementType } from "@prisma/client";
 import { ExpenseSubmissionsClient } from "./ExpenseSubmissionsClient";
 
 export const dynamic = "force-dynamic";
@@ -22,6 +22,14 @@ function parseMonth(month: string | undefined): { start?: Date; end?: Date; norm
   const end = new Date(start);
   end.setUTCMonth(end.getUTCMonth() + 1);
   return { start, end, normalized: m };
+}
+
+function getEngagementLabel(expense: { engagementType: WorklogEngagementType; project: { name: string } | null }) {
+  if (expense.engagementType === WorklogEngagementType.MISC_PROJECT) {
+    return expense.project?.name ? `Project: ${expense.project.name}` : "Project";
+  }
+
+  return "Retainer";
 }
 
 export default async function AdminExpenseSubmissionsPage({
@@ -53,7 +61,7 @@ export default async function AdminExpenseSubmissionsPage({
     ? (status as ExpenseEntryStatus)
     : ExpenseEntryStatus.SUBMITTED;
 
-  const [clients, employees, items] = await Promise.all([
+  const [clients, employees, items, pendingExpenseSubmissionsCount] = await Promise.all([
     prisma.client.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }),
     prisma.user.findMany({ orderBy: { email: "asc" }, select: { id: true, email: true, name: true, role: true } }),
     prisma.expenseEntry.findMany({
@@ -69,8 +77,10 @@ export default async function AdminExpenseSubmissionsPage({
         client: { select: { id: true, name: true } },
         employee: { select: { id: true, email: true, name: true } },
         submittedByUser: { select: { id: true, email: true } },
+        project: { select: { name: true } },
       },
     }),
+    prisma.expenseEntry.count({ where: { status: ExpenseEntryStatus.SUBMITTED } }),
   ]);
 
   return (
@@ -78,6 +88,7 @@ export default async function AdminExpenseSubmissionsPage({
       clients={clients}
       employees={employees}
       statuses={expenseStatuses}
+      pendingCount={pendingExpenseSubmissionsCount}
       initialFilters={{ month, clientId, employeeId, status: statusRaw }}
       items={items.map((e) => ({
         id: e.id,
@@ -92,6 +103,7 @@ export default async function AdminExpenseSubmissionsPage({
         kind: e.kind,
         vendor: e.vendor,
         description: e.description,
+        engagementLabel: getEngagementLabel(e),
         amountCents: e.amountCents,
         currency: e.currency,
         receiptUrl: e.receiptUrl,

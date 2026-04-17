@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { auth, signOut } from "@/auth";
+import { AuthProfileAvatar } from "./AuthProfileAvatar";
 
 function getInitial(name: string | null | undefined, email: string | null | undefined) {
   return (name?.trim()?.[0] ?? email?.trim()?.[0] ?? "U").toUpperCase();
@@ -27,9 +28,7 @@ export async function AuthButtons() {
         href="/profile"
         className="group flex max-w-[240px] items-center gap-2 rounded-full border border-zinc-200 bg-zinc-50 px-2 py-1.5 text-left transition hover:border-zinc-300 hover:bg-zinc-100"
       >
-        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-zinc-900 text-xs font-semibold text-white">
-          {initial}
-        </span>
+        <AuthProfileAvatar image={session.user.image} initial={initial} label={label} />
         <span className="min-w-0">
           <span className="block truncate text-xs font-semibold text-zinc-900">{label}</span>
           {sublabel ? <span className="block truncate text-[11px] text-zinc-500">{sublabel}</span> : null}

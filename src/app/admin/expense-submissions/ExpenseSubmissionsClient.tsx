@@ -16,6 +16,7 @@ type Item = {
   kind: string;
   vendor: string | null;
   description: string;
+  engagementLabel: string;
   amountCents: number;
   currency: string;
   receiptUrl: string | null;
@@ -33,12 +34,14 @@ function money(amountCents: number, currency: string) {
 
 export function ExpenseSubmissionsClient({
   items,
+  pendingCount,
   initialFilters,
   clients,
   employees,
   statuses,
 }: {
   items: Item[];
+  pendingCount: number;
   initialFilters: { month: string; clientId: string; employeeId: string; status: string };
   clients: Array<{ id: string; name: string }>;
   employees: Array<{ id: string; email: string; name: string | null }>;
@@ -54,7 +57,10 @@ export function ExpenseSubmissionsClient({
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-xl font-semibold">Expense submissions</h1>
+        <h1 className="flex items-center gap-2 text-xl font-semibold">
+          <span>Expense submissions</span>
+          {pendingCount > 0 ? <span className="rounded-full bg-red-500 px-1.5 py-0.5 text-[10px] font-bold text-white">{pendingCount}</span> : null}
+        </h1>
         <p className="text-sm text-zinc-600">Admin review queue for employee-submitted expenses.</p>
       </div>
 
@@ -156,6 +162,9 @@ export function ExpenseSubmissionsClient({
                   <td className="border-b border-zinc-100 px-3 py-2 text-sm">
                     <div className="text-xs text-zinc-500">{e.vendor || ""}</div>
                     <div className="font-medium text-zinc-900">{e.description}</div>
+                    <div className="mt-1 inline-flex rounded-full bg-zinc-100 px-2 py-0.5 text-[11px] font-medium text-zinc-700">
+                      {e.engagementLabel}
+                    </div>
                     {e.reimburseToEmployee ? <div className="mt-1 text-xs text-zinc-600">Reimburse employee</div> : null}
                   </td>
                   <td className="border-b border-zinc-100 px-3 py-2 text-sm font-semibold">{money(e.amountCents, e.currency)}</td>
@@ -169,10 +178,10 @@ export function ExpenseSubmissionsClient({
                     )}
                   </td>
                   <td className="border-b border-zinc-100 px-3 py-2 text-sm font-medium">{e.status}</td>
-                  <td className="border-b border-zinc-100 px-3 py-2 text-sm">
-                    <div className="space-y-2">
+                  <td className="min-w-0 border-b border-zinc-100 px-3 py-2 text-sm">
+                    <div className="min-w-0 space-y-2">
                       <input
-                        className="h-8 w-full rounded-md border border-zinc-300 px-2 text-xs"
+                        className="block h-8 w-full min-w-0 rounded-md border border-zinc-300 px-2 text-xs"
                         placeholder="Review note (optional)"
                         value={note}
                         onChange={(ev) => setNoteById((m) => ({ ...m, [e.id]: ev.target.value }))}
