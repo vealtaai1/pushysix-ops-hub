@@ -12,6 +12,7 @@ export function SetPasswordClient() {
   const [confirm, setConfirm] = useState("");
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
+  const [isSuccess, setIsSuccess] = useState(false);
 
   return (
     <main style={{ maxWidth: 560, margin: "40px auto", padding: 16 }}>
@@ -27,6 +28,13 @@ export function SetPasswordClient() {
           onSubmit={async (e) => {
             e.preventDefault();
             setMsg(null);
+            setIsSuccess(false);
+
+            if (!token) {
+              setMsg("Missing token.");
+              return;
+            }
+
             if (password !== confirm) {
               setMsg("Passwords do not match.");
               return;
@@ -41,11 +49,13 @@ export function SetPasswordClient() {
               const json = (await res.json().catch(() => null)) as any;
               if (!res.ok || !json?.ok) throw new Error(json?.message ?? `Failed (${res.status})`);
 
+              setIsSuccess(true);
               setMsg("Password set. Redirecting to sign in…");
               setTimeout(() => {
                 router.push("/login");
               }, 800);
             } catch (err) {
+              setIsSuccess(false);
               setMsg(err instanceof Error ? err.message : "Failed to set password");
             } finally {
               setLoading(false);
@@ -91,7 +101,7 @@ export function SetPasswordClient() {
             {loading ? "Saving…" : "Set password"}
           </button>
 
-          {msg ? <p style={{ color: msg.includes("Password set") ? "#166534" : "#b91c1c", fontSize: 13 }}>{msg}</p> : null}
+          {msg ? <p style={{ color: isSuccess ? "#166534" : "#b91c1c", fontSize: 13 }}>{msg}</p> : null}
         </form>
       )}
     </main>

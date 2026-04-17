@@ -178,7 +178,6 @@ export function UsersClient() {
       const json = (await res.json().catch(() => null)) as any;
       if (!res.ok || !json?.ok) throw new Error(json?.message ?? `Delete failed (${res.status})`);
       setStatus("User deleted.");
-      await refreshUsers();
     } catch (e) {
       setUsers(prev);
       setStatus(e instanceof Error ? e.message : "Delete failed");

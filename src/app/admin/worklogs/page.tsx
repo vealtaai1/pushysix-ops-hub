@@ -93,27 +93,30 @@ export default async function AdminWorklogsPage({
         </form>
       </div>
 
-      <div className="grid gap-6 md:grid-cols-2">
-        <section className="space-y-3">
+      <div className="grid gap-6 xl:grid-cols-[minmax(0,2fr)_minmax(320px,1fr)]">
+        <section className="space-y-3 min-w-0">
           <h2 className="text-sm font-semibold">Recent worklogs</h2>
-          <div className="overflow-x-auto rounded-lg border border-zinc-200">
-            <table className="w-full min-w-[760px] border-separate border-spacing-0">
+          <div className="rounded-lg border border-zinc-200">
+            <table className="w-full table-fixed border-separate border-spacing-0">
               <thead>
                 <tr className="text-left text-xs text-zinc-600">
-                  <th className="border-b border-zinc-200 px-3 py-2">Date</th>
-                  <th className="border-b border-zinc-200 px-3 py-2">User</th>
-                  <th className="border-b border-zinc-200 px-3 py-2">Status</th>
-                  <th className="min-w-[280px] border-b border-zinc-200 px-3 py-2">Lines</th>
+                  <th className="w-24 border-b border-zinc-200 px-3 py-2">Date</th>
+                  <th className="hidden w-40 border-b border-zinc-200 px-3 py-2 sm:table-cell">User</th>
+                  <th className="w-24 border-b border-zinc-200 px-3 py-2">Status</th>
+                  <th className="border-b border-zinc-200 px-3 py-2">Lines</th>
                 </tr>
               </thead>
               <tbody>
                 {worklogs.map((w) => (
                   <tr key={w.id} className="align-top">
                     <td className="border-b border-zinc-100 px-3 py-2 text-sm">{isoDay(w.workDate)}</td>
-                    <td className="border-b border-zinc-100 px-3 py-2 text-sm">{w.user.name ?? w.user.email}</td>
+                    <td className="hidden border-b border-zinc-100 px-3 py-2 text-sm sm:table-cell">{w.user.name ?? w.user.email}</td>
                     <td className="border-b border-zinc-100 px-3 py-2 text-sm font-medium">{w.status}</td>
-                    <td className="min-w-[280px] border-b border-zinc-100 px-3 py-2 text-xs text-zinc-700">
-                      <div className="space-y-1">
+                    <td className="border-b border-zinc-100 px-3 py-2 text-xs text-zinc-700">
+                      <div className="space-y-1 break-words">
+                        <div className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500 sm:hidden">
+                          {w.user.name ?? w.user.email}
+                        </div>
                         {w.entries.slice(0, 5).map((e) => (
                           <div key={e.id}>
                             {e.client.name} • {e.bucketName} • {(e.minutes / 60).toFixed(2)}h
@@ -136,10 +139,10 @@ export default async function AdminWorklogsPage({
           </div>
         </section>
 
-        <section className="space-y-3">
+        <section className="space-y-3 min-w-0">
           <h2 className="text-sm font-semibold">Recent day-offs</h2>
-          <div className="overflow-auto rounded-lg border border-zinc-200">
-            <table className="w-full min-w-[520px] border-separate border-spacing-0">
+          <div className="rounded-lg border border-zinc-200">
+            <table className="w-full table-fixed border-separate border-spacing-0">
               <thead>
                 <tr className="text-left text-xs text-zinc-600">
                   <th className="border-b border-zinc-200 px-3 py-2">Date</th>

@@ -1,4 +1,5 @@
 import { Suspense } from "react";
+import { redirect } from "next/navigation";
 
 import { auth, signOut } from "@/auth";
 
@@ -24,7 +25,8 @@ export default async function SetPasswordPage({ searchParams }: SetPasswordPageP
     }
 
     const redirectTo = params.toString() ? `/set-password?${params.toString()}` : "/set-password";
-    await signOut({ redirectTo });
+    await signOut({ redirect: false });
+    redirect(redirectTo);
   }
 
   return (
