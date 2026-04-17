@@ -198,3 +198,45 @@ Notes:
 Status: To do — UNAPPROVED
 Notes:
 - AuthButtons should show the user's avatar image instead of the monogram when a profile pic is set.
+
+--- NEW ITEMS (from Paul's PDF, 2026-04-16 batch 3) ---
+
+39. If someone enters the ops hub through an invite link, they should automatically be logged out if they're already logged in on another account.
+Status: Completed (deployed) — UNAPPROVED
+Notes: Already implemented in set-password/page.tsx — signOut called if session exists, redirect back to same URL.
+
+40. UI issue on the admin worklogs page. Lines column is cut off on the right hand side. We should remove the horizontal scroll on this, and make it take up more vertical real estate instead. Or make it full width. Anything but a horizontal scroll.
+Status: To do — UNAPPROVED
+Notes: Remove horizontal scroll; reflow to full-width or stacked/vertical layout.
+
+41. In mobile mode, let's just remove the sign out button altogether. Let's add a sign out button within the user profile menu.
+Status: Completed (deployed) — UNAPPROVED
+Notes: Sign out hidden on mobile in header; added to profile page.
+
+42. Under Admin > Expense submissions, we should put a Red notification number representing how many entries require approval.
+Status: Completed (deployed) — UNAPPROVED
+Notes: Badge shown on nav, page heading, and dashboard tile.
+
+43. On the admin > expense submissions page, for expenses, we should mention which engagement the expense is submitted for (retainer, project etc)
+Status: Completed (deployed) — UNAPPROVED
+Notes: Engagement label per row already added.
+
+44. Let's remove the review note functionality altogether on the admin > expense submissions page.
+Status: To do — UNAPPROVED
+Notes: Remove review note textarea and all related state/logic from ExpenseSubmissionsClient.
+
+45. On mobile mode, the profile badge is getting cut off. On mobile it should just be a small button with the user's profile picture showing, nothing else (to save room). We should also remove the light mode/dark mode toggle on mobile, and have it in the user profile page instead.
+Status: To do — UNAPPROVED
+Notes: Mobile header: show only avatar icon for profile chip; hide dark mode toggle; add toggle to profile page.
+
+46. On the worklogs page, if any field is preventing submit, THAT field should become red or get a red error. Audit all fields for inline validation.
+Status: To do — UNAPPROVED
+Notes: Inline per-field validation errors instead of top-level error banner.
+
+47. Admin > users page - delete user functionality isn't working. User doesn't disappear when deleted.
+Status: To do — UNAPPROVED
+Notes: refreshUsers() after delete is re-fetching and restoring the deleted user. Skip refresh after delete; trust optimistic filter.
+
+48. Getting error when a user tries to click on their set password invite link.
+Status: To do — UNAPPROVED
+Notes: Debug and fix the set-password invite flow error.
