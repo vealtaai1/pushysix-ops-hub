@@ -9,7 +9,7 @@ const MANAGEMENT_LINKS: Array<{ href: string; label: string }> = [
   { href: "/management/retainers", label: "Retainer Logs" },
   { href: "/management/project-logs", label: "Project Logs" },
   // Clients live under /ops/clients (client hub).
-  { href: "/management/approvals", label: "Approvals" },
+  { href: "/management/approvals", label: "Worklog Approvals" },
   { href: "/management/worklogs", label: "Worklogs" },
   // Payroll is admin-only (lives under /admin).
   { href: "/management/users", label: "Users" },

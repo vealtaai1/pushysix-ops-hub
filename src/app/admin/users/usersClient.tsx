@@ -25,6 +25,18 @@ const ROLE_ADMIN = "ADMIN" as unknown as UserRole;
 const ROLE_EMPLOYEE = "EMPLOYEE" as unknown as UserRole;
 const ROLE_ACCOUNT_MANAGER = "ACCOUNT_MANAGER" as unknown as UserRole;
 
+function getRoleLabel(role: UserRole) {
+  switch (role) {
+    case ROLE_ADMIN:
+      return "Admin";
+    case ROLE_ACCOUNT_MANAGER:
+      return "Account Manager";
+    case ROLE_EMPLOYEE:
+    default:
+      return "Employee";
+  }
+}
+
 export function UsersClient() {
   const [status, setStatus] = useState<string | null>(null);
   const [inviteError, setInviteError] = useState<string | null>(null);
@@ -318,9 +330,9 @@ export function UsersClient() {
                 onChange={(e) => setInviteRole(e.target.value as unknown as UserRole)}
                 className="h-9 rounded-md border border-zinc-300 bg-white px-3 text-sm"
               >
-                <option value={ROLE_EMPLOYEE as unknown as string}>EMPLOYEE</option>
-                <option value={ROLE_ACCOUNT_MANAGER as unknown as string}>ACCOUNT_MANAGER</option>
-                <option value={ROLE_ADMIN as unknown as string}>ADMIN</option>
+                <option value={ROLE_EMPLOYEE as unknown as string}>{getRoleLabel(ROLE_EMPLOYEE)}</option>
+                <option value={ROLE_ACCOUNT_MANAGER as unknown as string}>{getRoleLabel(ROLE_ACCOUNT_MANAGER)}</option>
+                <option value={ROLE_ADMIN as unknown as string}>{getRoleLabel(ROLE_ADMIN)}</option>
               </select>
             </div>
 
@@ -378,7 +390,7 @@ export function UsersClient() {
                                   : "bg-zinc-50 text-zinc-700")
                             }
                           >
-                            {u.role}
+                            {getRoleLabel(u.role)}
                           </span>
                         </div>
                         <div>
@@ -396,33 +408,6 @@ export function UsersClient() {
                       >
                         Edit user
                       </button>
-                      {u.role !== ROLE_ADMIN ? (
-                        <button
-                          type="button"
-                          onClick={() => setRole(u.id, ROLE_ADMIN)}
-                          className="h-8 rounded-md bg-zinc-900 px-2.5 text-xs font-semibold text-white"
-                        >
-                          Make admin
-                        </button>
-                      ) : null}
-                      {u.role !== ROLE_ACCOUNT_MANAGER ? (
-                        <button
-                          type="button"
-                          onClick={() => setRole(u.id, ROLE_ACCOUNT_MANAGER)}
-                          className="h-8 rounded-md border border-emerald-200 bg-white px-2.5 text-xs font-semibold text-emerald-800 hover:bg-emerald-50"
-                        >
-                          Make account manager
-                        </button>
-                      ) : null}
-                      {u.role !== ROLE_EMPLOYEE ? (
-                        <button
-                          type="button"
-                          onClick={() => setRole(u.id, ROLE_EMPLOYEE)}
-                          className="h-8 rounded-md border border-zinc-300 bg-white px-2.5 text-xs font-semibold text-zinc-800 hover:bg-zinc-50"
-                        >
-                          Make employee
-                        </button>
-                      ) : null}
                       <button
                         type="button"
                         onClick={() => deleteUser(u.id)}
@@ -468,7 +453,7 @@ export function UsersClient() {
                                 : "bg-zinc-50 text-zinc-700")
                           }
                         >
-                          {u.role}
+                          {getRoleLabel(u.role)}
                         </span>
                       </td>
                       <td className="border-b border-zinc-100 px-3 py-3 text-zinc-800">{fmtCadCents(u.hourlyWageCents)}</td>
@@ -481,35 +466,6 @@ export function UsersClient() {
                           >
                             Edit user
                           </button>
-                          {u.role !== ROLE_ADMIN ? (
-                            <button
-                              type="button"
-                              onClick={() => setRole(u.id, ROLE_ADMIN)}
-                              className="h-8 rounded-md bg-zinc-900 px-2.5 text-xs font-semibold text-white"
-                            >
-                              Make admin
-                            </button>
-                          ) : null}
-
-                          {u.role !== ROLE_ACCOUNT_MANAGER ? (
-                            <button
-                              type="button"
-                              onClick={() => setRole(u.id, ROLE_ACCOUNT_MANAGER)}
-                              className="h-8 rounded-md border border-emerald-200 bg-white px-2.5 text-xs font-semibold text-emerald-800 hover:bg-emerald-50"
-                            >
-                              Make account manager
-                            </button>
-                          ) : null}
-
-                          {u.role !== ROLE_EMPLOYEE ? (
-                            <button
-                              type="button"
-                              onClick={() => setRole(u.id, ROLE_EMPLOYEE)}
-                              className="h-8 rounded-md border border-zinc-300 bg-white px-2.5 text-xs font-semibold text-zinc-800 hover:bg-zinc-50"
-                            >
-                              Make employee
-                            </button>
-                          ) : null}
 
                           <button
                             type="button"

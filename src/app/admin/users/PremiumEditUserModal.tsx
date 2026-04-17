@@ -13,6 +13,18 @@ function fmtCadCents(cents: number | null | undefined) {
   return String(cents / 100);
 }
 
+function getRoleLabel(role: UserRole) {
+  switch (role) {
+    case ROLE_ADMIN:
+      return "Admin";
+    case ROLE_ACCOUNT_MANAGER:
+      return "Account Manager";
+    case ROLE_EMPLOYEE:
+    default:
+      return "Employee";
+  }
+}
+
 type Props = {
   open: boolean;
   title?: string;
@@ -130,9 +142,9 @@ export function PremiumEditUserModal({
                 onChange={(e) => setRole(e.target.value as unknown as UserRole)}
                 className="h-9 w-full rounded-md border border-zinc-300 bg-white px-3 text-sm"
               >
-                <option value={ROLE_EMPLOYEE as unknown as string}>EMPLOYEE</option>
-                <option value={ROLE_ACCOUNT_MANAGER as unknown as string}>ACCOUNT_MANAGER</option>
-                <option value={ROLE_ADMIN as unknown as string}>ADMIN</option>
+                <option value={ROLE_EMPLOYEE as unknown as string}>{getRoleLabel(ROLE_EMPLOYEE)}</option>
+                <option value={ROLE_ACCOUNT_MANAGER as unknown as string}>{getRoleLabel(ROLE_ACCOUNT_MANAGER)}</option>
+                <option value={ROLE_ADMIN as unknown as string}>{getRoleLabel(ROLE_ADMIN)}</option>
               </select>
               {roleWarning ? <div className="mt-1 text-[11px] text-red-600">{roleWarning}</div> : null}
             </div>

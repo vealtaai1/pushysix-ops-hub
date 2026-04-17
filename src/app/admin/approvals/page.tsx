@@ -18,7 +18,7 @@ export default async function ApprovalsQueuePage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-xl font-semibold">Approvals queue</h1>
+        <h1 className="text-xl font-semibold">Worklog Approvals</h1>
         <p className="text-sm text-zinc-600">Pending items: late worklogs, resubmits, and day-offs.</p>
       </div>
 
