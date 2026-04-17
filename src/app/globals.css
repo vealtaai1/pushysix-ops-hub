@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
+/* ─── Design tokens ──────────────────────────────────────────────── */
 :root {
-  /* default (admin/light) */
   --background: #ffffff;
   --foreground: #0a0a0a;
   --muted: #52525b;
@@ -12,16 +12,28 @@
   --brand-gold: #f4b31a;
   --brand-gold-2: #ffcc4d;
   --brand-blue: #2ea3f2;
+
+  /* Input surfaces (light) */
+  --input-bg: #ffffff;
+  --input-border: #d4d4d8;
+  --input-text: #09090b;
+  --input-placeholder: #a1a1aa;
+  --input-focus-ring: #2ea3f2;
 }
 
-/* Dark mode — toggled via DarkModeToggle, stored in localStorage */
-html.theme-dark,
-.theme-dark {
-  --background: #07080a;
-  --foreground: #f4f4f5;
-  --muted: #a1a1aa;
-  --panel: #0e1014;
-  --border: #27272a;
+/* ─── Dark mode tokens ───────────────────────────────────────────── */
+html.theme-dark {
+  --background: #0a0a0f;
+  --foreground: #f0f0f2;
+  --muted: #8b8b96;
+  --panel: #111118;
+  --border: #2a2a35;
+
+  --input-bg: #16161f;
+  --input-border: #2e2e3a;
+  --input-text: #e8e8ec;
+  --input-placeholder: #5a5a6e;
+  --input-focus-ring: #f4b31a;
 }
 
 @theme inline {
@@ -31,12 +43,14 @@ html.theme-dark,
   --font-sans: var(--font-sans);
 }
 
+/* ─── Base ───────────────────────────────────────────────────────── */
 body {
   background: var(--background);
   color: var(--foreground);
+  transition: background-color 0.15s ease, color 0.15s ease;
 }
 
-/* Simple utility tokens for consistent UI */
+/* ─── Semantic utility classes ───────────────────────────────────── */
 .ui-panel {
   background: var(--panel);
   border: 1px solid var(--border);
@@ -46,48 +60,198 @@ body {
   color: var(--muted);
 }
 
-/* Dark mode surface overrides */
-html.theme-dark body,
-.theme-dark body {
-  background: var(--background);
-  color: var(--foreground);
+/* ─── Dark mode: comprehensive surface overrides ─────────────────── */
+
+/* Page background */
+html.theme-dark .bg-zinc-50   { background-color: #0a0a0f !important; }
+html.theme-dark .bg-zinc-100  { background-color: #111118 !important; }
+
+/* Card / panel surfaces */
+html.theme-dark .bg-white     { background-color: #111118 !important; }
+
+/* Hover states */
+html.theme-dark .hover\:bg-zinc-50:hover  { background-color: #16161f !important; }
+html.theme-dark .hover\:bg-zinc-100:hover { background-color: #1c1c28 !important; }
+html.theme-dark .hover\:bg-white:hover    { background-color: #16161f !important; }
+
+/* Slightly elevated panels (e.g. stat cards) */
+html.theme-dark .bg-zinc-200  { background-color: #1c1c28 !important; }
+html.theme-dark .bg-zinc-300  { background-color: #252532 !important; }
+
+/* Borders */
+html.theme-dark .border-zinc-100  { border-color: #1e1e28 !important; }
+html.theme-dark .border-zinc-200  { border-color: #2a2a38 !important; }
+html.theme-dark .border-zinc-300  { border-color: #38384a !important; }
+html.theme-dark .divide-zinc-100 > * + * { border-color: #1e1e28 !important; }
+html.theme-dark .divide-zinc-200 > * + * { border-color: #2a2a38 !important; }
+
+/* Text */
+html.theme-dark .text-zinc-950 { color: #f0f0f2 !important; }
+html.theme-dark .text-zinc-900 { color: #e4e4e8 !important; }
+html.theme-dark .text-zinc-800 { color: #c8c8d0 !important; }
+html.theme-dark .text-zinc-700 { color: #a0a0ae !important; }
+html.theme-dark .text-zinc-600 { color: #78788a !important; }
+html.theme-dark .text-zinc-500 { color: #58586a !important; }
+html.theme-dark .text-zinc-400 { color: #48485a !important; }
+
+html.theme-dark .hover\:text-zinc-900:hover { color: #f0f0f2 !important; }
+html.theme-dark .hover\:text-zinc-700:hover { color: #d0d0dc !important; }
+
+/* ─── Form inputs, selects, textareas ────────────────────────────── */
+html.theme-dark input:not([type="submit"]):not([type="button"]):not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+html.theme-dark select,
+html.theme-dark textarea {
+  background-color: var(--input-bg) !important;
+  border-color: var(--input-border) !important;
+  color: var(--input-text) !important;
 }
 
-html.theme-dark .dark-header,
-.theme-dark .dark-header {
-  background: #0e1014;
-  border-color: #27272a;
+html.theme-dark input::placeholder,
+html.theme-dark textarea::placeholder {
+  color: var(--input-placeholder) !important;
 }
 
-html.theme-dark .dark-btn,
-.theme-dark .dark-btn {
-  background: #1c1c20;
-  border-color: #3f3f46;
-  color: #a1a1aa;
+html.theme-dark select option {
+  background-color: #16161f;
+  color: #e8e8ec;
 }
 
-html.theme-dark .dark-btn:hover,
-.theme-dark .dark-btn:hover {
-  background: #27272a;
-  border-color: #52525b;
-  color: #e4e4e7;
+html.theme-dark input:focus,
+html.theme-dark select:focus,
+html.theme-dark textarea:focus {
+  border-color: var(--input-focus-ring) !important;
+  box-shadow: 0 0 0 2px rgba(244, 179, 26, 0.15) !important;
+  outline: none;
 }
 
-/* Dark mode: zinc overrides for inline Tailwind classes */
-html.theme-dark .bg-white { background-color: #0e1014 !important; }
-html.theme-dark .bg-zinc-50 { background-color: #07080a !important; }
-html.theme-dark .bg-zinc-100 { background-color: #18181b !important; }
-html.theme-dark .bg-zinc-200 { background-color: #27272a !important; }
-html.theme-dark .border-zinc-200 { border-color: #27272a !important; }
-html.theme-dark .border-zinc-100 { border-color: #1c1c20 !important; }
-html.theme-dark .text-zinc-950 { color: #f4f4f5 !important; }
-html.theme-dark .text-zinc-900 { color: #e4e4e7 !important; }
-html.theme-dark .text-zinc-800 { color: #d4d4d8 !important; }
-html.theme-dark .text-zinc-700 { color: #a1a1aa !important; }
-html.theme-dark .text-zinc-600 { color: #71717a !important; }
-html.theme-dark .text-zinc-500 { color: #52525b !important; }
-html.theme-dark .hover\:bg-zinc-50:hover { background-color: #18181b !important; }
-html.theme-dark .hover\:bg-zinc-100:hover { background-color: #27272a !important; }
-html.theme-dark .hover\:text-zinc-900:hover { color: #f4f4f5 !important; }
+/* Input with Tailwind border classes that override */
+html.theme-dark .border-zinc-300 { border-color: #2e2e3a !important; }
 
-/* Prevent flash of unstyled content - script runs before React hydration */
+/* ─── Buttons ────────────────────────────────────────────────────── */
+/* White background buttons (secondary/ghost) */
+html.theme-dark button.bg-white,
+html.theme-dark a.bg-white {
+  background-color: #1c1c28 !important;
+  border-color: #2e2e3a !important;
+  color: #c8c8d0 !important;
+}
+
+html.theme-dark button.bg-white:hover,
+html.theme-dark a.bg-white:hover {
+  background-color: #252532 !important;
+}
+
+/* Zinc-50 buttons */
+html.theme-dark button.bg-zinc-50,
+html.theme-dark a.bg-zinc-50 {
+  background-color: #16161f !important;
+}
+
+/* Zinc-900 buttons (primary dark button — stays dark, adjust for contrast) */
+html.theme-dark .bg-zinc-900 { background-color: #e8e8ec !important; color: #0a0a0f !important; }
+html.theme-dark .hover\:bg-zinc-900:hover { background-color: #f0f0f2 !important; }
+html.theme-dark .text-white   { color: #0a0a0f !important; } /* invert on zinc-900 bg */
+
+/* Exception: keep truly white text on coloured badges (blue, green, red) */
+html.theme-dark .bg-blue-600 .text-white,
+html.theme-dark .bg-emerald-600 .text-white,
+html.theme-dark .bg-red-600 .text-white,
+html.theme-dark [class*="bg-blue-"] .text-white,
+html.theme-dark [class*="bg-emerald-"] .text-white,
+html.theme-dark [class*="bg-red-"] .text-white { color: #ffffff !important; }
+
+/* ─── Coloured badges / chips (keep readable in dark) ────────────── */
+html.theme-dark .bg-blue-50   { background-color: #0d1929 !important; }
+html.theme-dark .bg-emerald-50 { background-color: #071a10 !important; }
+html.theme-dark .bg-red-50    { background-color: #1a0909 !important; }
+html.theme-dark .bg-amber-50  { background-color: #1a1200 !important; }
+html.theme-dark .bg-yellow-50 { background-color: #161100 !important; }
+html.theme-dark .bg-green-50  { background-color: #071506 !important; }
+html.theme-dark .bg-purple-50 { background-color: #130d1a !important; }
+
+html.theme-dark .text-blue-700   { color: #7eb8f7 !important; }
+html.theme-dark .text-emerald-700 { color: #5ecfa0 !important; }
+html.theme-dark .text-red-700    { color: #f07070 !important; }
+html.theme-dark .text-amber-700  { color: #f4b31a !important; }
+html.theme-dark .text-green-700  { color: #4ec97a !important; }
+html.theme-dark .text-purple-700 { color: #b07ef7 !important; }
+
+html.theme-dark .border-blue-200   { border-color: #1a3050 !important; }
+html.theme-dark .border-emerald-200 { border-color: #0f3020 !important; }
+html.theme-dark .border-red-200    { border-color: #3a1010 !important; }
+html.theme-dark .border-amber-200  { border-color: #3a2800 !important; }
+html.theme-dark .border-green-200  { border-color: #0f2a14 !important; }
+
+/* ─── Shadows ────────────────────────────────────────────────────── */
+html.theme-dark .shadow-sm  { box-shadow: 0 1px 3px rgba(0,0,0,0.4) !important; }
+html.theme-dark .shadow-md  { box-shadow: 0 4px 8px rgba(0,0,0,0.5) !important; }
+html.theme-dark .shadow-lg  { box-shadow: 0 8px 24px rgba(0,0,0,0.6) !important; }
+html.theme-dark .shadow-xl  { box-shadow: 0 16px 40px rgba(0,0,0,0.7) !important; }
+
+/* ─── Header ─────────────────────────────────────────────────────── */
+html.theme-dark .dark-header {
+  background-color: #0d0d14 !important;
+  border-color: #1e1e2e !important;
+}
+
+/* ─── Dark toggle button itself ──────────────────────────────────── */
+html.theme-dark .dark-btn {
+  background-color: #1c1c28 !important;
+  border-color: #2e2e3a !important;
+  color: #8b8b96 !important;
+}
+
+html.theme-dark .dark-btn:hover {
+  background-color: #252535 !important;
+  border-color: #3e3e50 !important;
+  color: #c8c8d8 !important;
+}
+
+/* ─── Auth badge (profile chip + sign out) ───────────────────────── */
+html.theme-dark .border-zinc-200.bg-zinc-50 {
+  background-color: #16161f !important;
+  border-color: #2a2a38 !important;
+}
+
+/* ─── Mode switcher pills ────────────────────────────────────────── */
+html.theme-dark .border-zinc-300.bg-zinc-50 { background-color: #1c1c28 !important; }
+html.theme-dark .border-zinc-200.bg-white   { background-color: #16161f !important; border-color: #2a2a38 !important; }
+
+/* ─── Tables ─────────────────────────────────────────────────────── */
+html.theme-dark thead tr { background-color: #111118 !important; }
+html.theme-dark tbody tr:hover { background-color: #14141c !important; }
+
+/* ─── Ring / focus ───────────────────────────────────────────────── */
+html.theme-dark .ring-zinc-200 { --tw-ring-color: #2a2a38 !important; }
+html.theme-dark .focus\:ring-zinc-200:focus { --tw-ring-color: #2a2a38 !important; }
+
+/* ─── Scrollbars (dark mode only) ───────────────────────────────── */
+html.theme-dark ::-webkit-scrollbar { width: 8px; height: 8px; }
+html.theme-dark ::-webkit-scrollbar-track { background: #0a0a0f; }
+html.theme-dark ::-webkit-scrollbar-thumb { background: #2a2a3a; border-radius: 4px; }
+html.theme-dark ::-webkit-scrollbar-thumb:hover { background: #3a3a50; }
+
+/* ─── Opacity variants ───────────────────────────────────────────── */
+html.theme-dark [class*="bg-white\/"]  { background-color: rgba(17, 17, 24, 0.97) !important; }
+html.theme-dark [class*="bg-zinc-50\/"]  { background-color: rgba(10, 10, 15, 0.97) !important; }
+
+/* ─── Disabled input states ─────────────────────────────────────── */
+html.theme-dark .disabled\:bg-zinc-50:disabled,
+html.theme-dark input:disabled,
+html.theme-dark select:disabled,
+html.theme-dark textarea:disabled {
+  background-color: #0e0e16 !important;
+  color: var(--input-placeholder) !important;
+  opacity: 0.6;
+}
+
+/* ─── Combobox / dropdown suggestion list ────────────────────────── */
+html.theme-dark .shadow.bg-white,
+html.theme-dark [class*="shadow"].bg-white {
+  background-color: #16161f !important;
+  border-color: #2a2a38 !important;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.7) !important;
+}
+
+/* ─── Allocated hours sticky bar ────────────────────────────────── */
+html.theme-dark .backdrop-blur { backdrop-filter: blur(12px) !important; }
