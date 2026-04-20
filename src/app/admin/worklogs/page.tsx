@@ -3,8 +3,10 @@ import { prisma } from "@/lib/db";
 export const dynamic = "force-dynamic";
 
 function isoDay(d: Date) {
+  // Fix: workDate is stored as UTC midnight; format in UTC so the date matches what the
+  // employee submitted (formatting in local time shifted it one day earlier).
   return new Intl.DateTimeFormat("en-CA", {
-    timeZone: "America/Edmonton",
+    timeZone: "UTC",
     year: "numeric",
     month: "2-digit",
     day: "2-digit",

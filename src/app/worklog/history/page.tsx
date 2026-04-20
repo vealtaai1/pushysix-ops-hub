@@ -86,14 +86,11 @@ export default async function WorklogHistoryPage() {
                 <th className="border-b border-zinc-200 px-4 py-2.5">Total hrs</th>
                 <th className="border-b border-zinc-200 px-4 py-2.5 hidden sm:table-cell">Submitted</th>
                 <th className="border-b border-zinc-200 px-4 py-2.5 hidden md:table-cell">Note</th>
-                <th className="border-b border-zinc-200 px-4 py-2.5"></th>
               </tr>
             </thead>
             <tbody>
               {worklogs.map((w) => {
                 const dateStr = fmtDate(w.workDate);
-                // workDate stored as UTC midnight — extract YYYY-MM-DD for the form link
-                const dateISO = w.workDate.toISOString().slice(0, 10);
                 const totalHrs = w.entries.reduce((s, e) => s + e.minutes, 0) / 60;
                 const { text, cls } = statusLabel(w.status);
 
@@ -116,15 +113,7 @@ export default async function WorklogHistoryPage() {
                     <td className="border-b border-zinc-100 px-4 py-3 text-zinc-500 hidden md:table-cell max-w-xs truncate">
                       {w.approvalReason ?? "—"}
                     </td>
-                    <td className="border-b border-zinc-100 px-4 py-3">
-                      {/* Edit: pre-fill the date on the worklog form to trigger the resubmit flow */}
-                      <Link
-                        href={`/worklog?date=${encodeURIComponent(dateISO)}`}
-                        className="h-8 rounded-md border border-zinc-300 bg-white px-3 text-xs font-medium text-zinc-700 inline-flex items-center hover:bg-zinc-50"
-                      >
-                        Edit
-                      </Link>
-                    </td>
+                    {/* Fix: removed Edit button — history is view-only for employees */}
                   </tr>
                 );
               })}
