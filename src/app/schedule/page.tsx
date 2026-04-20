@@ -150,7 +150,11 @@ export default async function SchedulePage() {
         />
       ) : null}
 
-      <ScheduleCalendar months={months} />
+      {/* Fix: pass day-off dates so the calendar can block re-submission on already-marked days */}
+      <ScheduleCalendar
+        months={months}
+        dayoffDates={new Set(dayoffMap.keys())}
+      />
     </div>
   );
 }

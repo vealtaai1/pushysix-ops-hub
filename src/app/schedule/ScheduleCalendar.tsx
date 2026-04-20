@@ -81,7 +81,15 @@ function Dialog(props: { open: boolean; title: string; children: React.ReactNode
   );
 }
 
-export function ScheduleCalendar({ months }: { months: ScheduleMonth[] }) {
+export function ScheduleCalendar({
+  months,
+  // Fix: set of ISO dates that already have an approved or pending day-off;
+  // used to block re-submission from the schedule calendar.
+  dayoffDates = new Set(),
+}: {
+  months: ScheduleMonth[];
+  dayoffDates?: Set<string>;
+}) {
   const router = useRouter();
 
   const [selectedIso, setSelectedIso] = React.useState<string | null>(null);
@@ -164,6 +172,8 @@ export function ScheduleCalendar({ months }: { months: ScheduleMonth[] }) {
   }, [selectedIso]);
 
   const selectedIsFuture = Boolean(selectedIso && selectedIso > currentLogIso);
+  // Fix: true when the selected date already has an approved or pending day-off
+  const selectedHasDayOff = Boolean(selectedIso && dayoffDates.has(selectedIso));
 
   async function submitDayOff(isoDate: string) {
     setSubmitting(true);
@@ -365,11 +375,19 @@ export function ScheduleCalendar({ months }: { months: ScheduleMonth[] }) {
           <button
             type="button"
             className="h-10 rounded-md bg-zinc-900 px-4 text-sm font-semibold text-white hover:opacity-90 disabled:bg-zinc-300"
-            disabled={!selectedIso || submitting || (selectedIso ? isWeekend(selectedIso) : false)}
+            disabled={
+              !selectedIso ||
+              submitting ||
+              (selectedIso ? isWeekend(selectedIso) : false) ||
+              // Fix: block re-submission when a day-off already exists for this date
+              selectedHasDayOff
+            }
             title={
-              selectedIso && isWeekend(selectedIso)
-                ? "Weekends are not eligible for day-off requests"
-                : "Submit a day-off request"
+              selectedHasDayOff
+                ? "A day-off has already been submitted for this date"
+                : selectedIso && isWeekend(selectedIso)
+                  ? "Weekends are not eligible for day-off requests"
+                  : "Submit a day-off request"
             }
             onClick={async () => {
               if (!selectedIso) return;
@@ -380,7 +398,14 @@ export function ScheduleCalendar({ months }: { months: ScheduleMonth[] }) {
           </button>
         </div>
 
-        <div className="mt-2 text-xs text-zinc-500">Tip: YES opens the worklog form for that date. NO submits a day-off request.</div>
+        {/* Fix: inform the employee why NO is disabled when a day-off already exists */}
+        {selectedHasDayOff ? (
+          <div className="mt-2 rounded-md border border-purple-200 bg-purple-50 px-3 py-2 text-xs text-purple-900">
+            A day-off is already recorded for this date and cannot be changed here.
+          </div>
+        ) : (
+          <div className="mt-2 text-xs text-zinc-500">Tip: YES opens the worklog form for that date. NO submits a day-off request.</div>
+        )}
       </Dialog>
     </div>
   );

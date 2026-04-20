@@ -66,6 +66,22 @@ export async function POST(req: Request) {
 
   const dayDate = new Date(Date.UTC(parsed.year, parsed.month - 1, parsed.day, 0, 0, 0, 0));
 
+  // Fix: block re-submission when an approved or pending day-off already exists for this date.
+  // Employees should not be able to overwrite an existing day-off from the schedule UI.
+  const existingUser = await prisma.user.findUnique({ where: { email }, select: { id: true } });
+  if (existingUser) {
+    const existingDayOff = await prisma.dayOff.findUnique({
+      where: { userId_dayDate: { userId: existingUser.id, dayDate } },
+      select: { status: true },
+    });
+    if (existingDayOff && (existingDayOff.status === "APPROVED" || existingDayOff.status === "PENDING")) {
+      return NextResponse.json(
+        { ok: false, message: "A day-off has already been submitted for this date and cannot be changed." },
+        { status: 409 },
+      );
+    }
+  }
+
   const user = await prisma.user.upsert({
     where: { email },
     update: {},
