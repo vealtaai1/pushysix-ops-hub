@@ -38,14 +38,23 @@ export function LoginClient() {
           setError(null);
           setLoading(true);
           try {
+            // Fix: use redirect:false so NextAuth returns an error object instead of
+            // redirecting to its own error page. We display the error inline below.
             const res = await signIn("credentials", {
               email,
               password,
               callbackUrl,
-              redirect: true,
+              redirect: false,
             });
-            // If redirect is false, res?.error would be set; but we redirect.
-            void res;
+            if (res?.error) {
+              // NextAuth returns "CredentialsSignin" for bad credentials.
+              setError("Incorrect email or password. Please try again.");
+            } else if (res?.url) {
+              // Successful sign-in — manually redirect to the callback URL.
+              window.location.href = res.url;
+            } else {
+              setError("Sign-in failed. Please try again.");
+            }
           } catch (err) {
             setError(err instanceof Error ? err.message : "Sign-in failed");
           } finally {

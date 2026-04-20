@@ -31,6 +31,33 @@ export function ApprovalsClient({ initialPending }: { initialPending: PendingRow
   const [rows, setRows] = React.useState<PendingRow[]>(initialPending);
   const [busyId, setBusyId] = React.useState<string | null>(null);
 
+  // Fix 5b: auto-refresh the pending list every 30 s so the badge + row count stay current
+  // without requiring a full page navigation. Also provides a manual refresh button.
+  const [refreshing, setRefreshing] = React.useState(false);
+  const [lastRefresh, setLastRefresh] = React.useState<Date | null>(null);
+
+  const fetchPending = React.useCallback(async () => {
+    setRefreshing(true);
+    try {
+      const res = await fetch("/api/admin/approvals/list", { credentials: "include" });
+      const json = (await res.json().catch(() => null)) as any;
+      if (res.ok && json?.ok && Array.isArray(json.rows)) {
+        setRows(json.rows);
+        setLastRefresh(new Date());
+      }
+    } catch {
+      // Silently ignore refresh errors
+    } finally {
+      setRefreshing(false);
+    }
+  }, []);
+
+  React.useEffect(() => {
+    // Auto-refresh every 30 seconds
+    const id = window.setInterval(() => { void fetchPending(); }, 30_000);
+    return () => window.clearInterval(id);
+  }, [fetchPending]);
+
   const [toast, setToast] = React.useState<null | { text: string; undoId: string }>(null);
 
   const [submissionOpen, setSubmissionOpen] = React.useState(false);
@@ -172,6 +199,23 @@ export function ApprovalsClient({ initialPending }: { initialPending: PendingRow
 
   return (
     <div className="space-y-4">
+      {/* Fix 5b: manual refresh button with last-refresh timestamp */}
+      <div className="flex items-center justify-end gap-3">
+        {lastRefresh ? (
+          <span className="text-xs text-zinc-400">
+            Last refreshed {lastRefresh.toLocaleTimeString("en-CA", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
+          </span>
+        ) : null}
+        <button
+          type="button"
+          onClick={() => { void fetchPending(); }}
+          disabled={refreshing}
+          className="h-8 rounded-md border border-zinc-300 bg-white px-3 text-xs font-medium text-zinc-700 hover:bg-zinc-50 disabled:opacity-60"
+        >
+          {refreshing ? "Refreshing…" : "Refresh"}
+        </button>
+      </div>
+
       {toast ? (
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">
           <div className="font-medium">{toast.text}</div>
@@ -227,11 +271,23 @@ export function ApprovalsClient({ initialPending }: { initialPending: PendingRow
                   <div className="rounded-lg border border-zinc-200 p-3">
                     <div className="text-sm font-semibold">Worklog</div>
                     <div className="mt-1 text-sm text-zinc-700">
-                      Date: <span className="font-medium">{fmtDateTimeISO(submission.worklog.workDate).slice(0, 10)}</span>
-                      {submission.worklog.submittedAt ? (
-                        <span className="text-zinc-500"> · submitted {fmtDateTimeISO(submission.worklog.submittedAt)}</span>
-                      ) : null}
+                      {/* Fix 5a: clearly label work date vs submitted-at so they are not confused */}
+                      <span className="font-medium">Work date:</span>{" "}
+                      {fmtDateTimeISO(submission.worklog.workDate).slice(0, 10)}
                     </div>
+                    {submission.worklog.submittedAt ? (
+                      <div className="mt-1 text-sm text-zinc-700">
+                        <span className="font-medium">Submitted at:</span>{" "}
+                        {fmtDateTimeISO(submission.worklog.submittedAt)}
+                      </div>
+                    ) : null}
+                    {/* Fix 5a: show the resubmission reason (ApprovalRequest.reason) prominently */}
+                    {submission.reason ? (
+                      <div className="mt-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2">
+                        <div className="text-xs font-semibold text-amber-800">Resubmission reason</div>
+                        <div className="mt-0.5 text-sm text-amber-900">{submission.reason}</div>
+                      </div>
+                    ) : null}
                   </div>
 
                   <div className="rounded-lg border border-zinc-200 p-3">

@@ -51,3 +51,4 @@ next-env.d.ts
 
 # Prisma client (do not commit generated client/binaries; generate during install/build)
 /src/generated/prisma
+.env*.local

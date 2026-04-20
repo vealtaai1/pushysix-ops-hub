@@ -23,7 +23,9 @@ export default function DashboardPage() {
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        <Tile href="/worklog" title="Worklog" desc="Enter today’s work and totals." />
+        <Tile href="/worklog" title="Worklog" desc="Enter today's work and totals." />
+        {/* Fix: added Work History tile so employees can view and edit past work logs */}
+        <Tile href="/worklog/history" title="Work History" desc="View and edit your past work logs." />
         <Tile href="/expenses" title="Expenses" desc="Submit expenses for approval." />
         <Tile href="/schedule" title="Schedule" desc="View the team schedule." />
         <Tile href="/equipment" title="Equipment" desc="Browse and manage equipment items." />

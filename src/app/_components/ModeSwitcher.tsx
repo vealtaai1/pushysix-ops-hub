@@ -9,11 +9,13 @@ type Props = {
 };
 
 function pillClass(active: boolean) {
+  // Fix: active mode pill → black background with white text to match the active nav style
+  // applied across all three views (employee, account manager, admin).
   return (
-    "rounded-md px-3 py-1.5 text-sm border transition-colors " +
+    "rounded-md px-3 py-1.5 text-sm border font-semibold transition-colors " +
     (active
-      ? "border-zinc-300 bg-zinc-50 text-zinc-900"
-      : "border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-50 hover:text-zinc-900")
+      ? "border-zinc-900 bg-zinc-900 text-white"
+      : "border-zinc-200 bg-white text-zinc-700 font-normal hover:bg-zinc-50 hover:text-zinc-900")
   );
 }
 

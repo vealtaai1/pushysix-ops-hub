@@ -4,6 +4,8 @@ import Link from "next/link";
 
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
+// Fix: import client nav link so active menu item is highlighted
+import { ActiveNavLink } from "@/app/_components/ActiveNavLink";
 
 const MANAGEMENT_LINKS: Array<{ href: string; label: string }> = [
   { href: "/management/retainers", label: "Retainer Logs" },
@@ -64,27 +66,18 @@ export default async function ManagementLayout({ children }: { children: ReactNo
 
         <nav className="flex flex-wrap items-center gap-2">
           {MANAGEMENT_LINKS.map((l) => {
-            const showBadge = l.href === "/management/approvals" && pendingApprovalsCount > 0;
+            const badgeCount = l.href === "/management/approvals" ? pendingApprovalsCount : 0;
 
             return (
-              <Link
+              // Fix: replaced plain Link with ActiveNavLink so the current section is highlighted
+              <ActiveNavLink
                 key={l.href}
                 href={l.href}
-                className="rounded-md border border-zinc-200 bg-white px-3 py-1.5 text-sm text-zinc-700 hover:bg-zinc-50"
+                badge={badgeCount}
+                badgeLabel={`${badgeCount} pending approvals`}
               >
-                <span className="flex items-center gap-2">
-                  <span>{l.label}</span>
-                  {showBadge ? (
-                    <span
-                      className="inline-flex min-w-5 items-center justify-center rounded-full bg-red-600 px-1.5 text-[11px] font-semibold leading-5 text-white"
-                      aria-label={`${pendingApprovalsCount} pending approvals`}
-                      title={`${pendingApprovalsCount} pending approvals`}
-                    >
-                      {pendingApprovalsCount}
-                    </span>
-                  ) : null}
-                </span>
-              </Link>
+                {l.label}
+              </ActiveNavLink>
             );
           })}
         </nav>

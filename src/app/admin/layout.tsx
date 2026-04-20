@@ -4,6 +4,8 @@ import Link from "next/link";
 
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
+// Fix: import client nav link so active menu item is highlighted
+import { ActiveNavLink } from "@/app/_components/ActiveNavLink";
 
 const ADMIN_LINKS: Array<{ href: string; label: string }> = [
   { href: "/admin/retainers", label: "Retainer Logs" },
@@ -80,24 +82,15 @@ export default async function AdminLayout({ children }: { children: ReactNode })
             const badgeLabel = l.href === "/admin/approvals" ? "pending approvals" : "pending expense submissions";
 
             return (
-              <Link
+              // Fix: replaced plain Link with ActiveNavLink so the current section is highlighted
+              <ActiveNavLink
                 key={l.href}
                 href={l.href}
-                className="rounded-md border border-zinc-200 bg-white px-3 py-1.5 text-sm text-zinc-700 hover:bg-zinc-50"
+                badge={badgeCount}
+                badgeLabel={`${badgeCount} ${badgeLabel}`}
               >
-                <span className="flex items-center gap-2">
-                  <span>{l.label}</span>
-                  {badgeCount > 0 ? (
-                    <span
-                      className="inline-flex min-w-5 items-center justify-center rounded-full bg-red-600 px-1.5 text-[11px] font-semibold leading-5 text-white"
-                      aria-label={`${badgeCount} ${badgeLabel}`}
-                      title={`${badgeCount} ${badgeLabel}`}
-                    >
-                      {badgeCount}
-                    </span>
-                  ) : null}
-                </span>
-              </Link>
+                {l.label}
+              </ActiveNavLink>
             );
           })}
         </nav>
