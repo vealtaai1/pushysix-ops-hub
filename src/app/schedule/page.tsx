@@ -108,13 +108,16 @@ export default async function SchedulePage() {
 
       if (holiday) {
         state = { kind: "GREEN", label: "Holiday" };
+      } else if (worklogStatus === "APPROVED") {
+        // Fix: an approved worklog takes priority over a day-off marker.
+        // When an employee submits a worklog for a day previously marked as off
+        // and it gets approved, the schedule should show "Logged", not "Day off".
+        state = { kind: "GREEN", label: "Logged" };
       } else if (dayoffStatus === "APPROVED") {
         state = { kind: "PURPLE", label: "Day off" };
-      } else if (dayoffStatus === "PENDING") {
-        state = { kind: "YELLOW", label: "Pending" };
-      } else if (worklogStatus === "APPROVED") {
-        state = { kind: "GREEN", label: "Logged" };
       } else if (worklogStatus === "PENDING") {
+        state = { kind: "YELLOW", label: "Pending" };
+      } else if (dayoffStatus === "PENDING") {
         state = { kind: "YELLOW", label: "Pending" };
       } else if (worklogStatus === "REJECTED") {
         state = { kind: "RED", label: "Rejected" };
