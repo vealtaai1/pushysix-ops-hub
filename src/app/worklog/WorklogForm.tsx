@@ -756,14 +756,32 @@ export function WorklogForm({
                     <td className="border-b border-zinc-100 px-3 py-2">
                       <button
                         type="button"
-                        className="h-10 rounded-md px-3 text-sm text-zinc-700 hover:bg-zinc-50"
-                        onClick={() => setTasks((prev) => prev.filter((x) => x.id !== t.id))}
-                        disabled={tasks.length === 1}
-                        title={tasks.length === 1 ? "At least one task is required" : "Remove"}
+                        className="h-10 rounded-md border border-red-200 bg-red-50 px-3 text-sm font-medium text-red-700 hover:bg-red-100"
+                        onClick={() =>
+                          setTasks((prev) => {
+                            // Fix: keep a visible delete button on every task row so accidental
+                            // extra rows can be removed immediately without restarting the form.
+                            if (prev.length === 1) {
+                              return [
+                                {
+                                  id: uid(),
+                                  clientId: null,
+                                  clientName: "",
+                                  engagementType: "RETAINER",
+                                  projectId: null,
+                                  bucketKey: "",
+                                  hoursText: "",
+                                  notes: "",
+                                },
+                              ];
+                            }
+                            return prev.filter((x) => x.id !== t.id);
+                          })
+                        }
+                        title="Delete task row"
                       >
-                        Remove
+                        Delete
                       </button>
-                      {idx === 0 ? null : null}
                     </td>
                   </tr>
                 );

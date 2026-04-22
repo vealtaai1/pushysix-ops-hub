@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/db";
+import { AdminWorklogsClient } from "./AdminWorklogsClient";
 
 export const dynamic = "force-dynamic";
 
@@ -29,23 +30,58 @@ export default async function AdminWorklogsPage({
 
   const where = userId ? { userId } : {};
 
-  const worklogs = await prisma.worklog.findMany({
-    where,
-    orderBy: [{ workDate: "desc" }],
-    take: 50,
-    include: {
-      user: { select: { email: true, name: true } },
-      entries: { include: { client: { select: { name: true } } } },
-      mileage: { include: { client: { select: { name: true } } } },
-    },
-  });
-
-  const daysOff = await prisma.dayOff.findMany({
-    where,
-    orderBy: [{ dayDate: "desc" }],
-    take: 50,
-    include: { user: { select: { email: true, name: true } } },
-  });
+  const [worklogs, daysOff, clients, projects, retainerClients] = await Promise.all([
+    prisma.worklog.findMany({
+      where,
+      orderBy: [{ workDate: "desc" }],
+      take: 50,
+      include: {
+        user: { select: { email: true, name: true } },
+        entries: {
+          include: {
+            client: { select: { id: true, name: true } },
+          },
+        },
+        mileage: {
+          include: {
+            client: { select: { id: true, name: true } },
+          },
+        },
+        expenseEntries: {
+          orderBy: [{ createdAt: "asc" }],
+          select: {
+            id: true,
+            clientId: true,
+            engagementType: true,
+            projectId: true,
+            category: true,
+            description: true,
+            amountCents: true,
+            receiptUrl: true,
+            client: { select: { id: true, name: true } },
+          },
+        },
+      },
+    }),
+    prisma.dayOff.findMany({
+      where,
+      orderBy: [{ dayDate: "desc" }],
+      take: 50,
+      include: { user: { select: { email: true, name: true } } },
+    }),
+    prisma.client.findMany({
+      orderBy: { name: "asc" },
+      select: { id: true, name: true },
+    }),
+    prisma.project.findMany({
+      orderBy: [{ clientId: "asc" }, { code: "asc" }],
+      select: { id: true, clientId: true, code: true, shortCode: true, name: true, status: true },
+    }),
+    prisma.client.findMany({
+      where: { monthlyRetainerHours: { gt: 0 } },
+      select: { id: true },
+    }),
+  ]);
 
   return (
     <div className="space-y-6">
@@ -98,47 +134,49 @@ export default async function AdminWorklogsPage({
       <div className="grid gap-6 xl:grid-cols-[minmax(0,2fr)_minmax(320px,1fr)]">
         <section className="space-y-3 min-w-0">
           <h2 className="text-sm font-semibold">Recent worklogs</h2>
-          <div className="rounded-lg border border-zinc-200">
-            <table className="w-full table-fixed border-separate border-spacing-0">
-              <thead>
-                <tr className="text-left text-xs text-zinc-600">
-                  <th className="w-24 border-b border-zinc-200 px-3 py-2">Date</th>
-                  <th className="hidden w-40 border-b border-zinc-200 px-3 py-2 sm:table-cell">User</th>
-                  <th className="w-24 border-b border-zinc-200 px-3 py-2">Status</th>
-                  <th className="border-b border-zinc-200 px-3 py-2">Lines</th>
-                </tr>
-              </thead>
-              <tbody>
-                {worklogs.map((w) => (
-                  <tr key={w.id} className="align-top">
-                    <td className="border-b border-zinc-100 px-3 py-2 text-sm">{isoDay(w.workDate)}</td>
-                    <td className="hidden border-b border-zinc-100 px-3 py-2 text-sm sm:table-cell">{w.user.name ?? w.user.email}</td>
-                    <td className="border-b border-zinc-100 px-3 py-2 text-sm font-medium">{w.status}</td>
-                    <td className="border-b border-zinc-100 px-3 py-2 text-xs text-zinc-700">
-                      <div className="space-y-1 break-words">
-                        <div className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500 sm:hidden">
-                          {w.user.name ?? w.user.email}
-                        </div>
-                        {w.entries.slice(0, 5).map((e) => (
-                          <div key={e.id}>
-                            {e.client.name} • {e.bucketName} • {(e.minutes / 60).toFixed(2)}h
-                          </div>
-                        ))}
-                        {w.entries.length > 5 ? <div>… +{w.entries.length - 5} more</div> : null}
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-                {worklogs.length === 0 ? (
-                  <tr>
-                    <td className="px-3 py-3 text-sm text-zinc-600" colSpan={4}>
-                      No worklogs.
-                    </td>
-                  </tr>
-                ) : null}
-              </tbody>
-            </table>
-          </div>
+          {/* Fix: render the worklogs table through a client component so admin rows can expand inline for editing */}
+          <AdminWorklogsClient
+            worklogs={worklogs.map((worklog) => ({
+              id: worklog.id,
+              workDate: worklog.workDate.toISOString(),
+              status: worklog.status,
+              user: worklog.user,
+              entries: worklog.entries.map((entry) => ({
+                id: entry.id,
+                clientId: entry.client.id,
+                clientName: entry.client.name,
+                engagementType: entry.engagementType,
+                projectId: entry.projectId,
+                bucketKey: entry.bucketKey,
+                bucketName: entry.bucketName,
+                minutes: entry.minutes,
+                notes: entry.notes ?? "",
+              })),
+              mileage: worklog.mileage.map((item) => ({
+                id: item.id,
+                clientId: item.client?.id ?? "",
+                clientName: item.client?.name ?? "—",
+                engagementType: item.engagementType,
+                projectId: item.projectId,
+                kilometers: item.kilometers,
+                notes: item.notes,
+              })),
+              expenseEntries: worklog.expenseEntries.map((expense) => ({
+                id: expense.id,
+                clientId: expense.clientId,
+                clientName: expense.client?.name ?? "—",
+                engagementType: expense.engagementType,
+                projectId: expense.projectId,
+                category: expense.category,
+                description: expense.description,
+                amountCents: expense.amountCents,
+                receiptUrl: expense.receiptUrl,
+              })),
+            }))}
+            clients={clients}
+            projects={projects}
+            clientIdsWithRetainer={retainerClients.map((client) => client.id)}
+          />
         </section>
 
         <section className="space-y-3 min-w-0">
