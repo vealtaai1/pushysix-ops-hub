@@ -396,6 +396,7 @@ export function FinanceDashboardClient({ clients }: { clients: ClientOption[] })
               placeholder="Search client…"
               className="border-zinc-200 text-sm"
               maxResults={undefined}
+              openShowsAll
             />
           </div>
 

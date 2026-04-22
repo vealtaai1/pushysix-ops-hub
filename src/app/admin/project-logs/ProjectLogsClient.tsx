@@ -266,6 +266,7 @@ export function ProjectLogsClient({ clients, projects }: { clients: ClientRow[];
               placeholder="Search client…"
               className="border-zinc-300"
               maxResults={undefined}
+              openShowsAll
             />
           </div>
 

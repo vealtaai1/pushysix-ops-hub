@@ -15,8 +15,9 @@ export function ClientTypeahead(props: {
   placeholder?: string;
   className?: string;
   maxResults?: number;
+  openShowsAll?: boolean;
 }) {
-  const { clients, valueName, onSelect, placeholder, className, maxResults = 10 } = props;
+  const { clients, valueName, onSelect, placeholder, className, maxResults = 10, openShowsAll = false } = props;
 
   const inputRef = React.useRef<HTMLInputElement | null>(null);
   const [open, setOpen] = React.useState(false);
@@ -66,11 +67,17 @@ export function ClientTypeahead(props: {
           setOpen(true);
         }}
         onFocus={() => {
+          // Fix: some tabs need the picker to open as a true browseable dropdown first,
+          // then switch into filtering only after the user starts typing.
+          if (openShowsAll) setQuery("");
           setOpen(true);
           window.setTimeout(() => updateMenuBox(), 0);
         }}
         onBlur={() => {
-          window.setTimeout(() => setOpen(false), 120);
+          window.setTimeout(() => {
+            setOpen(false);
+            if (openShowsAll) setQuery(valueName);
+          }, 120);
         }}
         placeholder={placeholder ?? "Search client…"}
         className={"h-10 w-full rounded-md border bg-white px-3 " + (className ?? "border-zinc-300")}
