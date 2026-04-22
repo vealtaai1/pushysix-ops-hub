@@ -17,6 +17,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
+import { ClientTypeahead } from "@/app/_components/ClientTypeahead";
 
 type ClientOption = {
   id: string;
@@ -250,6 +251,10 @@ export function FinanceDashboardClient({ clients }: { clients: ClientOption[] })
   const isProjectOnlyView = Boolean(clientId) && engagementKey.startsWith("PROJECT:");
 
   const selectedClient = useMemo(() => (clientId ? clients.find((c) => c.id === clientId) ?? null : null), [clientId, clients]);
+  const selectedClientLabel = useMemo(
+    () => clientOptions.find((client) => client.id === clientId)?.name ?? clientOptions[0]?.name ?? "",
+    [clientOptions, clientId],
+  );
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -379,20 +384,19 @@ export function FinanceDashboardClient({ clients }: { clients: ClientOption[] })
         <div className="flex flex-wrap items-end gap-3">
           <div className="grid gap-1 min-w-[260px]">
             <label className="text-xs font-medium text-zinc-700">Client</label>
-            <select
-              value={clientId}
-              onChange={(e) => {
-                setClientId(e.target.value);
+            {/* Fix: reuse the searchable worklog client picker here so finance keeps the
+                existing all-clients option while letting users type to find a client fast. */}
+            <ClientTypeahead
+              clients={clientOptions.map((client) => ({ id: client.id, name: client.name }))}
+              valueName={selectedClientLabel}
+              onSelect={(client) => {
+                setClientId(client.id);
                 setEngagementKey("RETAINER");
               }}
-              className="rounded-md border border-zinc-200 bg-white px-3 py-2 text-sm"
-            >
-              {clientOptions.map((c) => (
-                <option key={c.id || "__all"} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
+              placeholder="Search client…"
+              className="border-zinc-200 text-sm"
+              maxResults={undefined}
+            />
           </div>
 
           {clientId ? (

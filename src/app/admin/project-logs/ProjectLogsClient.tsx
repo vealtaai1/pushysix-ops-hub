@@ -3,6 +3,7 @@
 import * as React from "react";
 import { useSearchParams } from "next/navigation";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
+import { ClientTypeahead } from "@/app/_components/ClientTypeahead";
 
 type ClientRow = { id: string; name: string; status: string };
 
@@ -119,6 +120,7 @@ export function ProjectLogsClient({ clients, projects }: { clients: ClientRow[];
 
   const [clientId, setClientId] = React.useState<string>(clients[0]?.id ?? "");
   const clientProjects = React.useMemo(() => projects.filter((p) => p.clientId === clientId), [projects, clientId]);
+  const selectedClientName = React.useMemo(() => clients.find((client) => client.id === clientId)?.name ?? "", [clients, clientId]);
 
   const [projectId, setProjectId] = React.useState<string>(clientProjects[0]?.id ?? "");
 
@@ -256,17 +258,15 @@ export function ProjectLogsClient({ clients, projects }: { clients: ClientRow[];
         <div className="grid gap-3 sm:grid-cols-2">
           <div>
             <div className="mb-1 text-xs font-medium text-zinc-600">Client</div>
-            <select
-              value={clientId}
-              onChange={(e) => setClientId(e.target.value)}
-              className="h-10 w-full rounded-md border border-zinc-300 bg-white px-3"
-            >
-              {clients.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
+            {/* Fix: reuse the searchable worklog client picker here so project logs can filter clients by typing without changing the project field. */}
+            <ClientTypeahead
+              clients={clients.map((client) => ({ id: client.id, name: client.name }))}
+              valueName={selectedClientName}
+              onSelect={(client) => setClientId(client.id)}
+              placeholder="Search client…"
+              className="border-zinc-300"
+              maxResults={undefined}
+            />
           </div>
 
           <div>
