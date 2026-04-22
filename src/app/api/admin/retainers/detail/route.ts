@@ -46,6 +46,11 @@ export async function GET(req: Request) {
   if (!client) {
     return NextResponse.json({ ok: false, message: "Client not found" }, { status: 404 });
   }
+  if ((client.monthlyRetainerHours ?? 0) <= 0) {
+    // Fix: block direct retainer-log access for non-retainer clients so the detail API
+    // stays consistent with the filtered Retainer Logs tab.
+    return NextResponse.json({ ok: false, message: "Client does not have a retainer configured" }, { status: 400 });
+  }
 
   // Determine range: explicit start/end OR cycleId OR current cycle.
   let range = startISO && endISO ? { startISO, endISO } : null;

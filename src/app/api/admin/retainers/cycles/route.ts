@@ -58,10 +58,14 @@ export async function GET(req: Request) {
 
   const client = await prisma.client.findUnique({
     where: { id: clientId },
-    select: { id: true, billingCycleStartDay: true },
+    select: { id: true, billingCycleStartDay: true, monthlyRetainerHours: true },
   });
 
   if (!client) return NextResponse.json({ ok: false, message: "Client not found" }, { status: 404 });
+  if ((client.monthlyRetainerHours ?? 0) <= 0) {
+    // Fix: prevent cycle creation/loading for clients that are not actually on retainer.
+    return NextResponse.json({ ok: false, message: "Client does not have a retainer configured" }, { status: 400 });
+  }
 
   const currentRange = getRetainerCycleRange(new Date(), client.billingCycleStartDay, CALGARY_TZ);
   let currentCycleId: string | null = null;

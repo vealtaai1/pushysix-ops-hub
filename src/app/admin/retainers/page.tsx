@@ -18,6 +18,8 @@ export default async function AdminRetainersPage() {
   const now = new Date();
 
   const clients = await prisma.client.findMany({
+    // Fix: Retainer Logs should only list clients that actually have a retainer configured.
+    where: { monthlyRetainerHours: { gt: 0 } },
     orderBy: [{ status: "asc" }, { name: "asc" }],
     select: {
       id: true,

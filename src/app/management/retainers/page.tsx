@@ -19,6 +19,9 @@ export default async function ManagementRetainersPage() {
   const now = new Date();
 
   const clients = await prisma.client.findMany({
+    // Fix: keep the management Retainer Logs list aligned with admin by only showing
+    // clients that have an active retainer capacity configured.
+    where: { monthlyRetainerHours: { gt: 0 } },
     orderBy: [{ status: "asc" }, { name: "asc" }],
     select: {
       id: true,
