@@ -40,6 +40,16 @@ export function parseISODateOnlyToUTCNoon(iso: string): Date | null {
   return new Date(Date.UTC(p.year, p.month - 1, p.day, 12, 0, 0, 0));
 }
 
+export function toUTCDateOnlyStart(d: Date): Date {
+  return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate(), 0, 0, 0, 0));
+}
+
+export function toUTCDateOnlyEndInclusive(d: Date): Date {
+  // Fix: payroll filters are selected as date-only values, so normalize to the full
+  // UTC day before querying date-only worklogs that are stored at UTC midnight.
+  return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate(), 23, 59, 59, 999));
+}
+
 /**
  * Produce biweekly pay periods aligned to an anchor Monday.
  *

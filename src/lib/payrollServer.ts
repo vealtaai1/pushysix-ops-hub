@@ -1,6 +1,13 @@
 import type { PrismaClient } from "@prisma/client";
 
-import { isStatHolidayDate, summarizePayroll, type PayrollConfig, type PayrollSummary } from "@/lib/payroll";
+import {
+  isStatHolidayDate,
+  summarizePayroll,
+  toUTCDateOnlyEndInclusive,
+  toUTCDateOnlyStart,
+  type PayrollConfig,
+  type PayrollSummary,
+} from "@/lib/payroll";
 
 export type EmployeePayrollRow = {
   userId: string;
@@ -19,12 +26,15 @@ export async function computePayrollForRange(params: {
   config: PayrollConfig;
 }): Promise<{ summary: PayrollSummary; employees: EmployeePayrollRow[] }> {
   const { prisma, start, end, config } = params;
+  const rangeStart = toUTCDateOnlyStart(start);
+  const rangeEnd = toUTCDateOnlyEndInclusive(end);
 
-  // Only include APPROVED records to avoid paying unapproved time.
+  // Fix: normalize the selected payroll dates to full-day UTC boundaries so the
+  // first and last selected worklog dates are both included in payroll totals.
   const worklogs = await prisma.worklog.findMany({
     where: {
       status: "APPROVED",
-      workDate: { gte: start, lte: end },
+      workDate: { gte: rangeStart, lte: rangeEnd },
     },
     include: {
       user: { select: { id: true, email: true, name: true } },
