@@ -429,9 +429,8 @@ function InlineEditor({
                 <label className="grid gap-1">
                   <span className="text-xs font-medium text-zinc-600">Hours</span>
                   <input
-                    type="number"
-                    step={0.25}
-                    min={0}
+                    type="text"
+                    inputMode="decimal"
                     value={task.hoursText}
                     onChange={(e) => {
                       const hoursText = e.target.value;
@@ -791,6 +790,96 @@ function InlineEditor({
   );
 }
 
+function WorklogDetailModal({
+  worklog,
+  onClose,
+}: {
+  worklog: WorklogRow;
+  onClose: () => void;
+}) {
+  React.useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") onClose();
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+      onClick={onClose}
+    >
+      <div
+        className="w-full max-w-2xl rounded-xl border border-zinc-200 bg-white shadow-xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between border-b border-zinc-100 px-5 py-4">
+          <div>
+            <div className="text-sm font-semibold text-zinc-900">
+              {worklog.user.name ?? worklog.user.email}
+            </div>
+            <div className="text-xs text-zinc-500">
+              {fmtDate(worklog.workDate)} · {worklog.status}
+            </div>
+          </div>
+          <button
+            type="button"
+            className="h-8 w-8 rounded-md border border-zinc-200 text-zinc-500 hover:bg-zinc-50"
+            onClick={onClose}
+            aria-label="Close"
+          >
+            ✕
+          </button>
+        </div>
+
+        <div className="max-h-[60vh] overflow-y-auto px-5 py-4">
+          {worklog.entries.length === 0 ? (
+            <p className="text-sm text-zinc-500">No task entries on this worklog.</p>
+          ) : (
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-left text-xs font-semibold uppercase tracking-wide text-zinc-500">
+                  <th className="pb-2 pr-3">Client</th>
+                  <th className="pb-2 pr-3">Engagement</th>
+                  <th className="pb-2 pr-3">Task Category</th>
+                  <th className="pb-2 pr-3">Hours</th>
+                  <th className="pb-2">Notes</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-zinc-100">
+                {worklog.entries.map((entry) => (
+                  <tr key={entry.id} className="align-top">
+                    <td className="py-2 pr-3 text-zinc-800">{entry.clientName}</td>
+                    <td className="py-2 pr-3 text-zinc-600">
+                      {entry.engagementType === "RETAINER" ? "Retainer" : "Project"}
+                    </td>
+                    <td className="py-2 pr-3 text-zinc-600">{entry.bucketName}</td>
+                    <td className="py-2 pr-3 tabular-nums text-zinc-800">
+                      {(entry.minutes / 60).toFixed(2)}h
+                    </td>
+                    <td className="py-2 text-zinc-500">{entry.notes || "—"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+
+        <div className="flex justify-end border-t border-zinc-100 px-5 py-3">
+          <button
+            type="button"
+            className="h-9 rounded-md border border-zinc-300 bg-white px-4 text-sm font-medium text-zinc-700 hover:bg-zinc-50"
+            onClick={onClose}
+          >
+            Close
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function AdminWorklogsClient({
   worklogs,
   clients,
@@ -804,9 +893,14 @@ export function AdminWorklogsClient({
 }) {
   const router = useRouter();
   const [editingId, setEditingId] = React.useState<string | null>(null);
+  const [viewingId, setViewingId] = React.useState<string | null>(null);
+  const viewingWorklog = worklogs.find((w) => w.id === viewingId) ?? null;
 
   return (
     <div className="rounded-lg border border-zinc-200">
+      {viewingWorklog ? (
+        <WorklogDetailModal worklog={viewingWorklog} onClose={() => setViewingId(null)} />
+      ) : null}
       <table className="w-full table-fixed border-separate border-spacing-0">
         <thead>
           <tr className="text-left text-xs text-zinc-600">
@@ -815,7 +909,7 @@ export function AdminWorklogsClient({
             <th className="w-24 border-b border-zinc-200 px-3 py-2">Status</th>
             <th className="border-b border-zinc-200 px-3 py-2">Lines</th>
             {/* Fix: added Edit column so admins can open an inline editor for each worklog row */}
-            <th className="w-24 border-b border-zinc-200 px-3 py-2">Edit</th>
+            <th className="w-40 border-b border-zinc-200 px-3 py-2">Actions</th>
           </tr>
         </thead>
         <tbody>
@@ -841,20 +935,30 @@ export function AdminWorklogsClient({
                     </div>
                   </td>
                   <td className="border-b border-zinc-100 px-3 py-2 text-sm">
-                    <button
-                      type="button"
-                      className="h-9 rounded-md border border-zinc-300 bg-white px-3 text-sm hover:bg-zinc-50 disabled:opacity-50"
-                      onClick={() => setEditingId(worklog.id)}
-                      disabled={editingId !== null && editingId !== worklog.id}
-                    >
-                      {isEditing ? "Editing" : "Edit"}
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        className="h-9 rounded-md border border-zinc-300 bg-white px-3 text-sm hover:bg-zinc-50 disabled:opacity-50"
+                        onClick={() => setEditingId(worklog.id)}
+                        disabled={editingId !== null && editingId !== worklog.id}
+                      >
+                        {isEditing ? "Editing" : "Edit"}
+                      </button>
+                      <button
+                        type="button"
+                        className="h-9 rounded-md border border-zinc-300 bg-white px-3 text-sm hover:bg-zinc-50 disabled:opacity-50"
+                        onClick={() => setViewingId(worklog.id)}
+                        disabled={editingId !== null}
+                      >
+                        View
+                      </button>
+                    </div>
                   </td>
                 </tr>
                 {isEditing ? (
                   <tr>
                     {/* Fix: inline edit section opens below the row and can only close with Save or Cancel */}
-                    <td colSpan={5} className="border-b border-zinc-100 px-3 py-3">
+                    <td colSpan={6} className="border-b border-zinc-100 px-3 py-3">
                       <InlineEditor
                         row={worklog}
                         clients={clients}
