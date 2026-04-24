@@ -345,130 +345,137 @@ function InlineEditor({
           {draft.tasks.map((task, index) => {
             const clientProjects = task.clientId ? projectsByClient.get(task.clientId) ?? [] : [];
             return (
-              <div key={task.id} className="grid gap-3 rounded-md border border-zinc-200 bg-white p-3 md:grid-cols-[1.2fr_1fr_1fr_0.8fr_1.6fr_auto]">
-                <label className="grid gap-1">
-                  <span className="text-xs font-medium text-zinc-600">Client</span>
-                  <select
-                    value={task.clientId}
-                    onChange={(e) => {
-                      const clientId = e.target.value;
-                      const hasRetainer = hasRetainerByClientId.has(clientId);
-                      const nextProjects = clientId ? projectsByClient.get(clientId) ?? [] : [];
-                      setDraft((prev) => ({
-                        ...prev,
-                        tasks: prev.tasks.map((item, itemIndex) =>
-                          itemIndex !== index
-                            ? item
-                            : {
-                                ...item,
-                                clientId,
-                                engagementType: hasRetainer ? "RETAINER" : "MISC_PROJECT",
-                                projectId: hasRetainer ? null : nextProjects[0]?.id ?? null,
-                              },
-                        ),
-                      }));
-                    }}
-                    className="h-10 rounded-md border border-zinc-300 bg-white px-3"
-                  >
-                    <option value="">(select)</option>
-                    {clients.map((client) => (
-                      <option key={client.id} value={client.id}>
-                        {client.name}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label className="grid gap-1">
-                  <span className="text-xs font-medium text-zinc-600">Engagement</span>
-                  <select
-                    value={task.engagementType === "RETAINER" ? "RETAINER" : task.projectId ? `PROJECT:${task.projectId}` : ""}
-                    onChange={(e) => {
-                      const value = e.target.value;
-                      setDraft((prev) => ({
-                        ...prev,
-                        tasks: prev.tasks.map((item, itemIndex) => {
-                          if (itemIndex !== index) return item;
-                          if (value === "RETAINER") return { ...item, engagementType: "RETAINER", projectId: null };
-                          return { ...item, engagementType: "MISC_PROJECT", projectId: value.replace("PROJECT:", "") || null };
-                        }),
-                      }));
-                    }}
-                    disabled={!task.clientId}
-                    className="h-10 rounded-md border border-zinc-300 bg-white px-3 disabled:bg-zinc-50"
-                  >
-                    <option value="">(select)</option>
-                    {task.clientId && hasRetainerByClientId.has(task.clientId) ? <option value="RETAINER">Retainer</option> : null}
-                    {clientProjects.map((project) => (
-                      <option key={project.id} value={`PROJECT:${project.id}`}>
-                        {projectLabel(project)}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label className="grid gap-1">
-                  <span className="text-xs font-medium text-zinc-600">Category</span>
-                  <select
-                    value={task.bucketKey}
-                    onChange={(e) => {
-                      const bucketKey = e.target.value;
-                      setDraft((prev) => ({
-                        ...prev,
-                        tasks: prev.tasks.map((item, itemIndex) => (itemIndex === index ? { ...item, bucketKey } : item)),
-                      }));
-                    }}
-                    className="h-10 rounded-md border border-zinc-300 bg-white px-3"
-                  >
-                    <option value="">(select)</option>
-                    {BUCKETS.map((bucket) => (
-                      <option key={bucket.key} value={bucket.key}>
-                        {bucket.name}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label className="grid gap-1">
-                  <span className="text-xs font-medium text-zinc-600">Hours</span>
-                  <input
-                    type="text"
-                    inputMode="decimal"
-                    value={task.hoursText}
-                    onChange={(e) => {
-                      const hoursText = e.target.value;
-                      setDraft((prev) => ({
-                        ...prev,
-                        tasks: prev.tasks.map((item, itemIndex) => (itemIndex === index ? { ...item, hoursText } : item)),
-                      }));
-                    }}
-                    className="h-10 rounded-md border border-zinc-300 bg-white px-3"
-                  />
-                </label>
-                <label className="grid gap-1">
-                  <span className="text-xs font-medium text-zinc-600">Notes</span>
-                  <textarea
-                    value={task.notes}
-                    onChange={(e) => {
-                      const notes = e.target.value;
-                      setDraft((prev) => ({
-                        ...prev,
-                        tasks: prev.tasks.map((item, itemIndex) => (itemIndex === index ? { ...item, notes } : item)),
-                      }));
-                    }}
-                    className="min-h-20 rounded-md border border-zinc-300 bg-white px-3 py-2"
-                  />
-                </label>
-                <div className="flex items-end">
-                  <button
-                    type="button"
-                    className="h-10 rounded-md border border-red-200 bg-red-50 px-3 text-sm font-medium text-red-700 hover:bg-red-100"
-                    onClick={() =>
-                      setDraft((prev) => ({
-                        ...prev,
-                        tasks: prev.tasks.length === 1 ? [blankTask()] : prev.tasks.filter((item, itemIndex) => itemIndex !== index),
-                      }))
-                    }
-                  >
-                    Delete
-                  </button>
+              <div key={task.id} className="space-y-3 rounded-md border border-zinc-200 bg-white p-3">
+                {/* Row 1: Client / Engagement / Category */}
+                <div className="grid gap-3 sm:grid-cols-3">
+                  <label className="grid gap-1">
+                    <span className="text-xs font-medium text-zinc-600">Client</span>
+                    <select
+                      value={task.clientId}
+                      onChange={(e) => {
+                        const clientId = e.target.value;
+                        const hasRetainer = hasRetainerByClientId.has(clientId);
+                        const nextProjects = clientId ? projectsByClient.get(clientId) ?? [] : [];
+                        setDraft((prev) => ({
+                          ...prev,
+                          tasks: prev.tasks.map((item, itemIndex) =>
+                            itemIndex !== index
+                              ? item
+                              : {
+                                  ...item,
+                                  clientId,
+                                  engagementType: hasRetainer ? "RETAINER" : "MISC_PROJECT",
+                                  projectId: hasRetainer ? null : nextProjects[0]?.id ?? null,
+                                },
+                          ),
+                        }));
+                      }}
+                      className="h-10 rounded-md border border-zinc-300 bg-white px-3"
+                    >
+                      <option value="">(select)</option>
+                      {clients.map((client) => (
+                        <option key={client.id} value={client.id}>
+                          {client.name}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="grid gap-1">
+                    <span className="text-xs font-medium text-zinc-600">Engagement</span>
+                    <select
+                      value={task.engagementType === "RETAINER" ? "RETAINER" : task.projectId ? `PROJECT:${task.projectId}` : ""}
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        setDraft((prev) => ({
+                          ...prev,
+                          tasks: prev.tasks.map((item, itemIndex) => {
+                            if (itemIndex !== index) return item;
+                            if (value === "RETAINER") return { ...item, engagementType: "RETAINER", projectId: null };
+                            return { ...item, engagementType: "MISC_PROJECT", projectId: value.replace("PROJECT:", "") || null };
+                          }),
+                        }));
+                      }}
+                      disabled={!task.clientId}
+                      className="h-10 rounded-md border border-zinc-300 bg-white px-3 disabled:bg-zinc-50"
+                    >
+                      <option value="">(select)</option>
+                      {task.clientId && hasRetainerByClientId.has(task.clientId) ? <option value="RETAINER">Retainer</option> : null}
+                      {clientProjects.map((project) => (
+                        <option key={project.id} value={`PROJECT:${project.id}`}>
+                          {projectLabel(project)}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="grid gap-1">
+                    <span className="text-xs font-medium text-zinc-600">Category</span>
+                    <select
+                      value={task.bucketKey}
+                      onChange={(e) => {
+                        const bucketKey = e.target.value;
+                        setDraft((prev) => ({
+                          ...prev,
+                          tasks: prev.tasks.map((item, itemIndex) => (itemIndex === index ? { ...item, bucketKey } : item)),
+                        }));
+                      }}
+                      className="h-10 rounded-md border border-zinc-300 bg-white px-3"
+                    >
+                      <option value="">(select)</option>
+                      {BUCKETS.map((bucket) => (
+                        <option key={bucket.key} value={bucket.key}>
+                          {bucket.name}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                </div>
+                {/* Row 2: Hours / Notes / Delete */}
+                <div className="flex flex-wrap items-start gap-3">
+                  <label className="grid w-28 shrink-0 gap-1">
+                    <span className="text-xs font-medium text-zinc-600">Hours</span>
+                    <input
+                      type="text"
+                      inputMode="decimal"
+                      value={task.hoursText}
+                      onChange={(e) => {
+                        const hoursText = e.target.value;
+                        setDraft((prev) => ({
+                          ...prev,
+                          tasks: prev.tasks.map((item, itemIndex) => (itemIndex === index ? { ...item, hoursText } : item)),
+                        }));
+                      }}
+                      className="h-10 rounded-md border border-zinc-300 bg-white px-3"
+                    />
+                  </label>
+                  <label className="grid min-w-0 flex-1 gap-1">
+                    <span className="text-xs font-medium text-zinc-600">Notes</span>
+                    <textarea
+                      rows={2}
+                      value={task.notes}
+                      onChange={(e) => {
+                        const notes = e.target.value;
+                        setDraft((prev) => ({
+                          ...prev,
+                          tasks: prev.tasks.map((item, itemIndex) => (itemIndex === index ? { ...item, notes } : item)),
+                        }));
+                      }}
+                      className="rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm"
+                    />
+                  </label>
+                  <div className="flex items-end pt-5">
+                    <button
+                      type="button"
+                      className="h-10 rounded-md border border-red-200 bg-red-50 px-3 text-sm font-medium text-red-700 hover:bg-red-100"
+                      onClick={() =>
+                        setDraft((prev) => ({
+                          ...prev,
+                          tasks: prev.tasks.length === 1 ? [blankTask()] : prev.tasks.filter((item, itemIndex) => itemIndex !== index),
+                        }))
+                      }
+                    >
+                      Delete
+                    </button>
+                  </div>
                 </div>
               </div>
             );
@@ -922,16 +929,16 @@ export function AdminWorklogsClient({
                   <td className="hidden border-b border-zinc-100 px-3 py-2 text-sm sm:table-cell">{worklog.user.name ?? worklog.user.email}</td>
                   <td className="border-b border-zinc-100 px-3 py-2 text-sm font-medium">{worklog.status}</td>
                   <td className="border-b border-zinc-100 px-3 py-2 text-xs text-zinc-700">
-                    <div className="space-y-1 break-words">
+                    <div className="max-h-24 overflow-hidden">
                       <div className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500 sm:hidden">
                         {worklog.user.name ?? worklog.user.email}
                       </div>
-                      {worklog.entries.slice(0, 5).map((entry) => (
-                        <div key={entry.id}>
-                          {entry.clientName} • {entry.bucketName} • {(entry.minutes / 60).toFixed(2)}h
+                      {worklog.entries.slice(0, 4).map((entry) => (
+                        <div key={entry.id} className="truncate">
+                          {entry.clientName} · {entry.bucketName} · {(entry.minutes / 60).toFixed(2)}h
                         </div>
                       ))}
-                      {worklog.entries.length > 5 ? <div>… +{worklog.entries.length - 5} more</div> : null}
+                      {worklog.entries.length > 4 ? <div className="text-zinc-400">+{worklog.entries.length - 4} more</div> : null}
                     </div>
                   </td>
                   <td className="border-b border-zinc-100 px-3 py-2 text-sm">
