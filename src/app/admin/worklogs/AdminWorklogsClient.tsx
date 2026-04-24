@@ -202,7 +202,7 @@ function projectLabel(project: ProjectOption) {
   return `${project.code} (${project.shortCode})`;
 }
 
-function InlineEditor({
+function WorklogEditModal({
   row,
   clients,
   projects,
@@ -217,6 +217,13 @@ function InlineEditor({
   onCancel: () => void;
   onSaved: () => void;
 }) {
+  React.useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") onCancel();
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onCancel]);
   const [draft, setDraft] = React.useState<DraftState>(() => buildDraft(row));
   const [saving, setSaving] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
@@ -287,15 +294,39 @@ function InlineEditor({
   }
 
   return (
-    <div className="space-y-5 rounded-lg border border-zinc-200 bg-zinc-50 p-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <div className="text-sm font-semibold text-zinc-900">Edit worklog for {row.user.name ?? row.user.email}</div>
-          <div className="text-xs text-zinc-500">Status stays as {row.status} when saved.</div>
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+      onClick={onCancel}
+    >
+      <div
+        className="flex w-full max-w-3xl flex-col rounded-xl border border-zinc-200 bg-white shadow-xl"
+        style={{ maxHeight: "90vh" }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="flex shrink-0 items-center justify-between border-b border-zinc-100 px-5 py-4">
+          <div>
+            <div className="text-sm font-semibold text-zinc-900">
+              {row.user.name ?? row.user.email}
+            </div>
+            <div className="text-xs text-zinc-500">
+              {fmtDate(row.workDate)} · {row.status} · edit mode
+            </div>
+          </div>
+          <button
+            type="button"
+            className="h-8 w-8 rounded-md border border-zinc-200 text-zinc-500 hover:bg-zinc-50"
+            onClick={onCancel}
+            aria-label="Close"
+            disabled={saving}
+          >
+            ✕
+          </button>
         </div>
-      </div>
 
-      {error ? <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div> : null}
+        {/* Scrollable body */}
+        <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-5 py-4">
+          {error ? <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div> : null}
 
       <div className="grid gap-3 md:grid-cols-3">
         <label className="grid gap-1">
@@ -775,23 +806,27 @@ function InlineEditor({
         </div>
       </section>
 
-      <div className="flex flex-wrap items-center justify-end gap-3 border-t border-zinc-200 pt-4">
-        <button
-          type="button"
-          className="h-10 rounded-md border border-zinc-300 bg-white px-4 text-sm font-medium text-zinc-700 hover:bg-zinc-100"
-          onClick={onCancel}
-          disabled={saving}
-        >
-          Cancel
-        </button>
-        <button
-          type="button"
-          className="h-10 rounded-md bg-zinc-900 px-4 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-60"
-          onClick={save}
-          disabled={saving}
-        >
-          {saving ? "Saving…" : "Save"}
-        </button>
+        </div>{/* end scrollable body */}
+
+        {/* Footer */}
+        <div className="flex shrink-0 items-center justify-end gap-3 border-t border-zinc-100 px-5 py-3">
+          <button
+            type="button"
+            className="h-9 rounded-md border border-zinc-300 bg-white px-4 text-sm font-medium text-zinc-700 hover:bg-zinc-50"
+            onClick={onCancel}
+            disabled={saving}
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            className="h-9 rounded-md bg-zinc-900 px-4 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-60"
+            onClick={save}
+            disabled={saving}
+          >
+            {saving ? "Saving…" : "Save"}
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -901,10 +936,24 @@ export function AdminWorklogsClient({
   const router = useRouter();
   const [editingId, setEditingId] = React.useState<string | null>(null);
   const [viewingId, setViewingId] = React.useState<string | null>(null);
+  const editingWorklog = worklogs.find((w) => w.id === editingId) ?? null;
   const viewingWorklog = worklogs.find((w) => w.id === viewingId) ?? null;
 
   return (
     <div className="rounded-lg border border-zinc-200">
+      {editingWorklog ? (
+        <WorklogEditModal
+          row={editingWorklog}
+          clients={clients}
+          projects={projects}
+          clientIdsWithRetainer={clientIdsWithRetainer}
+          onCancel={() => setEditingId(null)}
+          onSaved={() => {
+            setEditingId(null);
+            router.refresh();
+          }}
+        />
+      ) : null}
       {viewingWorklog ? (
         <WorklogDetailModal worklog={viewingWorklog} onClose={() => setViewingId(null)} />
       ) : null}
@@ -947,39 +996,22 @@ export function AdminWorklogsClient({
                         type="button"
                         className="h-9 rounded-md border border-zinc-300 bg-white px-3 text-sm hover:bg-zinc-50 disabled:opacity-50"
                         onClick={() => setEditingId(worklog.id)}
-                        disabled={editingId !== null && editingId !== worklog.id}
+                        disabled={editingId !== null || viewingId !== null}
                       >
-                        {isEditing ? "Editing" : "Edit"}
+                        Edit
                       </button>
                       <button
                         type="button"
                         className="h-9 rounded-md border border-zinc-300 bg-white px-3 text-sm hover:bg-zinc-50 disabled:opacity-50"
                         onClick={() => setViewingId(worklog.id)}
-                        disabled={editingId !== null}
+                        disabled={editingId !== null || viewingId !== null}
                       >
                         View
                       </button>
                     </div>
                   </td>
                 </tr>
-                {isEditing ? (
-                  <tr>
-                    {/* Fix: inline edit section opens below the row and can only close with Save or Cancel */}
-                    <td colSpan={6} className="border-b border-zinc-100 px-3 py-3">
-                      <InlineEditor
-                        row={worklog}
-                        clients={clients}
-                        projects={projects}
-                        clientIdsWithRetainer={clientIdsWithRetainer}
-                        onCancel={() => setEditingId(null)}
-                        onSaved={() => {
-                          setEditingId(null);
-                          router.refresh();
-                        }}
-                      />
-                    </td>
-                  </tr>
-                ) : null}
+
               </React.Fragment>
             );
           })}
